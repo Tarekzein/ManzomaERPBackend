@@ -6,11 +6,9 @@ use App\Modules\Authentication\Actions\Fortify\CreateNewUser;
 use App\Modules\Authentication\Actions\Fortify\ResetUserPassword;
 use App\Modules\Authentication\Actions\Fortify\UpdateUserPassword;
 use App\Modules\Authentication\Actions\Fortify\UpdateUserProfileInformation;
-use App\Modules\Authentication\Contracts\CompanyRepository;
 use App\Modules\Authentication\Contracts\LoginAttemptRepository;
 use App\Modules\Authentication\Contracts\RoleRepository;
 use App\Modules\Authentication\Contracts\UserRepository;
-use App\Modules\Authentication\Repositories\EloquentCompanyRepository;
 use App\Modules\Authentication\Repositories\EloquentLoginAttemptRepository;
 use App\Modules\Authentication\Repositories\EloquentUserRepository;
 use App\Modules\Authentication\Repositories\SpatieRoleRepository;
@@ -27,7 +25,6 @@ class AuthenticationServiceProvider extends ServiceProvider
 {
     public array $bindings = [
         UserRepository::class => EloquentUserRepository::class,
-        CompanyRepository::class => EloquentCompanyRepository::class,
         LoginAttemptRepository::class => EloquentLoginAttemptRepository::class,
         RoleRepository::class => SpatieRoleRepository::class,
     ];

@@ -36,6 +36,6 @@ class EloquentUserRepository implements UserRepository
 
     public function loadProfile(User $user): User
     {
-        return $user->load('company', 'roles.permissions');
+        return $user->load('company.subscription.plan.features', 'roles.permissions');
     }
 }

@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Modules\Authentication\Contracts;
+namespace App\Modules\Companies\Contracts;
 
-use App\Models\Company;
+use App\Modules\Companies\Models\Company;
 
 interface CompanyRepository
 {

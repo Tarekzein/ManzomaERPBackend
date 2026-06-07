@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Modules\Authentication\Repositories;
+namespace App\Modules\Companies\Repositories;
 
-use App\Models\Company;
-use App\Modules\Authentication\Contracts\CompanyRepository;
+use App\Modules\Companies\Contracts\CompanyRepository;
+use App\Modules\Companies\Models\Company;
 
 class EloquentCompanyRepository implements CompanyRepository
 {
