@@ -5,7 +5,8 @@ namespace Database\Seeders;
 use App\Models\Company;
 use App\Models\CompanySubscription;
 use App\Models\SubscriptionPlan;
-use App\Models\User;
+use App\Modules\Authentication\Enums\UserRole;
+use App\Modules\Authentication\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -13,17 +14,6 @@ class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
-        $platform = Company::updateOrCreate(
-            ['name' => 'ManzomaTech Platform'],
-            [
-                'plan' => 'enterprise',
-                'timezone' => 'Africa/Cairo',
-                'locale' => 'en',
-                'currency' => 'EGP',
-                'is_active' => true,
-            ]
-        );
-
         $demo = Company::updateOrCreate(
             ['name' => 'Demo Company'],
             [
@@ -38,12 +28,12 @@ class AdminUserSeeder extends Seeder
         $superAdmin = User::updateOrCreate(
             ['email' => env('ERP_SUPER_ADMIN_EMAIL', 'admin@manzomatech.com')],
             [
-                'company_id' => $platform->id,
+                'company_id' => null,
                 'name' => env('ERP_SUPER_ADMIN_NAME', 'ManzomaTech Super Admin'),
                 'password' => Hash::make(env('ERP_SUPER_ADMIN_PASSWORD', 'Admin#12345')),
             ]
         );
-        $superAdmin->syncRoles(['Super Admin']);
+        $superAdmin->syncRoles([UserRole::SuperAdmin->value]);
 
         $companyAdmin = User::updateOrCreate(
             ['email' => env('ERP_COMPANY_ADMIN_EMAIL', 'company.admin@example.com')],
@@ -53,10 +43,13 @@ class AdminUserSeeder extends Seeder
                 'password' => Hash::make(env('ERP_COMPANY_ADMIN_PASSWORD', 'Admin#12345')),
             ]
         );
-        $companyAdmin->syncRoles(['Company Admin']);
+        $companyAdmin->syncRoles([UserRole::CompanyAdmin->value]);
 
-        $this->ensureSubscription($platform, 'enterprise');
         $this->ensureSubscription($demo, 'professional');
+
+        Company::where('name', 'ManzomaTech Platform')
+            ->whereDoesntHave('users')
+            ->delete();
     }
 
     private function ensureSubscription(Company $company, string $planSlug): void

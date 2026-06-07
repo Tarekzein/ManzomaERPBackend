@@ -1,6 +1,7 @@
 <?php
 
 use App\Support\ApiResponse;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -28,5 +29,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $exceptions->render(function (AuthenticationException $exception) {
             return ApiResponse::error($exception->getMessage(), status: 401);
+        });
+
+        $exceptions->render(function (AuthorizationException $exception) {
+            return ApiResponse::error($exception->getMessage(), status: 403);
         });
     })->create();

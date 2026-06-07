@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Modules\Authentication\Enums\UserRole;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -44,11 +45,11 @@ class RolesAndPermissionsSeeder extends Seeder
 
         $permissions->each(fn (string $permission) => Permission::findOrCreate($permission));
 
-        $superAdmin = Role::findOrCreate('Super Admin');
-        $companyAdmin = Role::findOrCreate('Company Admin');
-        $manager = Role::findOrCreate('Manager');
-        $employee = Role::findOrCreate('Employee');
-        $viewer = Role::findOrCreate('Viewer');
+        $superAdmin = Role::findOrCreate(UserRole::SuperAdmin->value);
+        $companyAdmin = Role::findOrCreate(UserRole::CompanyAdmin->value);
+        $manager = Role::findOrCreate(UserRole::Manager->value);
+        $employee = Role::findOrCreate(UserRole::Employee->value);
+        $viewer = Role::findOrCreate(UserRole::Viewer->value);
 
         $superAdmin->syncPermissions(Permission::all());
 

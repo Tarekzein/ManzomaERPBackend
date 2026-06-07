@@ -10,6 +10,7 @@ Each module starts with the same shape:
 
 Initial modules:
 
+- `Authentication`: login, registration, tokens, users, roles, permissions, and login auditing.
 - `Platform`: cross-cutting API conventions, audit, feature flags, and shared services.
 - `Companies`: onboarding, company profile, subscriptions, usage metering, and export workflows.
 - `HR`: employees, org structure, leave, attendance, payroll, payslips, and HR reports.

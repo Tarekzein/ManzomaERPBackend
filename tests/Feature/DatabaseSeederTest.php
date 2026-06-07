@@ -6,7 +6,7 @@ use App\Models\Company;
 use App\Models\CompanySubscription;
 use App\Models\SubscriptionFeature;
 use App\Models\SubscriptionPlan;
-use App\Models\User;
+use App\Modules\Authentication\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
@@ -31,11 +31,14 @@ class DatabaseSeederTest extends TestCase
         $this->assertDatabaseHas(SubscriptionPlan::class, ['slug' => 'enterprise']);
         $this->assertGreaterThanOrEqual(10, SubscriptionFeature::count());
 
-        $this->assertDatabaseHas(Company::class, ['name' => 'ManzomaTech Platform']);
         $this->assertDatabaseHas(Company::class, ['name' => 'Demo Company']);
-        $this->assertDatabaseHas(User::class, ['email' => 'admin@manzomatech.com']);
+        $this->assertDatabaseHas(User::class, [
+            'email' => 'admin@manzomatech.com',
+            'company_id' => null,
+        ]);
         $this->assertDatabaseHas(User::class, ['email' => 'company.admin@example.com']);
-        $this->assertSame(2, CompanySubscription::where('status', 'active')->count());
+        $this->assertSame(1, Company::count());
+        $this->assertSame(1, CompanySubscription::where('status', 'active')->count());
 
         $this->assertTrue(User::where('email', 'admin@manzomatech.com')->first()->hasRole('Super Admin'));
         $this->assertTrue(User::where('email', 'company.admin@example.com')->first()->hasRole('Company Admin'));

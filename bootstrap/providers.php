@@ -1,11 +1,11 @@
 <?php
 
+use App\Modules\Authentication\Providers\AuthenticationServiceProvider;
 use App\Providers\AppServiceProvider;
-use App\Providers\FortifyServiceProvider;
 use App\Providers\HorizonServiceProvider;
 
 return [
     AppServiceProvider::class,
-    FortifyServiceProvider::class,
+    AuthenticationServiceProvider::class,
     HorizonServiceProvider::class,
 ];
