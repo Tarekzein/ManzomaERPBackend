@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Modules\Authentication\Enums\UserRole;
 use App\Modules\Authentication\Models\User;
+use App\Modules\Subscriptions\Models\SubscriptionFeature;
+use App\Modules\Subscriptions\Models\SubscriptionPlan;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -51,6 +53,55 @@ class SubscriptionManagementTest extends TestCase
             ->assertJsonPath('data.features.0.pivot.value', '100');
     }
 
+    public function test_super_admin_can_add_update_and_remove_one_plan_feature_without_affecting_others(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        Sanctum::actingAs(User::where('email', 'admin@manzomatech.com')->firstOrFail());
+
+        $plan = SubscriptionPlan::where('slug', 'basic')->firstOrFail();
+        $keptFeature = SubscriptionFeature::where('slug', 'core.hr')->firstOrFail();
+        $managedFeature = SubscriptionFeature::where('slug', 'core.projects')->firstOrFail();
+
+        $this->putJson("/api/subscriptions/plans/{$plan->id}/features/{$managedFeature->id}", [
+            'enabled' => true,
+            'value' => '25',
+        ])->assertOk()
+            ->assertJsonFragment(['slug' => 'core.projects'])
+            ->assertJsonFragment(['value' => '25']);
+
+        $this->assertDatabaseHas('plan_feature', [
+            'subscription_plan_id' => $plan->id,
+            'subscription_feature_id' => $managedFeature->id,
+            'enabled' => true,
+            'value' => '25',
+        ]);
+
+        $this->putJson("/api/subscriptions/plans/{$plan->id}/features/{$managedFeature->id}", [
+            'enabled' => false,
+            'value' => '10',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('plan_feature', [
+            'subscription_plan_id' => $plan->id,
+            'subscription_feature_id' => $managedFeature->id,
+            'enabled' => false,
+            'value' => '10',
+        ]);
+
+        $this->deleteJson("/api/subscriptions/plans/{$plan->id}/features/{$managedFeature->id}")
+            ->assertOk()
+            ->assertJsonMissing(['slug' => 'core.projects']);
+
+        $this->assertDatabaseMissing('plan_feature', [
+            'subscription_plan_id' => $plan->id,
+            'subscription_feature_id' => $managedFeature->id,
+        ]);
+        $this->assertDatabaseHas('plan_feature', [
+            'subscription_plan_id' => $plan->id,
+            'subscription_feature_id' => $keptFeature->id,
+        ]);
+    }
+
     public function test_company_admin_can_change_company_subscription(): void
     {
         $this->seed(DatabaseSeeder::class);
@@ -80,6 +131,12 @@ class SubscriptionManagementTest extends TestCase
             'module' => 'platform',
             'is_metered' => false,
         ])->assertForbidden();
+
+        $plan = SubscriptionPlan::where('slug', 'basic')->firstOrFail();
+        $feature = SubscriptionFeature::where('slug', 'core.projects')->firstOrFail();
+
+        $this->deleteJson("/api/subscriptions/plans/{$plan->id}/features/{$feature->id}")
+            ->assertForbidden();
 
         $employee = User::factory()->create(['company_id' => $companyAdmin->company_id]);
         $employee->assignRole(UserRole::Employee->value);

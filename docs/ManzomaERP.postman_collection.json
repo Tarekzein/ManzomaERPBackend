@@ -1,0 +1,455 @@
+{
+  "info": {
+    "_postman_id": "25e9d78d-b21f-49c1-9358-ef5662a25555",
+    "name": "ManzomaERP API",
+    "description": "ManzomaERP backend API collection. Run Login as Super Admin or Login as Company Admin to populate authToken. Creation requests automatically store returned IDs for subsequent update requests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    { "key": "baseRoot", "value": "http://127.0.0.1:8000", "type": "string" },
+    { "key": "baseUrl", "value": "http://127.0.0.1:8000/api", "type": "string" },
+    { "key": "authToken", "value": "", "type": "string" },
+    { "key": "superAdminEmail", "value": "admin@manzomatech.com", "type": "string" },
+    { "key": "superAdminPassword", "value": "Admin#12345", "type": "string" },
+    { "key": "companyAdminEmail", "value": "company.admin@example.com", "type": "string" },
+    { "key": "companyAdminPassword", "value": "Admin#12345", "type": "string" },
+    { "key": "companyId", "value": "1", "type": "string" },
+    { "key": "userId", "value": "2", "type": "string" },
+    { "key": "planId", "value": "1", "type": "string" },
+    { "key": "featureId", "value": "1", "type": "string" }
+    ,{ "key": "accountId", "value": "1", "type": "string" }
+    ,{ "key": "periodId", "value": "1", "type": "string" }
+    ,{ "key": "journalId", "value": "1", "type": "string" }
+    ,{ "key": "contactId", "value": "1", "type": "string" }
+    ,{ "key": "invoiceId", "value": "1", "type": "string" }
+    ,{ "key": "bankAccountId", "value": "1", "type": "string" }
+    ,{ "key": "bankTransactionId", "value": "1", "type": "string" }
+    ,{ "key": "budgetId", "value": "1", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "System",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/health",
+            "description": "Check API health, version, and environment."
+          }
+        },
+        {
+          "name": "List ERP Modules",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/modules"
+          }
+        },
+        {
+          "name": "OpenAPI Specification",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseRoot}}/docs.openapi",
+            "description": "Generated Scribe OpenAPI specification."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register Company Admin",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "const json = pm.response.json();",
+                "if (json.data?.token) pm.collectionVariables.set('authToken', json.data.token);",
+                "if (json.data?.user?.company_id) pm.collectionVariables.set('companyId', json.data.user.company_id);",
+                "if (json.data?.user?.id) pm.collectionVariables.set('userId', json.data.user.id);"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_name\": \"Acme Trading\",\n  \"name\": \"Acme Company Admin\",\n  \"email\": \"acme.admin@example.com\",\n  \"password\": \"Secret#123\",\n  \"password_confirmation\": \"Secret#123\",\n  \"device_name\": \"postman\",\n  \"plan_slug\": \"basic\",\n  \"billing_cycle\": \"monthly\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/register"
+          }
+        },
+        {
+          "name": "Login as Super Admin",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": ["const json = pm.response.json();", "if (json.data?.token) pm.collectionVariables.set('authToken', json.data.token);"],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{superAdminEmail}}\",\n  \"password\": \"{{superAdminPassword}}\",\n  \"device_name\": \"postman\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "Login as Company Admin",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "const json = pm.response.json();",
+                "if (json.data?.token) pm.collectionVariables.set('authToken', json.data.token);",
+                "if (json.data?.user?.company_id) pm.collectionVariables.set('companyId', json.data.user.company_id);"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{companyAdminEmail}}\",\n  \"password\": \"{{companyAdminPassword}}\",\n  \"device_name\": \"postman\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "Authenticated Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/me"
+          }
+        },
+        {
+          "name": "Logout Current Device",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/logout"
+          }
+        },
+        {
+          "name": "Logout All Devices",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/logout-all"
+          }
+        }
+      ]
+    },
+    {
+      "name": "User Management",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/users?per_page=15"
+          }
+        },
+        {
+          "name": "List Assignable Roles",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/roles"
+          }
+        },
+        {
+          "name": "Create User",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": ["const json = pm.response.json();", "if (json.data?.id) pm.collectionVariables.set('userId', json.data.id);"],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Employee\",\n  \"email\": \"employee@example.com\",\n  \"password\": \"Secret#123\",\n  \"password_confirmation\": \"Secret#123\",\n  \"role\": \"Employee\",\n  \"company_id\": {{companyId}}\n}"
+            },
+            "url": "{{baseUrl}}/users",
+            "description": "Company Admins can omit company_id. Super Admins must provide it for company-scoped roles."
+          }
+        },
+        {
+          "name": "Update User Role",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"Manager\",\n  \"company_id\": {{companyId}}\n}"
+            },
+            "url": "{{baseUrl}}/users/{{userId}}/role"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Subscription Catalog",
+      "item": [
+        {
+          "name": "List Active Plans",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/subscriptions/plans"
+          }
+        },
+        {
+          "name": "List Features",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/subscriptions/features"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Subscription Administration - Super Admin",
+      "item": [
+        {
+          "name": "Create Plan",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": ["const json = pm.response.json();", "if (json.data?.id) pm.collectionVariables.set('planId', json.data.id);"],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slug\": \"growth\",\n  \"name\": \"Growth\",\n  \"description\": \"Plan for growing companies.\",\n  \"monthly_price\": 99,\n  \"annual_price\": 990,\n  \"currency\": \"USD\",\n  \"max_users\": 50,\n  \"storage_gb\": 50,\n  \"api_rate_limit_per_minute\": 100,\n  \"is_active\": true,\n  \"sort_order\": 2\n}"
+            },
+            "url": "{{baseUrl}}/subscriptions/plans"
+          }
+        },
+        {
+          "name": "Update Plan",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slug\": \"growth\",\n  \"name\": \"Growth Plus\",\n  \"description\": \"Updated plan for growing companies.\",\n  \"monthly_price\": 119,\n  \"annual_price\": 1190,\n  \"currency\": \"USD\",\n  \"max_users\": 75,\n  \"storage_gb\": 75,\n  \"api_rate_limit_per_minute\": 120,\n  \"is_active\": true,\n  \"sort_order\": 2\n}"
+            },
+            "url": "{{baseUrl}}/subscriptions/plans/{{planId}}"
+          }
+        },
+        {
+          "name": "Create Feature",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": ["const json = pm.response.json();", "if (json.data?.id) pm.collectionVariables.set('featureId', json.data.id);"],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slug\": \"automation.workflows\",\n  \"name\": \"Workflow Automation\",\n  \"module\": \"platform\",\n  \"description\": \"Automated ERP workflows.\",\n  \"is_metered\": false\n}"
+            },
+            "url": "{{baseUrl}}/subscriptions/features"
+          }
+        },
+        {
+          "name": "Update Feature",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slug\": \"automation.workflows\",\n  \"name\": \"Advanced Workflow Automation\",\n  \"module\": \"platform\",\n  \"description\": \"Advanced automated ERP workflows.\",\n  \"is_metered\": true\n}"
+            },
+            "url": "{{baseUrl}}/subscriptions/features/{{featureId}}"
+          }
+        },
+        {
+          "name": "Assign Features to Plan",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"features\": [\n    {\n      \"feature_id\": {{featureId}},\n      \"enabled\": true,\n      \"value\": \"100\"\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/subscriptions/plans/{{planId}}/features",
+            "description": "This replaces the plan's complete feature assignment set."
+          }
+        },
+        {
+          "name": "Add or Update One Plan Feature",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true,\n  \"value\": \"100\"\n}"
+            },
+            "url": "{{baseUrl}}/subscriptions/plans/{{planId}}/features/{{featureId}}",
+            "description": "Adds this feature to the plan or updates its enabled state and value without affecting other features."
+          }
+        },
+        {
+          "name": "Remove One Feature from Plan",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/subscriptions/plans/{{planId}}/features/{{featureId}}",
+            "description": "Removes only this feature from the selected plan."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Company Subscription - Company Admin",
+      "item": [
+        {
+          "name": "Get Current Subscription",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/subscriptions/current"
+          }
+        },
+        {
+          "name": "Subscribe or Change Plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan_slug\": \"professional\",\n  \"billing_cycle\": \"annual\"\n}"
+            },
+            "url": "{{baseUrl}}/subscriptions/subscribe",
+            "description": "Cancels the current active subscription and activates the selected plan."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Finance",
+      "item": [
+        { "name": "List Accounts", "request": { "method": "GET", "url": "{{baseUrl}}/finance/accounts" } },
+        { "name": "Create Account", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"code\":\"6100\",\"name\":\"Marketing Expense\",\"type\":\"expense\",\"currency\":\"EGP\"}" }, "url": "{{baseUrl}}/finance/accounts" } },
+        { "name": "Update Account", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"code\":\"6100\",\"name\":\"Marketing and Advertising\",\"type\":\"expense\",\"currency\":\"EGP\",\"is_active\":true}" }, "url": "{{baseUrl}}/finance/accounts/{{accountId}}" } },
+        { "name": "List Periods", "request": { "method": "GET", "url": "{{baseUrl}}/finance/periods" } },
+        { "name": "Create Period", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"2027\",\"starts_on\":\"2027-01-01\",\"ends_on\":\"2027-12-31\"}" }, "url": "{{baseUrl}}/finance/periods" } },
+        { "name": "Lock Period", "request": { "method": "POST", "url": "{{baseUrl}}/finance/periods/{{periodId}}/lock" } },
+        { "name": "List Journals", "request": { "method": "GET", "url": "{{baseUrl}}/finance/journals" } },
+        { "name": "Create Journal", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"entry_date\":\"2026-06-07\",\"description\":\"Opening balance\",\"lines\":[{\"account_id\":{{accountId}},\"debit\":1000,\"credit\":0,\"currency\":\"EGP\"},{\"account_id\":2,\"debit\":0,\"credit\":1000,\"currency\":\"EGP\"}]}" }, "url": "{{baseUrl}}/finance/journals" } },
+        { "name": "Post Journal", "request": { "method": "POST", "url": "{{baseUrl}}/finance/journals/{{journalId}}/post" } },
+        { "name": "List Contacts", "request": { "method": "GET", "url": "{{baseUrl}}/finance/contacts" } },
+        { "name": "Create Finance Contact", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"type\":\"customer\",\"name\":\"Customer One\",\"email\":\"customer@example.com\",\"currency\":\"EGP\"}" }, "url": "{{baseUrl}}/finance/contacts" } },
+        { "name": "List Invoices", "request": { "method": "GET", "url": "{{baseUrl}}/finance/invoices?type=receivable" } },
+        { "name": "Create Invoice", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"type\":\"receivable\",\"contact_id\":{{contactId}},\"number\":\"INV-001\",\"invoice_date\":\"2026-06-07\",\"due_date\":\"2026-07-07\",\"currency\":\"EGP\",\"lines\":[{\"account_id\":{{accountId}},\"description\":\"Services\",\"quantity\":1,\"unit_price\":500}]}" }, "url": "{{baseUrl}}/finance/invoices" } },
+        { "name": "Post Invoice", "request": { "method": "POST", "url": "{{baseUrl}}/finance/invoices/{{invoiceId}}/post" } },
+        { "name": "Record Payment", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"invoice_id\":{{invoiceId}},\"account_id\":{{accountId}},\"payment_date\":\"2026-06-07\",\"amount\":500,\"currency\":\"EGP\",\"reference\":\"PAY-001\"}" }, "url": "{{baseUrl}}/finance/payments" } },
+        { "name": "List Payment Schedules", "request": { "method": "GET", "url": "{{baseUrl}}/finance/payment-schedules" } },
+        { "name": "Schedule Payable Payment", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"invoice_id\":{{invoiceId}},\"scheduled_for\":\"2026-07-01\",\"amount\":500}" }, "url": "{{baseUrl}}/finance/payment-schedules" } },
+        { "name": "List Bank Accounts", "request": { "method": "GET", "url": "{{baseUrl}}/finance/bank-accounts" } },
+        { "name": "Create Bank Account", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"account_id\":{{accountId}},\"name\":\"Main Bank\",\"bank_name\":\"Example Bank\",\"currency\":\"EGP\",\"opening_balance\":0}" }, "url": "{{baseUrl}}/finance/bank-accounts" } },
+        { "name": "Create Bank Transaction", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"bank_account_id\":{{bankAccountId}},\"transaction_date\":\"2026-06-07\",\"description\":\"Deposit\",\"amount\":500}" }, "url": "{{baseUrl}}/finance/bank-transactions" } },
+        { "name": "Reconcile Bank Transaction", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"journal_entry_id\":{{journalId}}}" }, "url": "{{baseUrl}}/finance/bank-transactions/{{bankTransactionId}}/reconcile" } },
+        { "name": "List Taxes", "request": { "method": "GET", "url": "{{baseUrl}}/finance/taxes" } },
+        { "name": "Create Tax", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"VAT 14%\",\"region\":\"EG\",\"type\":\"VAT\",\"rate\":14,\"is_active\":true}" }, "url": "{{baseUrl}}/finance/taxes" } },
+        { "name": "List Exchange Rates", "request": { "method": "GET", "url": "{{baseUrl}}/finance/exchange-rates" } },
+        { "name": "Save Exchange Rate", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"base_currency\":\"EGP\",\"quote_currency\":\"USD\",\"rate\":0.02,\"rate_date\":\"2026-06-07\",\"source\":\"manual\"}" }, "url": "{{baseUrl}}/finance/exchange-rates" } },
+        { "name": "Sync Exchange Rates", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"quotes\":[\"USD\",\"EUR\"]}" }, "url": "{{baseUrl}}/finance/exchange-rates/sync" } },
+        { "name": "List Budgets", "request": { "method": "GET", "url": "{{baseUrl}}/finance/budgets" } },
+        { "name": "Create Budget", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"Annual Budget\",\"starts_on\":\"2026-01-01\",\"ends_on\":\"2026-12-31\",\"status\":\"approved\",\"lines\":[{\"account_id\":{{accountId}},\"amount\":10000}]}" }, "url": "{{baseUrl}}/finance/budgets" } },
+        { "name": "Budget Variance", "request": { "method": "GET", "url": "{{baseUrl}}/finance/budgets/{{budgetId}}/variance" } },
+        { "name": "Trial Balance", "request": { "method": "GET", "url": "{{baseUrl}}/finance/reports/trial-balance?from=2026-01-01&to=2026-12-31" } },
+        { "name": "Balance Sheet", "request": { "method": "GET", "url": "{{baseUrl}}/finance/reports/balance-sheet" } },
+        { "name": "Profit and Loss PDF", "request": { "method": "GET", "url": "{{baseUrl}}/finance/reports/profit-loss?format=pdf" } },
+        { "name": "Cash Flow Excel", "request": { "method": "GET", "url": "{{baseUrl}}/finance/reports/cash-flow?format=xlsx" } },
+        { "name": "Accounts Payable Aging", "request": { "method": "GET", "url": "{{baseUrl}}/finance/reports/aging/payable" } },
+        { "name": "Accounts Receivable Aging", "request": { "method": "GET", "url": "{{baseUrl}}/finance/reports/aging/receivable" } }
+      ]
+    }
+  ]
+}

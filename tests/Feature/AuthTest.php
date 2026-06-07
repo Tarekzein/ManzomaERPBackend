@@ -67,4 +67,13 @@ class AuthTest extends TestCase
             'successful' => false,
         ]);
     }
+
+    public function test_protected_api_endpoint_returns_json_unauthorized_without_accept_header(): void
+    {
+        $this->get('/api/auth/me')
+            ->assertUnauthorized()
+            ->assertHeader('content-type', 'application/json')
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'Unauthenticated.');
+    }
 }

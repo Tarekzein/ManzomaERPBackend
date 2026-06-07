@@ -3,6 +3,7 @@
 namespace App\Modules\Subscriptions\Repositories;
 
 use App\Modules\Subscriptions\Contracts\PlanRepository;
+use App\Modules\Subscriptions\Models\SubscriptionFeature;
 use App\Modules\Subscriptions\Models\SubscriptionPlan;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -36,6 +37,20 @@ class EloquentPlanRepository implements PlanRepository
     public function syncFeatures(SubscriptionPlan $plan, array $features): SubscriptionPlan
     {
         $plan->features()->sync($features);
+
+        return $plan->load('features');
+    }
+
+    public function upsertFeature(SubscriptionPlan $plan, SubscriptionFeature $feature, array $attributes): SubscriptionPlan
+    {
+        $plan->features()->syncWithoutDetaching([$feature->id => $attributes]);
+
+        return $plan->load('features');
+    }
+
+    public function removeFeature(SubscriptionPlan $plan, SubscriptionFeature $feature): SubscriptionPlan
+    {
+        $plan->features()->detach($feature->id);
 
         return $plan->load('features');
     }

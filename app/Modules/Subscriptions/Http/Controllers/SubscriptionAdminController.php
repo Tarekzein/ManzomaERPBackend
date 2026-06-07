@@ -8,6 +8,7 @@ use App\Modules\Subscriptions\DTOs\FeatureData;
 use App\Modules\Subscriptions\DTOs\PlanData;
 use App\Modules\Subscriptions\Http\Requests\AssignFeaturesRequest;
 use App\Modules\Subscriptions\Http\Requests\SaveFeatureRequest;
+use App\Modules\Subscriptions\Http\Requests\SavePlanFeatureRequest;
 use App\Modules\Subscriptions\Http\Requests\SavePlanRequest;
 use App\Modules\Subscriptions\Models\SubscriptionFeature;
 use App\Modules\Subscriptions\Models\SubscriptionPlan;
@@ -42,6 +43,28 @@ class SubscriptionAdminController extends Controller
         return ApiResponse::success(
             $this->catalog->assignFeatures($this->user($request), $plan, $request->validated('features')),
             'Plan features assigned'
+        );
+    }
+
+    public function savePlanFeature(
+        SavePlanFeatureRequest $request,
+        SubscriptionPlan $plan,
+        SubscriptionFeature $feature,
+    ): JsonResponse {
+        return ApiResponse::success(
+            $this->catalog->savePlanFeature($this->user($request), $plan, $feature, $request->validated()),
+            'Plan feature saved'
+        );
+    }
+
+    public function removePlanFeature(
+        Request $request,
+        SubscriptionPlan $plan,
+        SubscriptionFeature $feature,
+    ): JsonResponse {
+        return ApiResponse::success(
+            $this->catalog->removePlanFeature($this->user($request), $plan, $feature),
+            'Plan feature removed'
         );
     }
 

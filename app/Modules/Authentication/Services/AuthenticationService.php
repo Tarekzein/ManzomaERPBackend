@@ -11,6 +11,7 @@ use App\Modules\Authentication\Enums\UserRole;
 use App\Modules\Authentication\Models\User;
 use App\Modules\Companies\DTOs\CreateCompanyData;
 use App\Modules\Companies\Services\CompanyService;
+use App\Modules\Finance\Services\FinanceSetupService;
 use App\Modules\Subscriptions\DTOs\SubscribeData;
 use App\Modules\Subscriptions\Services\CompanySubscriptionService;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +26,7 @@ class AuthenticationService
         private readonly RoleRepository $roles,
         private readonly CompanyService $companies,
         private readonly CompanySubscriptionService $subscriptions,
+        private readonly FinanceSetupService $financeSetup,
     ) {}
 
     public function register(RegisterData $data): array
@@ -60,6 +62,7 @@ class AuthenticationService
                 new SubscribeData($data->planSlug, $data->billingCycle),
                 ['source' => 'registration', 'subscribed_by_user_id' => $user->id],
             );
+            $this->financeSetup->provision($company);
 
             return $this->users->loadProfile($user);
         });

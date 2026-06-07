@@ -3,10 +3,17 @@
 use App\Support\ApiResponse;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Spatie\Permission\Exceptions\UnauthorizedException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -16,9 +23,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        //
+        $middleware->redirectGuestsTo(
+            fn (Request $request) => $request->is('api/*') ? null : '/'
+        );
     })
     ->withExceptions(function (Exceptions $exceptions) {
+        $exceptions->shouldRenderJsonWhen(
+            fn (Request $request) => $request->is('api/*') || $request->expectsJson()
+        );
+
         $exceptions->render(function (ValidationException $exception) {
             return ApiResponse::error(
                 'Validation failed',
@@ -33,5 +46,51 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $exceptions->render(function (AuthorizationException $exception) {
             return ApiResponse::error($exception->getMessage(), status: 403);
+        });
+        $exceptions->renderable(function (Throwable $e) {
+            if ($e instanceof UnauthorizedException) {
+                return response()->json([
+                    'message' => 'You do not have permission to perform this action.',
+                ], 403);
+            }
+            if ($e instanceof AuthenticationException) {
+                return response()->json([
+                    'message' => 'Unauthenticated.',
+                ], 401);
+            }
+            if ($e instanceof ModelNotFoundException) {
+                return response()->json([
+                    'message' => 'The resource you are looking for does not exist.',
+                ], 404);
+            }
+            if ($e instanceof ValidationException) {
+                return response()->json([
+                    'message' => 'The given data was invalid.',
+                    'errors' => $e->errors(),
+                ], 422);
+            }
+            if ($e instanceof HttpResponseException) {
+                return $e->getResponse();
+            }
+            if ($e instanceof HttpException) {
+                return response()->json([
+                    'message' => $e->getMessage(),
+                ], $e->getStatusCode());
+            }
+            if ($e instanceof AuthorizationException) {
+                return response()->json([
+                    'message' => 'You do not have permission to perform this action.',
+                ], 403);
+            }
+            if ($e instanceof QueryException) {
+                return response()->json([
+                    'message' => 'A database error occurred.',
+                ], 500);
+            }
+            if ($e instanceof ThrottleRequestsException) {
+                return response()->json([
+                    'message' => 'Too many attempts. Please try again later.',
+                ], 429);
+            }
         });
     })->create();

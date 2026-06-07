@@ -58,6 +58,30 @@ class SubscriptionCatalogService
         return DB::transaction(fn () => $this->plans->syncFeatures($plan, $sync));
     }
 
+    public function savePlanFeature(
+        User $actor,
+        SubscriptionPlan $plan,
+        SubscriptionFeature $feature,
+        array $attributes,
+    ): SubscriptionPlan {
+        $this->policy->ensureCanManageCatalog($actor);
+
+        return DB::transaction(fn () => $this->plans->upsertFeature($plan, $feature, [
+            'enabled' => $attributes['enabled'] ?? true,
+            'value' => $attributes['value'] ?? null,
+        ]));
+    }
+
+    public function removePlanFeature(
+        User $actor,
+        SubscriptionPlan $plan,
+        SubscriptionFeature $feature,
+    ): SubscriptionPlan {
+        $this->policy->ensureCanManageCatalog($actor);
+
+        return DB::transaction(fn () => $this->plans->removeFeature($plan, $feature));
+    }
+
     public function createFeature(User $actor, FeatureData $data): SubscriptionFeature
     {
         $this->policy->ensureCanManageCatalog($actor);
