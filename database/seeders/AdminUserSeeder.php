@@ -2,11 +2,11 @@
 
 namespace Database\Seeders;
 
-use App\Models\Company;
-use App\Models\CompanySubscription;
-use App\Models\SubscriptionPlan;
 use App\Modules\Authentication\Enums\UserRole;
 use App\Modules\Authentication\Models\User;
+use App\Modules\Companies\Models\Company;
+use App\Modules\Subscriptions\Models\CompanySubscription;
+use App\Modules\Subscriptions\Models\SubscriptionPlan;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 

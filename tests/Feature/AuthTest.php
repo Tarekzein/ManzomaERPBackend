@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use Database\Seeders\SubscriptionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\PersonalAccessToken;
 use Tests\TestCase;
@@ -12,6 +13,8 @@ class AuthTest extends TestCase
 
     public function test_user_can_register_login_read_profile_and_logout(): void
     {
+        $this->seed(SubscriptionSeeder::class);
+
         $register = $this->postJson('/api/auth/register', [
             'company_name' => 'Acme Trading',
             'name' => 'Mona Admin',
@@ -19,12 +22,16 @@ class AuthTest extends TestCase
             'password' => 'Secret#123',
             'password_confirmation' => 'Secret#123',
             'device_name' => 'phpunit',
+            'plan_slug' => 'professional',
+            'billing_cycle' => 'annual',
         ]);
 
         $register
             ->assertCreated()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.user.company.name', 'Acme Trading')
+            ->assertJsonPath('data.user.company.subscription.plan.slug', 'professional')
+            ->assertJsonPath('data.user.company.subscription.billing_cycle', 'annual')
             ->assertJsonStructure(['data' => ['token']]);
 
         $login = $this->postJson('/api/auth/login', [
@@ -59,5 +66,14 @@ class AuthTest extends TestCase
             'email' => 'missing@example.com',
             'successful' => false,
         ]);
+    }
+
+    public function test_protected_api_endpoint_returns_json_unauthorized_without_accept_header(): void
+    {
+        $this->get('/api/auth/me')
+            ->assertUnauthorized()
+            ->assertHeader('content-type', 'application/json')
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'Unauthenticated.');
     }
 }

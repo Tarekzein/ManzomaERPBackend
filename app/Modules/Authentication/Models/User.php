@@ -2,8 +2,8 @@
 
 namespace App\Modules\Authentication\Models;
 
-use App\Models\Company;
 use App\Modules\Authentication\Enums\UserRole;
+use App\Modules\Companies\Models\Company;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;

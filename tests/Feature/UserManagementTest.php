@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\Company;
 use App\Modules\Authentication\Enums\UserRole;
 use App\Modules\Authentication\Models\User;
+use App\Modules\Companies\Models\Company;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;

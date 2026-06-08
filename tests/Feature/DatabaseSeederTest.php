@@ -2,11 +2,11 @@
 
 namespace Tests\Feature;
 
-use App\Models\Company;
-use App\Models\CompanySubscription;
-use App\Models\SubscriptionFeature;
-use App\Models\SubscriptionPlan;
 use App\Modules\Authentication\Models\User;
+use App\Modules\Companies\Models\Company;
+use App\Modules\Subscriptions\Models\CompanySubscription;
+use App\Modules\Subscriptions\Models\SubscriptionFeature;
+use App\Modules\Subscriptions\Models\SubscriptionPlan;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;

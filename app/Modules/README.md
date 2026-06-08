@@ -12,7 +12,8 @@ Initial modules:
 
 - `Authentication`: login, registration, tokens, users, roles, permissions, and login auditing.
 - `Platform`: cross-cutting API conventions, audit, feature flags, and shared services.
-- `Companies`: onboarding, company profile, subscriptions, usage metering, and export workflows.
+- `Companies`: company profiles and company lifecycle operations.
+- `Subscriptions`: plans, features, feature assignment, and company subscription lifecycle.
 - `HR`: employees, org structure, leave, attendance, payroll, payslips, and HR reports.
 - `Finance`: chart of accounts, ledger, AP/AR, bank reconciliation, budgets, tax, and financial periods.
 - `Inventory`: products, warehouses, stock movements, reorder alerts, barcode support, and valuation.

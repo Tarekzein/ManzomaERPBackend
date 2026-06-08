@@ -11,6 +11,7 @@
         "laravel/fortify": "^1.37",
         "laravel/framework": "^11.0",
         "laravel/horizon": "^5.47",
+        "laravel/nightwatch": "^1.28",
         "laravel/sanctum": "^4.3",
         "laravel/scout": "^11.2",
         "laravel/tinker": "^2.9",
@@ -69,6 +70,10 @@
         "optimize-autoloader": true,
         "preferred-install": "dist",
         "sort-packages": true,
+        "platform": {
+            "ext-pcntl": "8.2.0",
+            "ext-posix": "8.2.0"
+        },
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true,

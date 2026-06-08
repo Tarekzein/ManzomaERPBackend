@@ -1,0 +1,1 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:DejaVu Sans;font-size:11px}h1{font-size:18px}pre{white-space:pre-wrap}</style></head><body><h1>{{ $title }}</h1><pre>{{ json_encode($data, JSON_PRETTY_PRINT) }}</pre></body></html>
