@@ -40,6 +40,8 @@
     ,{ "key": "warehouseId", "value": "1", "type": "string" }
     ,{ "key": "locationId", "value": "1", "type": "string" }
     ,{ "key": "stockBalanceId", "value": "1", "type": "string" }
+    ,{ "key": "projectId", "value": "1", "type": "string" }
+    ,{ "key": "projectTaskId", "value": "1", "type": "string" }
   ],
   "item": [
     {
@@ -482,6 +484,59 @@
         { "name": "Stock Valuation Report", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/reports/valuation" } },
         { "name": "Set Reorder Point", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"reorder_point\":5,\"reorder_quantity\":20}" }, "url": "{{baseUrl}}/inventory/balances/{{stockBalanceId}}/reorder" } },
         { "name": "Open Reorder Alerts", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/reorder-alerts" } }
+      ]
+    },
+    {
+      "name": "Projects",
+      "item": [
+        { "name": "List Projects", "request": { "method": "GET", "url": "{{baseUrl}}/projects?per_page=15" } },
+        {
+          "name": "Create Project",
+          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "if (body.data && body.data.id) pm.collectionVariables.set('projectId', body.data.id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"name\":\"ERP Implementation\",\"description\":\"Implement ManzomaERP for the client\",\"start_date\":\"2026-06-08\",\"end_date\":\"2026-12-31\",\"budget\":100000,\"status\":\"active\"}" },
+            "url": "{{baseUrl}}/projects"
+          }
+        },
+        { "name": "Project Gantt", "request": { "method": "GET", "url": "{{baseUrl}}/projects/gantt" } },
+        { "name": "Get Project", "request": { "method": "GET", "url": "{{baseUrl}}/projects/{{projectId}}" } },
+        { "name": "Update Project", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"ERP Implementation - Updated\",\"status\":\"on_hold\",\"budget\":110000}" }, "url": "{{baseUrl}}/projects/{{projectId}}" } },
+        { "name": "Project Report", "request": { "method": "GET", "url": "{{baseUrl}}/projects/{{projectId}}/report" } },
+        { "name": "List Project Tasks", "request": { "method": "GET", "url": "{{baseUrl}}/projects/{{projectId}}/tasks?per_page=15" } },
+        {
+          "name": "Create Project Task",
+          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "if (body.data && body.data.id) pm.collectionVariables.set('projectTaskId', body.data.id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"title\":\"Design project database\",\"description\":\"Prepare the project schema and relationships\",\"priority\":\"high\",\"status\":\"to_do\",\"estimated_hours\":20,\"sort_order\":1,\"start_date\":\"2026-06-08\",\"due_date\":\"2026-06-30\"}" },
+            "url": "{{baseUrl}}/projects/{{projectId}}/tasks"
+          }
+        },
+        { "name": "Get Project Task", "request": { "method": "GET", "url": "{{baseUrl}}/project-tasks/{{projectTaskId}}" } },
+        { "name": "Update Project Task", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"priority\":\"critical\",\"status\":\"in_progress\",\"estimated_hours\":24}" }, "url": "{{baseUrl}}/project-tasks/{{projectTaskId}}" } },
+        { "name": "Log Task Time", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"work_date\":\"2026-06-08\",\"hours\":4,\"notes\":\"Implemented the initial project schema\"}" }, "url": "{{baseUrl}}/project-tasks/{{projectTaskId}}/time-logs" } },
+        {
+          "name": "Attach File to Task",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": [] },
+                { "key": "comment", "value": "Project task document", "type": "text" }
+              ]
+            },
+            "url": "{{baseUrl}}/project-tasks/{{projectTaskId}}/attachments",
+            "description": "Select a file in Postman before sending. Maximum file size is 20 MB."
+          }
+        },
+        { "name": "Add Task Comment", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"body\":\"The initial database design is ready for review.\"}" }, "url": "{{baseUrl}}/project-tasks/{{projectTaskId}}/comments" } },
+        { "name": "Record Project Expense", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"task_id\":{{projectTaskId}},\"finance_reference\":\"EXP-PRJ-001\",\"category\":\"Software\",\"description\":\"Project tooling expense\",\"amount\":2500,\"expense_date\":\"2026-06-08\"}" }, "url": "{{baseUrl}}/projects/{{projectId}}/expenses" } },
+        { "name": "Delete Project Task", "request": { "method": "DELETE", "url": "{{baseUrl}}/project-tasks/{{projectTaskId}}" } },
+        { "name": "Delete Project", "request": { "method": "DELETE", "url": "{{baseUrl}}/projects/{{projectId}}" } }
       ]
     }
   ]
