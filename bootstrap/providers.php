@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Authentication\Providers\AuthenticationServiceProvider;
+use App\Modules\Projects\Providers\ProjectsServiceProvider;
 use App\Modules\Companies\Providers\CompaniesServiceProvider;
 use App\Modules\Finance\Providers\FinanceServiceProvider;
 use App\Modules\Inventory\Providers\InventoryServiceProvider;
@@ -15,5 +16,6 @@ return [
     InventoryServiceProvider::class,
     SubscriptionsServiceProvider::class,
     AuthenticationServiceProvider::class,
+    ProjectsServiceProvider::class,
     HorizonServiceProvider::class,
 ];
