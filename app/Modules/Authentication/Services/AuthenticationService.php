@@ -12,6 +12,7 @@ use App\Modules\Authentication\Models\User;
 use App\Modules\Companies\DTOs\CreateCompanyData;
 use App\Modules\Companies\Services\CompanyService;
 use App\Modules\Finance\Services\FinanceSetupService;
+use App\Modules\Inventory\Services\InventorySetupService;
 use App\Modules\Subscriptions\DTOs\SubscribeData;
 use App\Modules\Subscriptions\Services\CompanySubscriptionService;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,7 @@ class AuthenticationService
         private readonly CompanyService $companies,
         private readonly CompanySubscriptionService $subscriptions,
         private readonly FinanceSetupService $financeSetup,
+        private readonly InventorySetupService $inventorySetup,
     ) {}
 
     public function register(RegisterData $data): array
@@ -63,6 +65,7 @@ class AuthenticationService
                 ['source' => 'registration', 'subscribed_by_user_id' => $user->id],
             );
             $this->financeSetup->provision($company);
+            $this->inventorySetup->provision($company);
 
             return $this->users->loadProfile($user);
         });

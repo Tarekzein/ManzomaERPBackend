@@ -35,6 +35,11 @@
     ,{ "key": "bankAccountId", "value": "1", "type": "string" }
     ,{ "key": "bankTransactionId", "value": "1", "type": "string" }
     ,{ "key": "budgetId", "value": "1", "type": "string" }
+    ,{ "key": "productId", "value": "1", "type": "string" }
+    ,{ "key": "unitId", "value": "1", "type": "string" }
+    ,{ "key": "warehouseId", "value": "1", "type": "string" }
+    ,{ "key": "locationId", "value": "1", "type": "string" }
+    ,{ "key": "stockBalanceId", "value": "1", "type": "string" }
   ],
   "item": [
     {
@@ -449,6 +454,34 @@
         { "name": "Cash Flow Excel", "request": { "method": "GET", "url": "{{baseUrl}}/finance/reports/cash-flow?format=xlsx" } },
         { "name": "Accounts Payable Aging", "request": { "method": "GET", "url": "{{baseUrl}}/finance/reports/aging/payable" } },
         { "name": "Accounts Receivable Aging", "request": { "method": "GET", "url": "{{baseUrl}}/finance/reports/aging/receivable" } }
+      ]
+    },
+    {
+      "name": "Inventory",
+      "item": [
+        { "name": "List Categories", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/categories" } },
+        { "name": "Create Category", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"Finished Goods\",\"code\":\"FINISHED\"}" }, "url": "{{baseUrl}}/inventory/categories" } },
+        { "name": "Update Category", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"Updated Category\",\"code\":\"FINISHED\"}" }, "url": "{{baseUrl}}/inventory/categories/1" } },
+        { "name": "List Units", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/units" } },
+        { "name": "Create Unit", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"Box\",\"symbol\":\"box\",\"precision\":0}" }, "url": "{{baseUrl}}/inventory/units" } },
+        { "name": "Update Unit", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"Carton\",\"symbol\":\"box\",\"precision\":0}" }, "url": "{{baseUrl}}/inventory/units/{{unitId}}" } },
+        { "name": "List Products", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/products" } },
+        { "name": "Create Product", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"unit_id\":{{unitId}},\"sku\":\"SKU-001\",\"name\":\"Product One\",\"sale_price\":50,\"purchase_price\":25,\"valuation_method\":\"fifo\"}" }, "url": "{{baseUrl}}/inventory/products" } },
+        { "name": "Update Product", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"unit_id\":{{unitId}},\"sku\":\"SKU-001\",\"name\":\"Updated Product\",\"sale_price\":55,\"purchase_price\":25,\"valuation_method\":\"fifo\",\"is_active\":true}" }, "url": "{{baseUrl}}/inventory/products/{{productId}}" } },
+        { "name": "Scan Barcode SKU or QR", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/scan/SKU-001" } },
+        { "name": "List Warehouses", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/warehouses" } },
+        { "name": "Create Warehouse", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"code\":\"SECOND\",\"name\":\"Second Warehouse\",\"is_active\":true}" }, "url": "{{baseUrl}}/inventory/warehouses" } },
+        { "name": "Update Warehouse", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"code\":\"SECOND\",\"name\":\"Updated Warehouse\",\"is_active\":true}" }, "url": "{{baseUrl}}/inventory/warehouses/{{warehouseId}}" } },
+        { "name": "Create Warehouse Location", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"warehouse_id\":{{warehouseId}},\"code\":\"A-01\",\"name\":\"Aisle A Shelf 1\"}" }, "url": "{{baseUrl}}/inventory/locations" } },
+        { "name": "Update Warehouse Location", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"warehouse_id\":{{warehouseId}},\"code\":\"A-01\",\"name\":\"Updated Aisle A Shelf 1\"}" }, "url": "{{baseUrl}}/inventory/locations/{{locationId}}" } },
+        { "name": "Receive Stock", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"type\":\"receipt\",\"reference\":\"PO-001\",\"lines\":[{\"product_id\":{{productId}},\"to_warehouse_id\":{{warehouseId}},\"to_location_id\":{{locationId}},\"quantity\":10,\"unit_cost\":25}]}" }, "url": "{{baseUrl}}/inventory/movements" } },
+        { "name": "Transfer Stock", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"type\":\"transfer\",\"reference\":\"TR-001\",\"lines\":[{\"product_id\":{{productId}},\"from_warehouse_id\":{{warehouseId}},\"from_location_id\":{{locationId}},\"to_warehouse_id\":2,\"to_location_id\":2,\"quantity\":2}]}" }, "url": "{{baseUrl}}/inventory/movements" } },
+        { "name": "Write Off Stock", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"type\":\"write_off\",\"reason_code\":\"DAMAGED\",\"lines\":[{\"product_id\":{{productId}},\"from_warehouse_id\":{{warehouseId}},\"from_location_id\":{{locationId}},\"quantity\":1}]}" }, "url": "{{baseUrl}}/inventory/movements" } },
+        { "name": "Movement History", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/reports/movements" } },
+        { "name": "Stock on Hand Report", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/reports/stock-on-hand" } },
+        { "name": "Stock Valuation Report", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/reports/valuation" } },
+        { "name": "Set Reorder Point", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"reorder_point\":5,\"reorder_quantity\":20}" }, "url": "{{baseUrl}}/inventory/balances/{{stockBalanceId}}/reorder" } },
+        { "name": "Open Reorder Alerts", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/reorder-alerts" } }
       ]
     }
   ]
