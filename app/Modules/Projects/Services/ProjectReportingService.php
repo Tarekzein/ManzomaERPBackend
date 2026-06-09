@@ -72,7 +72,16 @@ class ProjectReportingService
                 'allocated' => $budget,
                 'spent' => $spent,
                 'variance' => $budget - $spent,
+                'budget_allocated' => $budget,
+                'budget_spent' => $spent,
+                'budget_variance' => $budget - $spent,
             ],
+            'estimated_hours' => $estimatedHours,
+            'actual_hours' => $actualHours,
+            'variance_hours' => $estimatedHours - $actualHours,
+            'budget_allocated' => $budget,
+            'budget_spent' => $spent,
+            'budget_variance' => $budget - $spent,
         ];
     }
 

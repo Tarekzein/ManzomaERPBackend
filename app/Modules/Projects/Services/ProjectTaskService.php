@@ -24,11 +24,11 @@ class ProjectTaskService
         private readonly ProjectPolicy $policy,
     ) {}
 
-    public function list(User $actor, Project $project, int $perPage): LengthAwarePaginator
+    public function list(User $actor, Project $project, int $perPage, array $filters = [], ?string $sort = null): LengthAwarePaginator
     {
         $this->policy->ensureCanViewProject($actor, $project);
 
-        return $this->tasks->paginate($project, $perPage);
+        return $this->tasks->paginate($project, $perPage, $filters, $sort);
     }
 
     public function create(User $actor, Project $project, array $data): ProjectTask

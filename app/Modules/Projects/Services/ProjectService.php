@@ -7,10 +7,13 @@ use App\Modules\Projects\Contracts\ProjectActivityRepository;
 use App\Modules\Projects\Contracts\ProjectRepository;
 use App\Modules\Projects\Http\Requests\StoreProjectExpenseRequest;
 use App\Modules\Projects\Models\Project;
+use App\Modules\Projects\Models\ProjectComment;
 use App\Modules\Projects\Models\ProjectExpense;
+use App\Modules\Projects\Models\ProjectFileAttachment;
 use App\Modules\Projects\Models\ProjectTask;
 use App\Modules\Projects\Policies\ProjectPolicy;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 class ProjectService
@@ -21,11 +24,16 @@ class ProjectService
         private readonly ProjectPolicy $policy,
     ) {}
 
-    public function list(User $actor, int $perPage): LengthAwarePaginator
+    public function list(User $actor, int $perPage, array $filters = [], ?string $sort = null): LengthAwarePaginator
     {
         $this->policy->ensureCanList($actor);
 
-        return $this->projects->paginate($actor->isSuperAdmin() ? null : $actor->company_id, $perPage);
+        return $this->projects->paginate(
+            $actor->isSuperAdmin() ? null : $actor->company_id,
+            $perPage,
+            $filters,
+            $sort
+        );
     }
 
     public function show(User $actor, Project $project): Project
@@ -99,6 +107,40 @@ class ProjectService
             'amount' => $data['amount'],
             'expense_date' => $data['expense_date'],
         ]);
+    }
+
+    public function attachFile(User $actor, Project $project, UploadedFile $file, ?string $comment): ProjectFileAttachment
+    {
+        $this->policy->ensureCanContributeToProject($actor, $project);
+
+        $disk = config('projects.filesystem_disk', 's3');
+        $path = $file->store("projects/{$project->id}", $disk);
+
+        abort_unless($path, 500, 'File could not be stored.');
+
+        return $this->activity->attachFile([
+            'project_id' => $project->id,
+            'task_id' => null,
+            'uploaded_by' => $actor->id,
+            'disk' => $disk,
+            'path' => $path,
+            'original_name' => $file->getClientOriginalName(),
+            'mime_type' => $file->getClientMimeType(),
+            'size' => $file->getSize() ?: 0,
+            'comment' => $comment,
+        ])->load('uploader:id,name,email');
+    }
+
+    public function comment(User $actor, Project $project, string $body): ProjectComment
+    {
+        $this->policy->ensureCanContributeToProject($actor, $project);
+
+        return $this->activity->comment([
+            'project_id' => $project->id,
+            'task_id' => null,
+            'user_id' => $actor->id,
+            'body' => $body,
+        ])->load('user:id,name,email');
     }
 
     private function ensureTaskBelongsToProject(ProjectTask $task, Project $project): void

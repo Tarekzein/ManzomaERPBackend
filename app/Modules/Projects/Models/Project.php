@@ -2,15 +2,19 @@
 
 namespace App\Modules\Projects\Models;
 
-use App\Models\Company;
 use App\Modules\Authentication\Models\User;
+use App\Modules\Companies\Models\Company;
 use App\Modules\Projects\Enums\ProjectStatus;
+use Database\Factories\ProjectFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Project extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'company_id',
         'owner_id',
@@ -65,5 +69,10 @@ class Project extends Model
     public function expenses(): HasMany
     {
         return $this->hasMany(ProjectExpense::class);
+    }
+
+    protected static function newFactory(): ProjectFactory
+    {
+        return ProjectFactory::new();
     }
 }

@@ -9,13 +9,25 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class EloquentProjectTaskRepository implements ProjectTaskRepository
 {
-    public function paginate(Project $project, int $perPage): LengthAwarePaginator
+    public function paginate(Project $project, int $perPage, array $filters = [], ?string $sort = null): LengthAwarePaginator
     {
         return $project->tasks()
+            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
+            ->when($filters['priority'] ?? null, fn ($query, $priority) => $query->where('priority', $priority))
+            ->when($filters['assignee_id'] ?? null, fn ($query, $assigneeId) => $query->where('assignee_id', $assigneeId))
+            ->when($filters['starts_from'] ?? null, fn ($query, $date) => $query->whereDate('start_date', '>=', $date))
+            ->when($filters['starts_before'] ?? null, fn ($query, $date) => $query->whereDate('start_date', '<=', $date))
+            ->when($filters['due_from'] ?? null, fn ($query, $date) => $query->whereDate('due_date', '>=', $date))
+            ->when($filters['due_before'] ?? null, fn ($query, $date) => $query->whereDate('due_date', '<=', $date))
+            ->when($filters['search'] ?? null, function ($query, $search) {
+                $query->where(function ($query) use ($search) {
+                    $query->where('title', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%");
+                });
+            })
             ->with(['assignee:id,name,email'])
             ->withSum('timeLogs as actual_hours', 'hours')
-            ->orderBy('sort_order')
-            ->latest('id')
+            ->tap(fn ($query) => $this->applySort($query, $sort))
             ->paginate($perPage);
     }
 
@@ -45,5 +57,31 @@ class EloquentProjectTaskRepository implements ProjectTaskRepository
             'attachments.uploader:id,name,email',
             'comments.user:id,name,email',
         ])->loadSum('timeLogs as actual_hours', 'hours');
+    }
+
+    private function applySort($query, ?string $sort): void
+    {
+        $allowed = [
+            'title',
+            'priority',
+            'status',
+            'estimated_hours',
+            'sort_order',
+            'start_date',
+            'due_date',
+            'created_at',
+            'updated_at',
+        ];
+
+        $direction = str_starts_with((string) $sort, '-') ? 'desc' : 'asc';
+        $column = ltrim((string) $sort, '-');
+
+        if (! in_array($column, $allowed, true)) {
+            $query->orderBy('sort_order')->latest('id');
+
+            return;
+        }
+
+        $query->orderBy($column, $direction);
     }
 }

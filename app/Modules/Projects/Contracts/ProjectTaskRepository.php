@@ -8,7 +8,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface ProjectTaskRepository
 {
-    public function paginate(Project $project, int $perPage): LengthAwarePaginator;
+    public function paginate(Project $project, int $perPage, array $filters = [], ?string $sort = null): LengthAwarePaginator;
 
     public function create(array $attributes): ProjectTask;
 
