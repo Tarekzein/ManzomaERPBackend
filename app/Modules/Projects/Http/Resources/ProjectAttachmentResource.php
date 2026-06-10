@@ -3,9 +3,8 @@
 namespace App\Modules\Projects\Http\Resources;
 
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class ProjectAttachmentResource extends JsonResource
+class ProjectAttachmentResource extends ProjectJsonResource
 {
     public function toArray(Request $request): array
     {
@@ -19,8 +18,8 @@ class ProjectAttachmentResource extends JsonResource
             'mime_type' => $this->mime_type,
             'size' => $this->size,
             'comment' => $this->comment,
-            'uploaded_by' => UserSummaryResource::make($this->whenLoaded('uploader')),
-            'created_at' => $this->created_at?->toISOString(),
+            'uploaded_by' => $this->user('uploader'),
+            'created_at' => $this->dateTime($this->created_at),
         ];
     }
 }

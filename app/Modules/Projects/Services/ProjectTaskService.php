@@ -37,19 +37,7 @@ class ProjectTaskService
 
         return DB::transaction(function () use ($project, $data) {
             $this->ensureAssigneeBelongsToProjectCompany($data['assignee_id'] ?? null, $project);
-
-            $task = $this->tasks->create([
-                'project_id' => $project->id,
-                'assignee_id' => $data['assignee_id'] ?? null,
-                'title' => $data['title'],
-                'description' => $data['description'] ?? null,
-                'priority' => $data['priority'] ?? 'medium',
-                'status' => $data['status'] ?? TaskStatus::ToDo->value,
-                'estimated_hours' => $data['estimated_hours'] ?? 0,
-                'sort_order' => $data['sort_order'] ?? 0,
-                'start_date' => $data['start_date'] ?? null,
-                'due_date' => $data['due_date'] ?? null,
-            ]);
+            $task = $this->tasks->create($this->taskData($project, $data));
 
             return $this->tasks->withDetails($task);
         });
@@ -69,15 +57,7 @@ class ProjectTaskService
         return DB::transaction(function () use ($task, $data) {
             $this->ensureAssigneeBelongsToProjectCompany($data['assignee_id'] ?? null, $task->project);
 
-            if (($data['status'] ?? null) === TaskStatus::Done->value && ! $task->completed_at) {
-                $data['completed_at'] = now();
-            }
-
-            if (($data['status'] ?? null) && $data['status'] !== TaskStatus::Done->value) {
-                $data['completed_at'] = null;
-            }
-
-            return $this->tasks->withDetails($this->tasks->save($task, $data));
+            return $this->tasks->withDetails($this->tasks->save($task, $this->completionData($task, $data)));
         });
     }
 
@@ -110,17 +90,9 @@ class ProjectTaskService
 
         abort_unless($path, 500, 'File could not be stored.');
 
-        return $this->activity->attachFile([
-            'project_id' => $task->project_id,
-            'task_id' => $task->id,
-            'uploaded_by' => $actor->id,
-            'disk' => $disk,
-            'path' => $path,
-            'original_name' => $file->getClientOriginalName(),
-            'mime_type' => $file->getClientMimeType(),
-            'size' => $file->getSize() ?: 0,
-            'comment' => $comment,
-        ])->load('uploader:id,name,email');
+        return $this->activity
+            ->attachFile($this->attachmentData($actor, $task, $file, $disk, $path, $comment))
+            ->load('uploader:id,name,email');
     }
 
     public function comment(User $actor, ProjectTask $task, string $body): ProjectComment
@@ -133,6 +105,56 @@ class ProjectTaskService
             'user_id' => $actor->id,
             'body' => $body,
         ])->load('user:id,name,email');
+    }
+
+    private function taskData(Project $project, array $data): array
+    {
+        return [
+            'project_id' => $project->id,
+            'assignee_id' => $data['assignee_id'] ?? null,
+            'title' => $data['title'],
+            'description' => $data['description'] ?? null,
+            'priority' => $data['priority'] ?? 'medium',
+            'status' => $data['status'] ?? TaskStatus::ToDo->value,
+            'estimated_hours' => $data['estimated_hours'] ?? 0,
+            'sort_order' => $data['sort_order'] ?? 0,
+            'start_date' => $data['start_date'] ?? null,
+            'due_date' => $data['due_date'] ?? null,
+        ];
+    }
+
+    private function completionData(ProjectTask $task, array $data): array
+    {
+        if (($data['status'] ?? null) === TaskStatus::Done->value && ! $task->completed_at) {
+            $data['completed_at'] = now();
+        }
+
+        if (($data['status'] ?? null) && $data['status'] !== TaskStatus::Done->value) {
+            $data['completed_at'] = null;
+        }
+
+        return $data;
+    }
+
+    private function attachmentData(
+        User $actor,
+        ProjectTask $task,
+        UploadedFile $file,
+        string $disk,
+        string $path,
+        ?string $comment
+    ): array {
+        return [
+            'project_id' => $task->project_id,
+            'task_id' => $task->id,
+            'uploaded_by' => $actor->id,
+            'disk' => $disk,
+            'path' => $path,
+            'original_name' => $file->getClientOriginalName(),
+            'mime_type' => $file->getClientMimeType(),
+            'size' => $file->getSize() ?: 0,
+            'comment' => $comment,
+        ];
     }
 
     private function ensureAssigneeBelongsToProjectCompany(?int $assigneeId, Project $project): void

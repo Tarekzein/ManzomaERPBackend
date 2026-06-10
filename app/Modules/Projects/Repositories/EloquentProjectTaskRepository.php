@@ -6,25 +6,14 @@ use App\Modules\Projects\Contracts\ProjectTaskRepository;
 use App\Modules\Projects\Models\Project;
 use App\Modules\Projects\Models\ProjectTask;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 
 class EloquentProjectTaskRepository implements ProjectTaskRepository
 {
     public function paginate(Project $project, int $perPage, array $filters = [], ?string $sort = null): LengthAwarePaginator
     {
         return $project->tasks()
-            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
-            ->when($filters['priority'] ?? null, fn ($query, $priority) => $query->where('priority', $priority))
-            ->when($filters['assignee_id'] ?? null, fn ($query, $assigneeId) => $query->where('assignee_id', $assigneeId))
-            ->when($filters['starts_from'] ?? null, fn ($query, $date) => $query->whereDate('start_date', '>=', $date))
-            ->when($filters['starts_before'] ?? null, fn ($query, $date) => $query->whereDate('start_date', '<=', $date))
-            ->when($filters['due_from'] ?? null, fn ($query, $date) => $query->whereDate('due_date', '>=', $date))
-            ->when($filters['due_before'] ?? null, fn ($query, $date) => $query->whereDate('due_date', '<=', $date))
-            ->when($filters['search'] ?? null, function ($query, $search) {
-                $query->where(function ($query) use ($search) {
-                    $query->where('title', 'like', "%{$search}%")
-                        ->orWhere('description', 'like', "%{$search}%");
-                });
-            })
+            ->tap(fn ($query) => $this->applyFilters($query, $filters))
             ->with(['assignee:id,name,email'])
             ->withSum('timeLogs as actual_hours', 'hours')
             ->tap(fn ($query) => $this->applySort($query, $sort))
@@ -59,7 +48,28 @@ class EloquentProjectTaskRepository implements ProjectTaskRepository
         ])->loadSum('timeLogs as actual_hours', 'hours');
     }
 
-    private function applySort($query, ?string $sort): void
+    private function applyFilters(Builder $query, array $filters): void
+    {
+        foreach (['status', 'priority', 'assignee_id'] as $field) {
+            $query->when($filters[$field] ?? null, fn ($query, $value) => $query->where($field, $value));
+        }
+
+        foreach ($this->dateFilters() as $filter => [$column, $operator]) {
+            $query->when($filters[$filter] ?? null, fn ($query, $date) => $query->whereDate($column, $operator, $date));
+        }
+
+        $query->when($filters['search'] ?? null, fn ($query, $search) => $this->applySearch($query, $search));
+    }
+
+    private function applySearch(Builder $query, string $search): void
+    {
+        $query->where(function (Builder $query) use ($search) {
+            $query->where('title', 'like', "%{$search}%")
+                ->orWhere('description', 'like', "%{$search}%");
+        });
+    }
+
+    private function applySort(Builder $query, ?string $sort): void
     {
         $allowed = [
             'title',
@@ -83,5 +93,15 @@ class EloquentProjectTaskRepository implements ProjectTaskRepository
         }
 
         $query->orderBy($column, $direction);
+    }
+
+    private function dateFilters(): array
+    {
+        return [
+            'starts_from' => ['start_date', '>='],
+            'starts_before' => ['start_date', '<='],
+            'due_from' => ['due_date', '>='],
+            'due_before' => ['due_date', '<='],
+        ];
     }
 }

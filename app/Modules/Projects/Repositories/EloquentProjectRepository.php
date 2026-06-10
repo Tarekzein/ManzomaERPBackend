@@ -5,6 +5,7 @@ namespace App\Modules\Projects\Repositories;
 use App\Modules\Projects\Contracts\ProjectRepository;
 use App\Modules\Projects\Models\Project;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
 class EloquentProjectRepository implements ProjectRepository
@@ -13,18 +14,7 @@ class EloquentProjectRepository implements ProjectRepository
     {
         return Project::query()
             ->when($companyId, fn ($query) => $query->where('company_id', $companyId))
-            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
-            ->when($filters['owner_id'] ?? null, fn ($query, $ownerId) => $query->where('owner_id', $ownerId))
-            ->when($filters['starts_from'] ?? null, fn ($query, $date) => $query->whereDate('start_date', '>=', $date))
-            ->when($filters['starts_before'] ?? null, fn ($query, $date) => $query->whereDate('start_date', '<=', $date))
-            ->when($filters['ends_from'] ?? null, fn ($query, $date) => $query->whereDate('end_date', '>=', $date))
-            ->when($filters['ends_before'] ?? null, fn ($query, $date) => $query->whereDate('end_date', '<=', $date))
-            ->when($filters['search'] ?? null, function ($query, $search) {
-                $query->where(function ($query) use ($search) {
-                    $query->where('name', 'like', "%{$search}%")
-                        ->orWhere('description', 'like', "%{$search}%");
-                });
-            })
+            ->tap(fn ($query) => $this->applyFilters($query, $filters))
             ->with(['owner:id,name,email'])
             ->withCount('tasks')
             ->withSum('timeLogs as actual_hours', 'hours')
@@ -72,7 +62,28 @@ class EloquentProjectRepository implements ProjectRepository
             ->get();
     }
 
-    private function applySort($query, ?string $sort): void
+    private function applyFilters(Builder $query, array $filters): void
+    {
+        foreach (['status', 'owner_id'] as $field) {
+            $query->when($filters[$field] ?? null, fn ($query, $value) => $query->where($field, $value));
+        }
+
+        foreach ($this->dateFilters() as $filter => [$column, $operator]) {
+            $query->when($filters[$filter] ?? null, fn ($query, $date) => $query->whereDate($column, $operator, $date));
+        }
+
+        $query->when($filters['search'] ?? null, fn ($query, $search) => $this->applySearch($query, $search));
+    }
+
+    private function applySearch(Builder $query, string $search): void
+    {
+        $query->where(function (Builder $query) use ($search) {
+            $query->where('name', 'like', "%{$search}%")
+                ->orWhere('description', 'like', "%{$search}%");
+        });
+    }
+
+    private function applySort(Builder $query, ?string $sort): void
     {
         $allowed = [
             'name',
@@ -94,5 +105,15 @@ class EloquentProjectRepository implements ProjectRepository
         }
 
         $query->orderBy($column, $direction);
+    }
+
+    private function dateFilters(): array
+    {
+        return [
+            'starts_from' => ['start_date', '>='],
+            'starts_before' => ['start_date', '<='],
+            'ends_from' => ['end_date', '>='],
+            'ends_before' => ['end_date', '<='],
+        ];
     }
 }

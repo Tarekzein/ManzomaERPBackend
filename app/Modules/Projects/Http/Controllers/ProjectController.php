@@ -84,7 +84,7 @@ class ProjectController extends Controller
     public function expense(StoreProjectExpenseRequest $request, Project $project): JsonResponse
     {
         return ApiResponse::success(
-            ProjectExpenseResource::make($this->projects->recordExpense($request->user(), $project, $request)),
+            ProjectExpenseResource::make($this->projects->recordExpense($request->user(), $project, $request->validated())),
             'Project expense recorded',
             status: 201
         );
