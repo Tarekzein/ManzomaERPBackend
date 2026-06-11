@@ -67,6 +67,15 @@
           }
         },
         {
+          "name": "Dashboard Summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/dashboard",
+            "description": "Returns platform metrics for Super Admin or company metrics for company users."
+          }
+        },
+        {
           "name": "OpenAPI Specification",
           "request": {
             "auth": { "type": "noauth" },
@@ -74,6 +83,19 @@
             "header": [{ "key": "Accept", "value": "application/json" }],
             "url": "{{baseRoot}}/docs.openapi",
             "description": "Generated Scribe OpenAPI specification."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Companies - Super Admin",
+      "item": [
+        {
+          "name": "List Companies",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/companies?search=&per_page=15"
           }
         }
       ]
