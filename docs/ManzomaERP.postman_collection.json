@@ -526,6 +526,22 @@
         { "name": "Get Project", "request": { "method": "GET", "url": "{{baseUrl}}/projects/{{projectId}}" } },
         { "name": "Update Project", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"ERP Implementation - Updated\",\"status\":\"on_hold\",\"budget\":110000}" }, "url": "{{baseUrl}}/projects/{{projectId}}" } },
         { "name": "Project Report", "request": { "method": "GET", "url": "{{baseUrl}}/projects/{{projectId}}/report" } },
+        {
+          "name": "Attach File to Project",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": [] },
+                { "key": "comment", "value": "Project-level document", "type": "text" }
+              ]
+            },
+            "url": "{{baseUrl}}/projects/{{projectId}}/attachments",
+            "description": "Select a file in Postman before sending. Maximum file size is 20 MB."
+          }
+        },
+        { "name": "Add Project Comment", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"body\":\"Project-level note ready for the team.\"}" }, "url": "{{baseUrl}}/projects/{{projectId}}/comments" } },
         { "name": "List Project Tasks", "request": { "method": "GET", "url": "{{baseUrl}}/projects/{{projectId}}/tasks?per_page=15" } },
         {
           "name": "Create Project Task",

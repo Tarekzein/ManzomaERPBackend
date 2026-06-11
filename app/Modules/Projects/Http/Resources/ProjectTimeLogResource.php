@@ -3,9 +3,8 @@
 namespace App\Modules\Projects\Http\Resources;
 
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class ProjectTimeLogResource extends JsonResource
+class ProjectTimeLogResource extends ProjectJsonResource
 {
     public function toArray(Request $request): array
     {
@@ -13,11 +12,11 @@ class ProjectTimeLogResource extends JsonResource
             'id' => $this->id,
             'project_id' => $this->project_id,
             'task_id' => $this->task_id,
-            'user' => UserSummaryResource::make($this->whenLoaded('user')),
-            'work_date' => $this->work_date?->toDateString(),
+            'user' => $this->user('user'),
+            'work_date' => $this->date($this->work_date),
             'hours' => (float) $this->hours,
             'notes' => $this->notes,
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $this->dateTime($this->created_at),
         ];
     }
 }

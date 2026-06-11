@@ -5,12 +5,16 @@ namespace App\Modules\Projects\Models;
 use App\Modules\Authentication\Models\User;
 use App\Modules\Projects\Enums\TaskPriority;
 use App\Modules\Projects\Enums\TaskStatus;
+use Database\Factories\ProjectTaskFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ProjectTask extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'project_id',
         'assignee_id',
@@ -60,5 +64,10 @@ class ProjectTask extends Model
     public function comments(): HasMany
     {
         return $this->hasMany(ProjectComment::class, 'task_id');
+    }
+
+    protected static function newFactory(): ProjectTaskFactory
+    {
+        return ProjectTaskFactory::new();
     }
 }

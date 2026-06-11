@@ -3,9 +3,8 @@
 namespace App\Modules\Projects\Http\Resources;
 
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class ProjectCommentResource extends JsonResource
+class ProjectCommentResource extends ProjectJsonResource
 {
     public function toArray(Request $request): array
     {
@@ -14,9 +13,9 @@ class ProjectCommentResource extends JsonResource
             'project_id' => $this->project_id,
             'task_id' => $this->task_id,
             'body' => $this->body,
-            'user' => UserSummaryResource::make($this->whenLoaded('user')),
-            'created_at' => $this->created_at?->toISOString(),
-            'updated_at' => $this->updated_at?->toISOString(),
+            'user' => $this->user('user'),
+            'created_at' => $this->dateTime($this->created_at),
+            'updated_at' => $this->dateTime($this->updated_at),
         ];
     }
 }

@@ -3,16 +3,10 @@
 namespace App\Modules\Projects\Http\Requests;
 
 use App\Modules\Projects\Enums\ProjectStatus;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class StoreProjectRequest extends FormRequest
+class StoreProjectRequest extends ProjectFormRequest
 {
-    public function authorize(): bool
-    {
-        return true;
-    }
-
     public function rules(): array
     {
         return [

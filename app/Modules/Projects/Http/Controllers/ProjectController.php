@@ -3,9 +3,13 @@
 namespace App\Modules\Projects\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Projects\Http\Requests\StoreAttachmentRequest;
+use App\Modules\Projects\Http\Requests\StoreCommentRequest;
 use App\Modules\Projects\Http\Requests\StoreProjectExpenseRequest;
 use App\Modules\Projects\Http\Requests\StoreProjectRequest;
 use App\Modules\Projects\Http\Requests\UpdateProjectRequest;
+use App\Modules\Projects\Http\Resources\ProjectAttachmentResource;
+use App\Modules\Projects\Http\Resources\ProjectCommentResource;
 use App\Modules\Projects\Http\Resources\ProjectExpenseResource;
 use App\Modules\Projects\Http\Resources\ProjectResource;
 use App\Modules\Projects\Models\Project;
@@ -25,7 +29,12 @@ class ProjectController extends Controller
     public function index(Request $request): JsonResponse
     {
         return ApiResponse::success(
-            ProjectResource::collection($this->projects->list($request->user(), $request->integer('per_page', 15))),
+            ProjectResource::collection($this->projects->list(
+                $request->user(),
+                $request->integer('per_page', 15),
+                $this->filters($request),
+                $this->sort($request)
+            )),
             'Projects loaded'
         );
     }
@@ -75,9 +84,46 @@ class ProjectController extends Controller
     public function expense(StoreProjectExpenseRequest $request, Project $project): JsonResponse
     {
         return ApiResponse::success(
-            ProjectExpenseResource::make($this->projects->recordExpense($request->user(), $project, $request)),
+            ProjectExpenseResource::make($this->projects->recordExpense($request->user(), $project, $request->validated())),
             'Project expense recorded',
             status: 201
         );
+    }
+
+    public function attach(StoreAttachmentRequest $request, Project $project): JsonResponse
+    {
+        return ApiResponse::success(
+            ProjectAttachmentResource::make($this->projects->attachFile(
+                $request->user(),
+                $project,
+                $request->file('file'),
+                $request->validated('comment')
+            )),
+            'Project file attached',
+            status: 201
+        );
+    }
+
+    public function comment(StoreCommentRequest $request, Project $project): JsonResponse
+    {
+        return ApiResponse::success(
+            ProjectCommentResource::make($this->projects->comment($request->user(), $project, $request->validated('body'))),
+            'Project comment added',
+            status: 201
+        );
+    }
+
+    private function filters(Request $request): array
+    {
+        $filters = $request->query('filter', []);
+
+        return is_array($filters) ? $filters : [];
+    }
+
+    private function sort(Request $request): ?string
+    {
+        $sort = $request->query('sort');
+
+        return is_string($sort) ? $sort : null;
     }
 }

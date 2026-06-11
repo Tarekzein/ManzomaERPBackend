@@ -4,16 +4,10 @@ namespace App\Modules\Projects\Http\Requests;
 
 use App\Modules\Projects\Enums\TaskPriority;
 use App\Modules\Projects\Enums\TaskStatus;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class UpdateProjectTaskRequest extends FormRequest
+class UpdateProjectTaskRequest extends ProjectFormRequest
 {
-    public function authorize(): bool
-    {
-        return true;
-    }
-
     public function rules(): array
     {
         return [

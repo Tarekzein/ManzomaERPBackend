@@ -2,15 +2,8 @@
 
 namespace App\Modules\Projects\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
-
-class StoreProjectExpenseRequest extends FormRequest
+class StoreProjectExpenseRequest extends ProjectFormRequest
 {
-    public function authorize(): bool
-    {
-        return true;
-    }
-
     public function rules(): array
     {
         return [

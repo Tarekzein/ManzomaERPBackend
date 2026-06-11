@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Collection;
 
 interface ProjectRepository
 {
-    public function paginate(?int $companyId, int $perPage): LengthAwarePaginator;
+    public function paginate(?int $companyId, int $perPage, array $filters = [], ?string $sort = null): LengthAwarePaginator;
 
     public function create(array $attributes): Project;
 

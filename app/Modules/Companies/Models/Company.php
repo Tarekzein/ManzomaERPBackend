@@ -4,6 +4,7 @@ namespace App\Modules\Companies\Models;
 
 use App\Modules\Authentication\Models\User;
 use App\Modules\Subscriptions\Models\CompanySubscription;
+use Database\Factories\CompanyFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -44,5 +45,10 @@ class Company extends Model
     public function subscriptions(): HasMany
     {
         return $this->hasMany(CompanySubscription::class);
+    }
+
+    protected static function newFactory(): CompanyFactory
+    {
+        return CompanyFactory::new();
     }
 }

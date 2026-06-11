@@ -9,6 +9,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('projects', ProjectController::class);
     Route::get('/projects/{project}/report', [ProjectController::class, 'report'])->name('projects.report');
     Route::post('/projects/{project}/expenses', [ProjectController::class, 'expense'])->name('projects.expenses.store');
+    Route::post('/projects/{project}/attachments', [ProjectController::class, 'attach'])->name('projects.attachments.store');
+    Route::post('/projects/{project}/comments', [ProjectController::class, 'comment'])->name('projects.comments.store');
 
     Route::get('/projects/{project}/tasks', [ProjectTaskController::class, 'index'])->name('projects.tasks.index');
     Route::post('/projects/{project}/tasks', [ProjectTaskController::class, 'store'])->name('projects.tasks.store');
