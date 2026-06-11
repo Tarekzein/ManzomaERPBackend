@@ -3,13 +3,12 @@
 namespace App\Modules\Projects\Http\Resources;
 
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class ProjectTaskResource extends JsonResource
+class ProjectTaskResource extends ProjectJsonResource
 {
     public function toArray(Request $request): array
     {
-        $actualHours = (float) ($this->actual_hours ?? $this->timeLogs->sum('hours'));
+        $actualHours = $this->floatSum('actual_hours', 'timeLogs', 'hours');
         $estimatedHours = (float) $this->estimated_hours;
 
         return [
@@ -23,15 +22,15 @@ class ProjectTaskResource extends JsonResource
             'actual_hours' => $actualHours,
             'hours_variance' => $estimatedHours - $actualHours,
             'sort_order' => $this->sort_order,
-            'start_date' => $this->start_date?->toDateString(),
-            'due_date' => $this->due_date?->toDateString(),
-            'completed_at' => $this->completed_at?->toISOString(),
-            'assignee' => UserSummaryResource::make($this->whenLoaded('assignee')),
-            'time_logs' => ProjectTimeLogResource::collection($this->whenLoaded('timeLogs')),
-            'attachments' => ProjectAttachmentResource::collection($this->whenLoaded('attachments')),
-            'comments' => ProjectCommentResource::collection($this->whenLoaded('comments')),
-            'created_at' => $this->created_at?->toISOString(),
-            'updated_at' => $this->updated_at?->toISOString(),
+            'start_date' => $this->date($this->start_date),
+            'due_date' => $this->date($this->due_date),
+            'completed_at' => $this->dateTime($this->completed_at),
+            'assignee' => $this->user('assignee'),
+            'time_logs' => $this->loadedCollection(ProjectTimeLogResource::class, 'timeLogs'),
+            'attachments' => $this->loadedCollection(ProjectAttachmentResource::class, 'attachments'),
+            'comments' => $this->loadedCollection(ProjectCommentResource::class, 'comments'),
+            'created_at' => $this->dateTime($this->created_at),
+            'updated_at' => $this->dateTime($this->updated_at),
         ];
     }
 }

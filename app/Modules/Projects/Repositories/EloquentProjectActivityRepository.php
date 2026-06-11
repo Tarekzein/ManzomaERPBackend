@@ -7,26 +7,32 @@ use App\Modules\Projects\Models\ProjectComment;
 use App\Modules\Projects\Models\ProjectExpense;
 use App\Modules\Projects\Models\ProjectFileAttachment;
 use App\Modules\Projects\Models\ProjectTimeLog;
+use Illuminate\Database\Eloquent\Model;
 
 class EloquentProjectActivityRepository implements ProjectActivityRepository
 {
     public function logTime(array $attributes): ProjectTimeLog
     {
-        return ProjectTimeLog::query()->create($attributes);
+        return $this->create(ProjectTimeLog::class, $attributes);
     }
 
     public function attachFile(array $attributes): ProjectFileAttachment
     {
-        return ProjectFileAttachment::query()->create($attributes);
+        return $this->create(ProjectFileAttachment::class, $attributes);
     }
 
     public function comment(array $attributes): ProjectComment
     {
-        return ProjectComment::query()->create($attributes);
+        return $this->create(ProjectComment::class, $attributes);
     }
 
     public function expense(array $attributes): ProjectExpense
     {
-        return ProjectExpense::query()->create($attributes);
+        return $this->create(ProjectExpense::class, $attributes);
+    }
+
+    private function create(string $model, array $attributes): Model
+    {
+        return $model::query()->create($attributes);
     }
 }

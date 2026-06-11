@@ -59,6 +59,17 @@ class ProjectPolicy
         throw new AuthorizationException('You cannot update this task activity.');
     }
 
+    public function ensureCanContributeToProject(User $actor, Project $project): void
+    {
+        $this->ensureCanViewProject($actor, $project);
+
+        if ($actor->isSuperAdmin() || $this->canManageCompanyWork($actor) || $project->owner_id === $actor->id) {
+            return;
+        }
+
+        throw new AuthorizationException('You cannot add activity to this project.');
+    }
+
     public function resolveCompanyId(User $actor, ?int $companyId): int
     {
         if ($actor->isSuperAdmin()) {

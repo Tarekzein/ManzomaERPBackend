@@ -3,14 +3,13 @@
 namespace App\Modules\Projects\Http\Resources;
 
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class ProjectResource extends JsonResource
+class ProjectResource extends ProjectJsonResource
 {
     public function toArray(Request $request): array
     {
-        $actualHours = (float) ($this->actual_hours ?? $this->timeLogs->sum('hours'));
-        $actualExpenses = (float) ($this->actual_expenses ?? $this->expenses->sum('amount'));
+        $actualHours = $this->floatSum('actual_hours', 'timeLogs', 'hours');
+        $actualExpenses = $this->floatSum('actual_expenses', 'expenses', 'amount');
         $budget = (float) $this->budget;
 
         return [
@@ -19,21 +18,21 @@ class ProjectResource extends JsonResource
             'name' => $this->name,
             'description' => $this->description,
             'status' => $this->status?->value,
-            'start_date' => $this->start_date?->toDateString(),
-            'end_date' => $this->end_date?->toDateString(),
+            'start_date' => $this->date($this->start_date),
+            'end_date' => $this->date($this->end_date),
             'budget' => $budget,
             'actual_hours' => $actualHours,
             'actual_expenses' => $actualExpenses,
             'budget_variance' => $budget - $actualExpenses,
             'tasks_count' => $this->tasks_count,
-            'owner' => UserSummaryResource::make($this->whenLoaded('owner')),
-            'tasks' => ProjectTaskResource::collection($this->whenLoaded('tasks')),
-            'time_logs' => ProjectTimeLogResource::collection($this->whenLoaded('timeLogs')),
-            'attachments' => ProjectAttachmentResource::collection($this->whenLoaded('attachments')),
-            'comments' => ProjectCommentResource::collection($this->whenLoaded('comments')),
-            'expenses' => ProjectExpenseResource::collection($this->whenLoaded('expenses')),
-            'created_at' => $this->created_at?->toISOString(),
-            'updated_at' => $this->updated_at?->toISOString(),
+            'owner' => $this->user('owner'),
+            'tasks' => $this->loadedCollection(ProjectTaskResource::class, 'tasks'),
+            'time_logs' => $this->loadedCollection(ProjectTimeLogResource::class, 'timeLogs'),
+            'attachments' => $this->loadedCollection(ProjectAttachmentResource::class, 'attachments'),
+            'comments' => $this->loadedCollection(ProjectCommentResource::class, 'comments'),
+            'expenses' => $this->loadedCollection(ProjectExpenseResource::class, 'expenses'),
+            'created_at' => $this->dateTime($this->created_at),
+            'updated_at' => $this->dateTime($this->updated_at),
         ];
     }
 }

@@ -3,11 +3,15 @@
 namespace App\Modules\Projects\Models;
 
 use App\Modules\Authentication\Models\User;
+use Database\Factories\ProjectFileAttachmentFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ProjectFileAttachment extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'project_id',
         'task_id',
@@ -33,5 +37,10 @@ class ProjectFileAttachment extends Model
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    protected static function newFactory(): ProjectFileAttachmentFactory
+    {
+        return ProjectFileAttachmentFactory::new();
     }
 }

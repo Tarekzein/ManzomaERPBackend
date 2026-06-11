@@ -26,7 +26,13 @@ class ProjectTaskController extends Controller
     public function index(Request $request, Project $project): JsonResponse
     {
         return ApiResponse::success(
-            ProjectTaskResource::collection($this->tasks->list($request->user(), $project, $request->integer('per_page', 15))),
+            ProjectTaskResource::collection($this->tasks->list(
+                $request->user(),
+                $project,
+                $request->integer('per_page', 15),
+                $this->filters($request),
+                $this->sort($request)
+            )),
             'Project tasks loaded'
         );
     }
@@ -93,5 +99,19 @@ class ProjectTaskController extends Controller
             'Task comment added',
             status: 201
         );
+    }
+
+    private function filters(Request $request): array
+    {
+        $filters = $request->query('filter', []);
+
+        return is_array($filters) ? $filters : [];
+    }
+
+    private function sort(Request $request): ?string
+    {
+        $sort = $request->query('sort');
+
+        return is_string($sort) ? $sort : null;
     }
 }

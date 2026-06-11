@@ -3,9 +3,8 @@
 namespace App\Modules\Projects\Http\Resources;
 
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class ProjectExpenseResource extends JsonResource
+class ProjectExpenseResource extends ProjectJsonResource
 {
     public function toArray(Request $request): array
     {
@@ -17,8 +16,8 @@ class ProjectExpenseResource extends JsonResource
             'category' => $this->category,
             'description' => $this->description,
             'amount' => (float) $this->amount,
-            'expense_date' => $this->expense_date?->toDateString(),
-            'created_at' => $this->created_at?->toISOString(),
+            'expense_date' => $this->date($this->expense_date),
+            'created_at' => $this->dateTime($this->created_at),
         ];
     }
 }
