@@ -37,4 +37,11 @@ The API namespace is `/api`.
 3. Expand Fortify/Sanctum auth with MFA endpoints when the frontend flow is ready.
 4. Seed default roles: Super Admin, Company Admin, Manager, Employee, Viewer.
 5. Add immutable audit logging for create/update/delete and RBAC changes.
-6. Build CRUD foundations for HR, Finance, Inventory, Sales, CRM, Projects, Reporting, Notifications, and Custom Modules.
+6. Build CRUD foundations for Sales, CRM, Reporting, Notifications, and Custom Modules.
+
+## Implemented HR Scope
+
+- Company-scoped employee profiles, departments, teams, reporting lines, and self-service profile updates.
+- Leave requests with overlap/allowance validation, manager approval workflow, and employee notifications.
+- Manual/extensible attendance entries, configurable payroll formulas, PDF/email payslips, and payroll summaries.
+- Versioned employee documents, authorized downloads, basic recruitment/applicant tracking, and CSV HR reports.

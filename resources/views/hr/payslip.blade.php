@@ -1,0 +1,4 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:DejaVu Sans,sans-serif;color:#111}table{width:100%;border-collapse:collapse}td,th{padding:8px;border:1px solid #ddd;text-align:left}.total{font-weight:bold}</style></head><body>
+<h1>Payslip</h1><p><strong>{{ $item->employee->name }}</strong> - {{ $item->run->name }}</p><p>Pay date: {{ $item->run->pay_date->toDateString() }}</p>
+<table><tr><th>Base salary</th><td>{{ $item->currency }} {{ $item->base_salary }}</td></tr><tr><th>Bonuses</th><td>{{ $item->currency }} {{ $item->bonuses }}</td></tr><tr><th>Deductions</th><td>{{ $item->currency }} {{ $item->deductions }}</td></tr><tr><th>Tax withholding</th><td>{{ $item->currency }} {{ $item->tax_withholding }}</td></tr><tr class="total"><th>Net salary</th><td>{{ $item->currency }} {{ $item->net_salary }}</td></tr></table>
+</body></html>

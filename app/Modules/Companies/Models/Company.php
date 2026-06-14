@@ -3,6 +3,7 @@
 namespace App\Modules\Companies\Models;
 
 use App\Modules\Authentication\Models\User;
+use App\Modules\HR\Models\Employee;
 use App\Modules\Subscriptions\Models\CompanySubscription;
 use Database\Factories\CompanyFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -45,6 +46,11 @@ class Company extends Model
     public function subscriptions(): HasMany
     {
         return $this->hasMany(CompanySubscription::class);
+    }
+
+    public function employees(): HasMany
+    {
+        return $this->hasMany(Employee::class);
     }
 
     protected static function newFactory(): CompanyFactory

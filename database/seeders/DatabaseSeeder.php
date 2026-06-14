@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             ProjectsSeeder::class,
             FinanceSeeder::class,
             InventorySeeder::class,
+            HRSeeder::class,
         ]);
     }
 }

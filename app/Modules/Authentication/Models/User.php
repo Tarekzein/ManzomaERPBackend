@@ -4,6 +4,7 @@ namespace App\Modules\Authentication\Models;
 
 use App\Modules\Authentication\Enums\UserRole;
 use App\Modules\Companies\Models\Company;
+use App\Modules\HR\Models\Employee;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -36,6 +37,11 @@ class User extends Authenticatable
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function employee()
+    {
+        return $this->hasOne(Employee::class);
     }
 
     public function isSuperAdmin(): bool

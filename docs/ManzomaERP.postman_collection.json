@@ -42,6 +42,16 @@
     ,{ "key": "stockBalanceId", "value": "1", "type": "string" }
     ,{ "key": "projectId", "value": "1", "type": "string" }
     ,{ "key": "projectTaskId", "value": "1", "type": "string" }
+    ,{ "key": "departmentId", "value": "1", "type": "string" }
+    ,{ "key": "teamId", "value": "1", "type": "string" }
+    ,{ "key": "employeeId", "value": "1", "type": "string" }
+    ,{ "key": "leaveTypeId", "value": "1", "type": "string" }
+    ,{ "key": "leaveRequestId", "value": "1", "type": "string" }
+    ,{ "key": "payrollRunId", "value": "1", "type": "string" }
+    ,{ "key": "payrollItemId", "value": "1", "type": "string" }
+    ,{ "key": "documentVersionId", "value": "1", "type": "string" }
+    ,{ "key": "jobId", "value": "1", "type": "string" }
+    ,{ "key": "applicantId", "value": "1", "type": "string" }
   ],
   "item": [
     {
@@ -506,6 +516,101 @@
         { "name": "Stock Valuation Report", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/reports/valuation" } },
         { "name": "Set Reorder Point", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"reorder_point\":5,\"reorder_quantity\":20}" }, "url": "{{baseUrl}}/inventory/balances/{{stockBalanceId}}/reorder" } },
         { "name": "Open Reorder Alerts", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/reorder-alerts" } }
+      ]
+    },
+    {
+      "name": "Human Resources",
+      "item": [
+        { "name": "List Departments", "request": { "method": "GET", "url": "{{baseUrl}}/hr/departments" } },
+        {
+          "name": "Create Department",
+          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "if (body.data?.id) pm.collectionVariables.set('departmentId', body.data.id);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"code\":\"ENG\",\"name\":\"Engineering\",\"description\":\"Product engineering department\"}" }, "url": "{{baseUrl}}/hr/departments" }
+        },
+        { "name": "Update Department", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"code\":\"ENG\",\"name\":\"Engineering & Technology\",\"description\":\"Engineering and technology department\"}" }, "url": "{{baseUrl}}/hr/departments/{{departmentId}}" } },
+        { "name": "List Teams", "request": { "method": "GET", "url": "{{baseUrl}}/hr/teams" } },
+        {
+          "name": "Create Team",
+          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "if (body.data?.id) pm.collectionVariables.set('teamId', body.data.id);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"department_id\":{{departmentId}},\"code\":\"API\",\"name\":\"API Team\"}" }, "url": "{{baseUrl}}/hr/teams" }
+        },
+        { "name": "Update Team", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"department_id\":{{departmentId}},\"code\":\"API\",\"name\":\"Platform API Team\"}" }, "url": "{{baseUrl}}/hr/teams/{{teamId}}" } },
+        { "name": "List Employees", "request": { "method": "GET", "url": "{{baseUrl}}/hr/employees" } },
+        {
+          "name": "Create Employee",
+          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "if (body.data?.id) pm.collectionVariables.set('employeeId', body.data.id);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"department_id\":{{departmentId}},\"team_id\":{{teamId}},\"employee_number\":\"EMP-POSTMAN-001\",\"name\":\"Postman Employee\",\"email\":\"employee.postman@example.com\",\"phone\":\"+201000000000\",\"position\":\"Backend Engineer\",\"hire_date\":\"2026-06-11\",\"status\":\"active\",\"base_salary\":10000,\"currency\":\"EGP\",\"payroll_formula\":{\"bonuses\":1000,\"deductions\":500,\"tax_rate\":10}}" }, "url": "{{baseUrl}}/hr/employees" }
+        },
+        { "name": "Get Employee", "request": { "method": "GET", "url": "{{baseUrl}}/hr/employees/{{employeeId}}" } },
+        { "name": "Update Employee", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"department_id\":{{departmentId}},\"team_id\":{{teamId}},\"employee_number\":\"EMP-POSTMAN-001\",\"name\":\"Postman Employee\",\"email\":\"employee.postman@example.com\",\"phone\":\"+201000000001\",\"position\":\"Senior Backend Engineer\",\"hire_date\":\"2026-06-11\",\"status\":\"active\",\"base_salary\":12000,\"currency\":\"EGP\",\"payroll_formula\":{\"bonuses\":1200,\"deductions\":500,\"tax_rate\":10}}" }, "url": "{{baseUrl}}/hr/employees/{{employeeId}}" } },
+        {
+          "name": "Upload Employee Document",
+          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "const versions = body.data?.versions || [];", "if (versions.length) pm.collectionVariables.set('documentVersionId', versions[versions.length - 1].id);"] } }],
+          "request": {
+            "method": "POST",
+            "body": { "mode": "formdata", "formdata": [{ "key": "type", "value": "contract", "type": "text" }, { "key": "name", "value": "Employment Contract", "type": "text" }, { "key": "notes", "value": "Signed employment contract", "type": "text" }, { "key": "file", "type": "file", "src": [] }] },
+            "url": "{{baseUrl}}/hr/employees/{{employeeId}}/documents",
+            "description": "Select an employee document before sending. Repeating this request creates a new document version."
+          }
+        },
+        { "name": "Download Employee Document Version", "request": { "method": "GET", "url": "{{baseUrl}}/hr/documents/versions/{{documentVersionId}}/download" } },
+        { "name": "List Leave Types", "request": { "method": "GET", "url": "{{baseUrl}}/hr/leave-types" } },
+        {
+          "name": "Create Leave Type",
+          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "if (body.data?.id) pm.collectionVariables.set('leaveTypeId', body.data.id);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"Postman Annual Leave\",\"code\":\"POSTMAN-ANNUAL\",\"annual_allowance\":21,\"is_paid\":true,\"requires_approval\":true}" }, "url": "{{baseUrl}}/hr/leave-types" }
+        },
+        { "name": "Update Leave Type", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"Postman Annual Leave\",\"code\":\"POSTMAN-ANNUAL\",\"annual_allowance\":24,\"is_paid\":true,\"requires_approval\":true}" }, "url": "{{baseUrl}}/hr/leave-types/{{leaveTypeId}}" } },
+        { "name": "List Leave Requests", "request": { "method": "GET", "url": "{{baseUrl}}/hr/leave-requests" } },
+        {
+          "name": "Submit My Leave Request",
+          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "if (body.data?.id) pm.collectionVariables.set('leaveRequestId', body.data.id);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"leave_type_id\":{{leaveTypeId}},\"starts_on\":\"2026-08-10\",\"ends_on\":\"2026-08-12\",\"reason\":\"Annual leave\"}" }, "url": "{{baseUrl}}/hr/leave-requests" },
+          "description": "Run while authenticated as a company user with a linked employee profile."
+        },
+        { "name": "Approve Leave Request", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"status\":\"approved\",\"review_notes\":\"Approved through Postman\"}" }, "url": "{{baseUrl}}/hr/leave-requests/{{leaveRequestId}}/review" } },
+        { "name": "List Attendance", "request": { "method": "GET", "url": "{{baseUrl}}/hr/attendance" } },
+        { "name": "Record Attendance", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"employee_id\":{{employeeId}},\"work_date\":\"2026-06-11\",\"clock_in\":\"2026-06-11 09:00:00\",\"clock_out\":\"2026-06-11 17:00:00\",\"source\":\"manual\",\"notes\":\"Regular workday\"}" }, "url": "{{baseUrl}}/hr/attendance" } },
+        { "name": "List Payroll Runs", "request": { "method": "GET", "url": "{{baseUrl}}/hr/payroll-runs" } },
+        {
+          "name": "Create Payroll Run",
+          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "if (body.data?.id) pm.collectionVariables.set('payrollRunId', body.data.id);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"June 2026 Payroll\",\"period_start\":\"2026-06-01\",\"period_end\":\"2026-06-30\",\"pay_date\":\"2026-06-30\"}" }, "url": "{{baseUrl}}/hr/payroll-runs" }
+        },
+        {
+          "name": "Process Payroll Run",
+          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "const items = body.data?.items || [];", "if (items.length) pm.collectionVariables.set('payrollItemId', items[0].id);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"items\":[{\"employee_id\":{{employeeId}},\"bonuses\":1500,\"deductions\":500,\"tax_rate\":10}]}" }, "url": "{{baseUrl}}/hr/payroll-runs/{{payrollRunId}}/process" }
+        },
+        { "name": "Download Payslip PDF", "request": { "method": "GET", "url": "{{baseUrl}}/hr/payslips/{{payrollItemId}}/pdf" } },
+        { "name": "Email Payslip", "request": { "method": "POST", "url": "{{baseUrl}}/hr/payslips/{{payrollItemId}}/email" } },
+        { "name": "List Job Postings", "request": { "method": "GET", "url": "{{baseUrl}}/hr/jobs" } },
+        {
+          "name": "Create Job Posting",
+          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "if (body.data?.id) pm.collectionVariables.set('jobId', body.data.id);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"department_id\":{{departmentId}},\"title\":\"Backend Engineer\",\"description\":\"Build and maintain ERP services\",\"status\":\"open\",\"closes_on\":\"2026-08-31\"}" }, "url": "{{baseUrl}}/hr/jobs" }
+        },
+        { "name": "Update Job Posting", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"department_id\":{{departmentId}},\"title\":\"Senior Backend Engineer\",\"description\":\"Lead ERP backend services\",\"status\":\"open\",\"closes_on\":\"2026-09-15\"}" }, "url": "{{baseUrl}}/hr/jobs/{{jobId}}" } },
+        {
+          "name": "Add Applicant",
+          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "if (body.data?.id) pm.collectionVariables.set('applicantId', body.data.id);"] } }],
+          "request": {
+            "method": "POST",
+            "body": { "mode": "formdata", "formdata": [{ "key": "name", "value": "Postman Candidate", "type": "text" }, { "key": "email", "value": "candidate.postman@example.com", "type": "text" }, { "key": "phone", "value": "+201000000002", "type": "text" }, { "key": "stage", "value": "applied", "type": "text" }, { "key": "notes", "value": "Applied through Postman", "type": "text" }, { "key": "resume", "type": "file", "src": [] }] },
+            "url": "{{baseUrl}}/hr/jobs/{{jobId}}/applicants"
+          }
+        },
+        { "name": "Update Applicant Stage", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"stage\":\"interview\",\"notes\":\"Interview scheduled\"}" }, "url": "{{baseUrl}}/hr/applicants/{{applicantId}}" } },
+        { "name": "Download Applicant Resume", "request": { "method": "GET", "url": "{{baseUrl}}/hr/applicants/{{applicantId}}/resume" } },
+        { "name": "Get My Employee Profile", "request": { "method": "GET", "url": "{{baseUrl}}/hr/me" } },
+        { "name": "Update My Employee Profile", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"phone\":\"+201000000003\",\"address\":{\"city\":\"Cairo\",\"country\":\"Egypt\"}}" }, "url": "{{baseUrl}}/hr/me" } },
+        { "name": "List My Leave Requests", "request": { "method": "GET", "url": "{{baseUrl}}/hr/me/leave-requests" } },
+        { "name": "List My Payslips", "request": { "method": "GET", "url": "{{baseUrl}}/hr/me/payslips" } },
+        { "name": "Headcount Report", "request": { "method": "GET", "url": "{{baseUrl}}/hr/reports/headcount" } },
+        { "name": "Turnover Report", "request": { "method": "GET", "url": "{{baseUrl}}/hr/reports/turnover" } },
+        { "name": "Leave Usage Report", "request": { "method": "GET", "url": "{{baseUrl}}/hr/reports/leave-usage" } },
+        { "name": "Payroll Summary Report", "request": { "method": "GET", "url": "{{baseUrl}}/hr/reports/payroll-summary" } },
+        { "name": "Export Payroll Summary CSV", "request": { "method": "GET", "url": "{{baseUrl}}/hr/reports/payroll-summary?format=csv" } }
       ]
     },
     {
