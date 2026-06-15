@@ -48,4 +48,9 @@ class User extends Authenticatable
     {
         return $this->hasRole(UserRole::SuperAdmin->value);
     }
+
+    public function routeNotificationForSms(): ?string
+    {
+        return $this->employee?->phone;
+    }
 }

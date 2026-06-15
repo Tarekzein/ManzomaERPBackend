@@ -20,6 +20,10 @@ class DatabaseSeeder extends Seeder
             FinanceSeeder::class,
             InventorySeeder::class,
             HRSeeder::class,
+            SalesSeeder::class,
+            CRMSeeder::class,
+            ReportingSeeder::class,
+            NotificationSeeder::class,
         ]);
     }
 }

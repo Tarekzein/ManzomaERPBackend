@@ -1,3 +1,5 @@
 {
-    "Projects": true
+    "Projects": true,
+    "Reporting": true,
+    "Notifications": true
 }

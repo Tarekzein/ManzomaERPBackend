@@ -26,7 +26,9 @@ class DashboardAndCompaniesTest extends TestCase
         $this->getJson('/api/dashboard')
             ->assertOk()
             ->assertJsonPath('data.scope', 'platform')
-            ->assertJsonPath('data.metrics.companies', 1);
+            ->assertJsonPath('data.metrics.companies', 1)
+            ->assertJsonCount(6, 'data.analytics.company_growth')
+            ->assertJsonStructure(['data' => ['analytics' => ['user_growth', 'subscriptions_by_plan', 'subscriptions_by_status']]]);
     }
 
     public function test_company_user_gets_company_dashboard_and_cannot_list_companies(): void
@@ -37,7 +39,17 @@ class DashboardAndCompaniesTest extends TestCase
 
         $this->getJson('/api/dashboard')
             ->assertOk()
-            ->assertJsonPath('data.scope', 'company');
+            ->assertJsonPath('data.scope', 'company')
+            ->assertJsonCount(6, 'data.analytics.finance.invoice_trend')
+            ->assertJsonCount(6, 'data.analytics.sales.order_trend')
+            ->assertJsonStructure(['data' => ['analytics' => [
+                'finance' => ['invoice_statuses', 'receivables_outstanding', 'payables_outstanding'],
+                'sales' => ['sales_statuses', 'purchase_statuses'],
+                'crm' => ['contacts_by_type', 'pipeline_by_stage'],
+                'inventory' => ['valuation_by_warehouse', 'reorder_alerts'],
+                'projects' => ['projects_by_status', 'tasks_by_status', 'budget_total'],
+                'hr' => ['headcount_by_department', 'leave_by_status', 'active_employees', 'payroll_total'],
+            ]]]);
 
         $this->getJson('/api/companies')->assertForbidden();
     }

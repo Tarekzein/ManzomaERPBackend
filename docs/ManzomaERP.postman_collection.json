@@ -16,42 +16,249 @@
     ]
   },
   "variable": [
-    { "key": "baseRoot", "value": "http://127.0.0.1:8000", "type": "string" },
-    { "key": "baseUrl", "value": "http://127.0.0.1:8000/api", "type": "string" },
-    { "key": "authToken", "value": "", "type": "string" },
-    { "key": "superAdminEmail", "value": "admin@manzomatech.com", "type": "string" },
-    { "key": "superAdminPassword", "value": "Admin#12345", "type": "string" },
-    { "key": "companyAdminEmail", "value": "company.admin@example.com", "type": "string" },
-    { "key": "companyAdminPassword", "value": "Admin#12345", "type": "string" },
-    { "key": "companyId", "value": "1", "type": "string" },
-    { "key": "userId", "value": "2", "type": "string" },
-    { "key": "planId", "value": "1", "type": "string" },
-    { "key": "featureId", "value": "1", "type": "string" }
-    ,{ "key": "accountId", "value": "1", "type": "string" }
-    ,{ "key": "periodId", "value": "1", "type": "string" }
-    ,{ "key": "journalId", "value": "1", "type": "string" }
-    ,{ "key": "contactId", "value": "1", "type": "string" }
-    ,{ "key": "invoiceId", "value": "1", "type": "string" }
-    ,{ "key": "bankAccountId", "value": "1", "type": "string" }
-    ,{ "key": "bankTransactionId", "value": "1", "type": "string" }
-    ,{ "key": "budgetId", "value": "1", "type": "string" }
-    ,{ "key": "productId", "value": "1", "type": "string" }
-    ,{ "key": "unitId", "value": "1", "type": "string" }
-    ,{ "key": "warehouseId", "value": "1", "type": "string" }
-    ,{ "key": "locationId", "value": "1", "type": "string" }
-    ,{ "key": "stockBalanceId", "value": "1", "type": "string" }
-    ,{ "key": "projectId", "value": "1", "type": "string" }
-    ,{ "key": "projectTaskId", "value": "1", "type": "string" }
-    ,{ "key": "departmentId", "value": "1", "type": "string" }
-    ,{ "key": "teamId", "value": "1", "type": "string" }
-    ,{ "key": "employeeId", "value": "1", "type": "string" }
-    ,{ "key": "leaveTypeId", "value": "1", "type": "string" }
-    ,{ "key": "leaveRequestId", "value": "1", "type": "string" }
-    ,{ "key": "payrollRunId", "value": "1", "type": "string" }
-    ,{ "key": "payrollItemId", "value": "1", "type": "string" }
-    ,{ "key": "documentVersionId", "value": "1", "type": "string" }
-    ,{ "key": "jobId", "value": "1", "type": "string" }
-    ,{ "key": "applicantId", "value": "1", "type": "string" }
+    {
+      "key": "baseRoot",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    },
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "superAdminEmail",
+      "value": "admin@manzomatech.com",
+      "type": "string"
+    },
+    {
+      "key": "superAdminPassword",
+      "value": "Admin#12345",
+      "type": "string"
+    },
+    {
+      "key": "companyAdminEmail",
+      "value": "company.admin@example.com",
+      "type": "string"
+    },
+    {
+      "key": "companyAdminPassword",
+      "value": "Admin#12345",
+      "type": "string"
+    },
+    {
+      "key": "companyId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "2",
+      "type": "string"
+    },
+    {
+      "key": "planId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "featureId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "accountId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "periodId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "journalId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "contactId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "invoiceId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "bankAccountId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "bankTransactionId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "budgetId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "unitId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "warehouseId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "locationId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "stockBalanceId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "projectId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "projectTaskId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "departmentId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "teamId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "employeeId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "leaveTypeId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "leaveRequestId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "payrollRunId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "payrollItemId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "documentVersionId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "jobId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "applicantId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "salesContactId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "salesVendorId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "priceListId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "quotationId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "salesOrderId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "purchaseOrderId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "purchaseOrderLineId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "crmContactId",
+      "value": ""
+    },
+    {
+      "key": "crmTagId",
+      "value": ""
+    },
+    {
+      "key": "crmStageId",
+      "value": ""
+    },
+    {
+      "key": "crmOpportunityId",
+      "value": ""
+    },
+    {
+      "key": "crmTaskId",
+      "value": ""
+    },
+    {
+      "key": "crmSegmentId",
+      "value": ""
+    },
+    {
+      "key": "crmCampaignId",
+      "value": ""
+    }
   ],
   "item": [
     {
@@ -60,9 +267,16 @@
         {
           "name": "Health Check",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/health",
             "description": "Check API health, version, and environment."
           }
@@ -70,9 +284,16 @@
         {
           "name": "List ERP Modules",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/modules"
           }
         },
@@ -80,7 +301,12 @@
           "name": "Dashboard Summary",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/dashboard",
             "description": "Returns platform metrics for Super Admin or company metrics for company users."
           }
@@ -88,9 +314,16 @@
         {
           "name": "OpenAPI Specification",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseRoot}}/docs.openapi",
             "description": "Generated Scribe OpenAPI specification."
           }
@@ -104,7 +337,12 @@
           "name": "List Companies",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/companies?search=&per_page=15"
           }
         }
@@ -115,24 +353,34 @@
       "item": [
         {
           "name": "Register Company Admin",
-          "event": [{
-            "listen": "test",
-            "script": {
-              "exec": [
-                "const json = pm.response.json();",
-                "if (json.data?.token) pm.collectionVariables.set('authToken', json.data.token);",
-                "if (json.data?.user?.company_id) pm.collectionVariables.set('companyId', json.data.user.company_id);",
-                "if (json.data?.user?.id) pm.collectionVariables.set('userId', json.data.user.id);"
-              ],
-              "type": "text/javascript"
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data?.token) pm.collectionVariables.set('authToken', json.data.token);",
+                  "if (json.data?.user?.company_id) pm.collectionVariables.set('companyId', json.data.user.company_id);",
+                  "if (json.data?.user?.id) pm.collectionVariables.set('userId', json.data.user.id);"
+                ],
+                "type": "text/javascript"
+              }
             }
-          }],
+          ],
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -143,19 +391,32 @@
         },
         {
           "name": "Login as Super Admin",
-          "event": [{
-            "listen": "test",
-            "script": {
-              "exec": ["const json = pm.response.json();", "if (json.data?.token) pm.collectionVariables.set('authToken', json.data.token);"],
-              "type": "text/javascript"
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data?.token) pm.collectionVariables.set('authToken', json.data.token);"
+                ],
+                "type": "text/javascript"
+              }
             }
-          }],
+          ],
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -166,23 +427,33 @@
         },
         {
           "name": "Login as Company Admin",
-          "event": [{
-            "listen": "test",
-            "script": {
-              "exec": [
-                "const json = pm.response.json();",
-                "if (json.data?.token) pm.collectionVariables.set('authToken', json.data.token);",
-                "if (json.data?.user?.company_id) pm.collectionVariables.set('companyId', json.data.user.company_id);"
-              ],
-              "type": "text/javascript"
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data?.token) pm.collectionVariables.set('authToken', json.data.token);",
+                  "if (json.data?.user?.company_id) pm.collectionVariables.set('companyId', json.data.user.company_id);"
+                ],
+                "type": "text/javascript"
+              }
             }
-          }],
+          ],
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -195,7 +466,12 @@
           "name": "Authenticated Profile",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/auth/me"
           }
         },
@@ -203,7 +479,12 @@
           "name": "Logout Current Device",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/auth/logout"
           }
         },
@@ -211,7 +492,12 @@
           "name": "Logout All Devices",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/auth/logout-all"
           }
         }
@@ -224,7 +510,12 @@
           "name": "List Users",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/users?per_page=15"
           }
         },
@@ -232,24 +523,40 @@
           "name": "List Assignable Roles",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/roles"
           }
         },
         {
           "name": "Create User",
-          "event": [{
-            "listen": "test",
-            "script": {
-              "exec": ["const json = pm.response.json();", "if (json.data?.id) pm.collectionVariables.set('userId', json.data.id);"],
-              "type": "text/javascript"
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data?.id) pm.collectionVariables.set('userId', json.data.id);"
+                ],
+                "type": "text/javascript"
+              }
             }
-          }],
+          ],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -264,8 +571,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -282,18 +595,32 @@
         {
           "name": "List Active Plans",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/subscriptions/plans"
           }
         },
         {
           "name": "List Features",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/subscriptions/features"
           }
         }
@@ -304,18 +631,29 @@
       "item": [
         {
           "name": "Create Plan",
-          "event": [{
-            "listen": "test",
-            "script": {
-              "exec": ["const json = pm.response.json();", "if (json.data?.id) pm.collectionVariables.set('planId', json.data.id);"],
-              "type": "text/javascript"
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data?.id) pm.collectionVariables.set('planId', json.data.id);"
+                ],
+                "type": "text/javascript"
+              }
             }
-          }],
+          ],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -329,8 +667,14 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -341,18 +685,29 @@
         },
         {
           "name": "Create Feature",
-          "event": [{
-            "listen": "test",
-            "script": {
-              "exec": ["const json = pm.response.json();", "if (json.data?.id) pm.collectionVariables.set('featureId', json.data.id);"],
-              "type": "text/javascript"
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data?.id) pm.collectionVariables.set('featureId', json.data.id);"
+                ],
+                "type": "text/javascript"
+              }
             }
-          }],
+          ],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -366,8 +721,14 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -381,8 +742,14 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -397,8 +764,14 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -413,7 +786,10 @@
           "request": {
             "method": "DELETE",
             "header": [
-              { "key": "Accept", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
             ],
             "url": "{{baseUrl}}/subscriptions/plans/{{planId}}/features/{{featureId}}",
             "description": "Removes only this feature from the selected plan."
@@ -428,7 +804,12 @@
           "name": "Get Current Subscription",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/subscriptions/current"
           }
         },
@@ -437,8 +818,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -453,184 +840,2399 @@
     {
       "name": "Finance",
       "item": [
-        { "name": "List Accounts", "request": { "method": "GET", "url": "{{baseUrl}}/finance/accounts" } },
-        { "name": "Create Account", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"code\":\"6100\",\"name\":\"Marketing Expense\",\"type\":\"expense\",\"currency\":\"EGP\"}" }, "url": "{{baseUrl}}/finance/accounts" } },
-        { "name": "Update Account", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"code\":\"6100\",\"name\":\"Marketing and Advertising\",\"type\":\"expense\",\"currency\":\"EGP\",\"is_active\":true}" }, "url": "{{baseUrl}}/finance/accounts/{{accountId}}" } },
-        { "name": "List Periods", "request": { "method": "GET", "url": "{{baseUrl}}/finance/periods" } },
-        { "name": "Create Period", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"2027\",\"starts_on\":\"2027-01-01\",\"ends_on\":\"2027-12-31\"}" }, "url": "{{baseUrl}}/finance/periods" } },
-        { "name": "Lock Period", "request": { "method": "POST", "url": "{{baseUrl}}/finance/periods/{{periodId}}/lock" } },
-        { "name": "List Journals", "request": { "method": "GET", "url": "{{baseUrl}}/finance/journals" } },
-        { "name": "Create Journal", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"entry_date\":\"2026-06-07\",\"description\":\"Opening balance\",\"lines\":[{\"account_id\":{{accountId}},\"debit\":1000,\"credit\":0,\"currency\":\"EGP\"},{\"account_id\":2,\"debit\":0,\"credit\":1000,\"currency\":\"EGP\"}]}" }, "url": "{{baseUrl}}/finance/journals" } },
-        { "name": "Post Journal", "request": { "method": "POST", "url": "{{baseUrl}}/finance/journals/{{journalId}}/post" } },
-        { "name": "List Contacts", "request": { "method": "GET", "url": "{{baseUrl}}/finance/contacts" } },
-        { "name": "Create Finance Contact", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"type\":\"customer\",\"name\":\"Customer One\",\"email\":\"customer@example.com\",\"currency\":\"EGP\"}" }, "url": "{{baseUrl}}/finance/contacts" } },
-        { "name": "List Invoices", "request": { "method": "GET", "url": "{{baseUrl}}/finance/invoices?type=receivable" } },
-        { "name": "Create Invoice", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"type\":\"receivable\",\"contact_id\":{{contactId}},\"number\":\"INV-001\",\"invoice_date\":\"2026-06-07\",\"due_date\":\"2026-07-07\",\"currency\":\"EGP\",\"lines\":[{\"account_id\":{{accountId}},\"description\":\"Services\",\"quantity\":1,\"unit_price\":500}]}" }, "url": "{{baseUrl}}/finance/invoices" } },
-        { "name": "Post Invoice", "request": { "method": "POST", "url": "{{baseUrl}}/finance/invoices/{{invoiceId}}/post" } },
-        { "name": "Record Payment", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"invoice_id\":{{invoiceId}},\"account_id\":{{accountId}},\"payment_date\":\"2026-06-07\",\"amount\":500,\"currency\":\"EGP\",\"reference\":\"PAY-001\"}" }, "url": "{{baseUrl}}/finance/payments" } },
-        { "name": "List Payment Schedules", "request": { "method": "GET", "url": "{{baseUrl}}/finance/payment-schedules" } },
-        { "name": "Schedule Payable Payment", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"invoice_id\":{{invoiceId}},\"scheduled_for\":\"2026-07-01\",\"amount\":500}" }, "url": "{{baseUrl}}/finance/payment-schedules" } },
-        { "name": "List Bank Accounts", "request": { "method": "GET", "url": "{{baseUrl}}/finance/bank-accounts" } },
-        { "name": "Create Bank Account", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"account_id\":{{accountId}},\"name\":\"Main Bank\",\"bank_name\":\"Example Bank\",\"currency\":\"EGP\",\"opening_balance\":0}" }, "url": "{{baseUrl}}/finance/bank-accounts" } },
-        { "name": "Create Bank Transaction", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"bank_account_id\":{{bankAccountId}},\"transaction_date\":\"2026-06-07\",\"description\":\"Deposit\",\"amount\":500}" }, "url": "{{baseUrl}}/finance/bank-transactions" } },
-        { "name": "Reconcile Bank Transaction", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"journal_entry_id\":{{journalId}}}" }, "url": "{{baseUrl}}/finance/bank-transactions/{{bankTransactionId}}/reconcile" } },
-        { "name": "List Taxes", "request": { "method": "GET", "url": "{{baseUrl}}/finance/taxes" } },
-        { "name": "Create Tax", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"VAT 14%\",\"region\":\"EG\",\"type\":\"VAT\",\"rate\":14,\"is_active\":true}" }, "url": "{{baseUrl}}/finance/taxes" } },
-        { "name": "List Exchange Rates", "request": { "method": "GET", "url": "{{baseUrl}}/finance/exchange-rates" } },
-        { "name": "Save Exchange Rate", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"base_currency\":\"EGP\",\"quote_currency\":\"USD\",\"rate\":0.02,\"rate_date\":\"2026-06-07\",\"source\":\"manual\"}" }, "url": "{{baseUrl}}/finance/exchange-rates" } },
-        { "name": "Sync Exchange Rates", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"quotes\":[\"USD\",\"EUR\"]}" }, "url": "{{baseUrl}}/finance/exchange-rates/sync" } },
-        { "name": "List Budgets", "request": { "method": "GET", "url": "{{baseUrl}}/finance/budgets" } },
-        { "name": "Create Budget", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"Annual Budget\",\"starts_on\":\"2026-01-01\",\"ends_on\":\"2026-12-31\",\"status\":\"approved\",\"lines\":[{\"account_id\":{{accountId}},\"amount\":10000}]}" }, "url": "{{baseUrl}}/finance/budgets" } },
-        { "name": "Budget Variance", "request": { "method": "GET", "url": "{{baseUrl}}/finance/budgets/{{budgetId}}/variance" } },
-        { "name": "Trial Balance", "request": { "method": "GET", "url": "{{baseUrl}}/finance/reports/trial-balance?from=2026-01-01&to=2026-12-31" } },
-        { "name": "Balance Sheet", "request": { "method": "GET", "url": "{{baseUrl}}/finance/reports/balance-sheet" } },
-        { "name": "Profit and Loss PDF", "request": { "method": "GET", "url": "{{baseUrl}}/finance/reports/profit-loss?format=pdf" } },
-        { "name": "Cash Flow Excel", "request": { "method": "GET", "url": "{{baseUrl}}/finance/reports/cash-flow?format=xlsx" } },
-        { "name": "Accounts Payable Aging", "request": { "method": "GET", "url": "{{baseUrl}}/finance/reports/aging/payable" } },
-        { "name": "Accounts Receivable Aging", "request": { "method": "GET", "url": "{{baseUrl}}/finance/reports/aging/receivable" } }
+        {
+          "name": "List Accounts",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/finance/accounts"
+          }
+        },
+        {
+          "name": "Create Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"code\":\"6100\",\"name\":\"Marketing Expense\",\"type\":\"expense\",\"currency\":\"EGP\"}"
+            },
+            "url": "{{baseUrl}}/finance/accounts"
+          }
+        },
+        {
+          "name": "Update Account",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"code\":\"6100\",\"name\":\"Marketing and Advertising\",\"type\":\"expense\",\"currency\":\"EGP\",\"is_active\":true}"
+            },
+            "url": "{{baseUrl}}/finance/accounts/{{accountId}}"
+          }
+        },
+        {
+          "name": "List Periods",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/finance/periods"
+          }
+        },
+        {
+          "name": "Create Period",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"2027\",\"starts_on\":\"2027-01-01\",\"ends_on\":\"2027-12-31\"}"
+            },
+            "url": "{{baseUrl}}/finance/periods"
+          }
+        },
+        {
+          "name": "Lock Period",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/finance/periods/{{periodId}}/lock"
+          }
+        },
+        {
+          "name": "List Journals",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/finance/journals"
+          }
+        },
+        {
+          "name": "Create Journal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"entry_date\":\"2026-06-07\",\"description\":\"Opening balance\",\"lines\":[{\"account_id\":{{accountId}},\"debit\":1000,\"credit\":0,\"currency\":\"EGP\"},{\"account_id\":2,\"debit\":0,\"credit\":1000,\"currency\":\"EGP\"}]}"
+            },
+            "url": "{{baseUrl}}/finance/journals"
+          }
+        },
+        {
+          "name": "Post Journal",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/finance/journals/{{journalId}}/post"
+          }
+        },
+        {
+          "name": "List Contacts",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/finance/contacts"
+          }
+        },
+        {
+          "name": "Create Finance Contact",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"type\":\"customer\",\"name\":\"Customer One\",\"email\":\"customer@example.com\",\"currency\":\"EGP\"}"
+            },
+            "url": "{{baseUrl}}/finance/contacts"
+          }
+        },
+        {
+          "name": "List Invoices",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/finance/invoices?type=receivable"
+          }
+        },
+        {
+          "name": "Create Invoice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"type\":\"receivable\",\"contact_id\":{{contactId}},\"number\":\"INV-001\",\"invoice_date\":\"2026-06-07\",\"due_date\":\"2026-07-07\",\"currency\":\"EGP\",\"lines\":[{\"account_id\":{{accountId}},\"description\":\"Services\",\"quantity\":1,\"unit_price\":500}]}"
+            },
+            "url": "{{baseUrl}}/finance/invoices"
+          }
+        },
+        {
+          "name": "Post Invoice",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/finance/invoices/{{invoiceId}}/post"
+          }
+        },
+        {
+          "name": "Record Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"invoice_id\":{{invoiceId}},\"account_id\":{{accountId}},\"payment_date\":\"2026-06-07\",\"amount\":500,\"currency\":\"EGP\",\"reference\":\"PAY-001\"}"
+            },
+            "url": "{{baseUrl}}/finance/payments"
+          }
+        },
+        {
+          "name": "List Payment Schedules",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/finance/payment-schedules"
+          }
+        },
+        {
+          "name": "Schedule Payable Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"invoice_id\":{{invoiceId}},\"scheduled_for\":\"2026-07-01\",\"amount\":500}"
+            },
+            "url": "{{baseUrl}}/finance/payment-schedules"
+          }
+        },
+        {
+          "name": "List Bank Accounts",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/finance/bank-accounts"
+          }
+        },
+        {
+          "name": "Create Bank Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"account_id\":{{accountId}},\"name\":\"Main Bank\",\"bank_name\":\"Example Bank\",\"currency\":\"EGP\",\"opening_balance\":0}"
+            },
+            "url": "{{baseUrl}}/finance/bank-accounts"
+          }
+        },
+        {
+          "name": "Create Bank Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"bank_account_id\":{{bankAccountId}},\"transaction_date\":\"2026-06-07\",\"description\":\"Deposit\",\"amount\":500}"
+            },
+            "url": "{{baseUrl}}/finance/bank-transactions"
+          }
+        },
+        {
+          "name": "Reconcile Bank Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"journal_entry_id\":{{journalId}}}"
+            },
+            "url": "{{baseUrl}}/finance/bank-transactions/{{bankTransactionId}}/reconcile"
+          }
+        },
+        {
+          "name": "List Taxes",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/finance/taxes"
+          }
+        },
+        {
+          "name": "Create Tax",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"VAT 14%\",\"region\":\"EG\",\"type\":\"VAT\",\"rate\":14,\"is_active\":true}"
+            },
+            "url": "{{baseUrl}}/finance/taxes"
+          }
+        },
+        {
+          "name": "List Exchange Rates",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/finance/exchange-rates"
+          }
+        },
+        {
+          "name": "Save Exchange Rate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"base_currency\":\"EGP\",\"quote_currency\":\"USD\",\"rate\":0.02,\"rate_date\":\"2026-06-07\",\"source\":\"manual\"}"
+            },
+            "url": "{{baseUrl}}/finance/exchange-rates"
+          }
+        },
+        {
+          "name": "Sync Exchange Rates",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"quotes\":[\"USD\",\"EUR\"]}"
+            },
+            "url": "{{baseUrl}}/finance/exchange-rates/sync"
+          }
+        },
+        {
+          "name": "List Budgets",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/finance/budgets"
+          }
+        },
+        {
+          "name": "Create Budget",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Annual Budget\",\"starts_on\":\"2026-01-01\",\"ends_on\":\"2026-12-31\",\"status\":\"approved\",\"lines\":[{\"account_id\":{{accountId}},\"amount\":10000}]}"
+            },
+            "url": "{{baseUrl}}/finance/budgets"
+          }
+        },
+        {
+          "name": "Budget Variance",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/finance/budgets/{{budgetId}}/variance"
+          }
+        },
+        {
+          "name": "Trial Balance",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/finance/reports/trial-balance?from=2026-01-01&to=2026-12-31"
+          }
+        },
+        {
+          "name": "Balance Sheet",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/finance/reports/balance-sheet"
+          }
+        },
+        {
+          "name": "Profit and Loss PDF",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/finance/reports/profit-loss?format=pdf"
+          }
+        },
+        {
+          "name": "Cash Flow Excel",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/finance/reports/cash-flow?format=xlsx"
+          }
+        },
+        {
+          "name": "Accounts Payable Aging",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/finance/reports/aging/payable"
+          }
+        },
+        {
+          "name": "Accounts Receivable Aging",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/finance/reports/aging/receivable"
+          }
+        }
       ]
     },
     {
       "name": "Inventory",
       "item": [
-        { "name": "List Categories", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/categories" } },
-        { "name": "Create Category", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"Finished Goods\",\"code\":\"FINISHED\"}" }, "url": "{{baseUrl}}/inventory/categories" } },
-        { "name": "Update Category", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"Updated Category\",\"code\":\"FINISHED\"}" }, "url": "{{baseUrl}}/inventory/categories/1" } },
-        { "name": "List Units", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/units" } },
-        { "name": "Create Unit", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"Box\",\"symbol\":\"box\",\"precision\":0}" }, "url": "{{baseUrl}}/inventory/units" } },
-        { "name": "Update Unit", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"Carton\",\"symbol\":\"box\",\"precision\":0}" }, "url": "{{baseUrl}}/inventory/units/{{unitId}}" } },
-        { "name": "List Products", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/products" } },
-        { "name": "Create Product", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"unit_id\":{{unitId}},\"sku\":\"SKU-001\",\"name\":\"Product One\",\"sale_price\":50,\"purchase_price\":25,\"valuation_method\":\"fifo\"}" }, "url": "{{baseUrl}}/inventory/products" } },
-        { "name": "Update Product", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"unit_id\":{{unitId}},\"sku\":\"SKU-001\",\"name\":\"Updated Product\",\"sale_price\":55,\"purchase_price\":25,\"valuation_method\":\"fifo\",\"is_active\":true}" }, "url": "{{baseUrl}}/inventory/products/{{productId}}" } },
-        { "name": "Scan Barcode SKU or QR", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/scan/SKU-001" } },
-        { "name": "List Warehouses", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/warehouses" } },
-        { "name": "Create Warehouse", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"code\":\"SECOND\",\"name\":\"Second Warehouse\",\"is_active\":true}" }, "url": "{{baseUrl}}/inventory/warehouses" } },
-        { "name": "Update Warehouse", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"code\":\"SECOND\",\"name\":\"Updated Warehouse\",\"is_active\":true}" }, "url": "{{baseUrl}}/inventory/warehouses/{{warehouseId}}" } },
-        { "name": "Create Warehouse Location", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"warehouse_id\":{{warehouseId}},\"code\":\"A-01\",\"name\":\"Aisle A Shelf 1\"}" }, "url": "{{baseUrl}}/inventory/locations" } },
-        { "name": "Update Warehouse Location", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"warehouse_id\":{{warehouseId}},\"code\":\"A-01\",\"name\":\"Updated Aisle A Shelf 1\"}" }, "url": "{{baseUrl}}/inventory/locations/{{locationId}}" } },
-        { "name": "Receive Stock", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"type\":\"receipt\",\"reference\":\"PO-001\",\"lines\":[{\"product_id\":{{productId}},\"to_warehouse_id\":{{warehouseId}},\"to_location_id\":{{locationId}},\"quantity\":10,\"unit_cost\":25}]}" }, "url": "{{baseUrl}}/inventory/movements" } },
-        { "name": "Transfer Stock", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"type\":\"transfer\",\"reference\":\"TR-001\",\"lines\":[{\"product_id\":{{productId}},\"from_warehouse_id\":{{warehouseId}},\"from_location_id\":{{locationId}},\"to_warehouse_id\":2,\"to_location_id\":2,\"quantity\":2}]}" }, "url": "{{baseUrl}}/inventory/movements" } },
-        { "name": "Write Off Stock", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"type\":\"write_off\",\"reason_code\":\"DAMAGED\",\"lines\":[{\"product_id\":{{productId}},\"from_warehouse_id\":{{warehouseId}},\"from_location_id\":{{locationId}},\"quantity\":1}]}" }, "url": "{{baseUrl}}/inventory/movements" } },
-        { "name": "Movement History", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/reports/movements" } },
-        { "name": "Stock on Hand Report", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/reports/stock-on-hand" } },
-        { "name": "Stock Valuation Report", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/reports/valuation" } },
-        { "name": "Set Reorder Point", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"reorder_point\":5,\"reorder_quantity\":20}" }, "url": "{{baseUrl}}/inventory/balances/{{stockBalanceId}}/reorder" } },
-        { "name": "Open Reorder Alerts", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/reorder-alerts" } }
+        {
+          "name": "List Categories",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/inventory/categories"
+          }
+        },
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Finished Goods\",\"code\":\"FINISHED\"}"
+            },
+            "url": "{{baseUrl}}/inventory/categories"
+          }
+        },
+        {
+          "name": "Update Category",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Updated Category\",\"code\":\"FINISHED\"}"
+            },
+            "url": "{{baseUrl}}/inventory/categories/1"
+          }
+        },
+        {
+          "name": "List Units",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/inventory/units"
+          }
+        },
+        {
+          "name": "Create Unit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Box\",\"symbol\":\"box\",\"precision\":0}"
+            },
+            "url": "{{baseUrl}}/inventory/units"
+          }
+        },
+        {
+          "name": "Update Unit",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Carton\",\"symbol\":\"box\",\"precision\":0}"
+            },
+            "url": "{{baseUrl}}/inventory/units/{{unitId}}"
+          }
+        },
+        {
+          "name": "List Products",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/inventory/products"
+          }
+        },
+        {
+          "name": "Create Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"unit_id\":{{unitId}},\"sku\":\"SKU-001\",\"name\":\"Product One\",\"sale_price\":50,\"purchase_price\":25,\"valuation_method\":\"fifo\"}"
+            },
+            "url": "{{baseUrl}}/inventory/products"
+          }
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"unit_id\":{{unitId}},\"sku\":\"SKU-001\",\"name\":\"Updated Product\",\"sale_price\":55,\"purchase_price\":25,\"valuation_method\":\"fifo\",\"is_active\":true}"
+            },
+            "url": "{{baseUrl}}/inventory/products/{{productId}}"
+          }
+        },
+        {
+          "name": "Scan Barcode SKU or QR",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/inventory/scan/SKU-001"
+          }
+        },
+        {
+          "name": "List Warehouses",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/inventory/warehouses"
+          }
+        },
+        {
+          "name": "Create Warehouse",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"code\":\"SECOND\",\"name\":\"Second Warehouse\",\"is_active\":true}"
+            },
+            "url": "{{baseUrl}}/inventory/warehouses"
+          }
+        },
+        {
+          "name": "Update Warehouse",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"code\":\"SECOND\",\"name\":\"Updated Warehouse\",\"is_active\":true}"
+            },
+            "url": "{{baseUrl}}/inventory/warehouses/{{warehouseId}}"
+          }
+        },
+        {
+          "name": "Create Warehouse Location",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"warehouse_id\":{{warehouseId}},\"code\":\"A-01\",\"name\":\"Aisle A Shelf 1\"}"
+            },
+            "url": "{{baseUrl}}/inventory/locations"
+          }
+        },
+        {
+          "name": "Update Warehouse Location",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"warehouse_id\":{{warehouseId}},\"code\":\"A-01\",\"name\":\"Updated Aisle A Shelf 1\"}"
+            },
+            "url": "{{baseUrl}}/inventory/locations/{{locationId}}"
+          }
+        },
+        {
+          "name": "Receive Stock",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"type\":\"receipt\",\"reference\":\"PO-001\",\"lines\":[{\"product_id\":{{productId}},\"to_warehouse_id\":{{warehouseId}},\"to_location_id\":{{locationId}},\"quantity\":10,\"unit_cost\":25}]}"
+            },
+            "url": "{{baseUrl}}/inventory/movements"
+          }
+        },
+        {
+          "name": "Transfer Stock",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"type\":\"transfer\",\"reference\":\"TR-001\",\"lines\":[{\"product_id\":{{productId}},\"from_warehouse_id\":{{warehouseId}},\"from_location_id\":{{locationId}},\"to_warehouse_id\":2,\"to_location_id\":2,\"quantity\":2}]}"
+            },
+            "url": "{{baseUrl}}/inventory/movements"
+          }
+        },
+        {
+          "name": "Write Off Stock",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"type\":\"write_off\",\"reason_code\":\"DAMAGED\",\"lines\":[{\"product_id\":{{productId}},\"from_warehouse_id\":{{warehouseId}},\"from_location_id\":{{locationId}},\"quantity\":1}]}"
+            },
+            "url": "{{baseUrl}}/inventory/movements"
+          }
+        },
+        {
+          "name": "Movement History",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/inventory/reports/movements"
+          }
+        },
+        {
+          "name": "Stock on Hand Report",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/inventory/reports/stock-on-hand"
+          }
+        },
+        {
+          "name": "Stock Valuation Report",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/inventory/reports/valuation"
+          }
+        },
+        {
+          "name": "Set Reorder Point",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"reorder_point\":5,\"reorder_quantity\":20}"
+            },
+            "url": "{{baseUrl}}/inventory/balances/{{stockBalanceId}}/reorder"
+          }
+        },
+        {
+          "name": "Open Reorder Alerts",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/inventory/reorder-alerts"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sales & Purchasing",
+      "item": [
+        {
+          "name": "List Sales Contacts",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/sales/contacts"
+          }
+        },
+        {
+          "name": "Create Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data?.id) pm.collectionVariables.set('salesContactId', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"type\":\"customer\",\"name\":\"Customer One\",\"email\":\"customer@example.com\",\"currency\":\"EGP\"}"
+            },
+            "url": "{{baseUrl}}/sales/contacts"
+          }
+        },
+        {
+          "name": "Create Vendor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data?.id) pm.collectionVariables.set('salesVendorId', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"type\":\"vendor\",\"name\":\"Vendor One\",\"email\":\"vendor@example.com\",\"currency\":\"EGP\"}"
+            },
+            "url": "{{baseUrl}}/sales/contacts"
+          }
+        },
+        {
+          "name": "Update Sales Contact",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"type\":\"customer\",\"name\":\"Updated Customer\",\"email\":\"customer@example.com\",\"currency\":\"EGP\"}"
+            },
+            "url": "{{baseUrl}}/sales/contacts/{{salesContactId}}"
+          }
+        },
+        {
+          "name": "List Price Lists",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/sales/price-lists"
+          }
+        },
+        {
+          "name": "Create Price List",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data?.id) pm.collectionVariables.set('priceListId', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"contact_id\":{{salesContactId}},\"name\":\"Customer Pricing\",\"is_active\":true,\"items\":[{\"product_id\":{{productId}},\"unit_price\":150,\"discount_percent\":10}]}"
+            },
+            "url": "{{baseUrl}}/sales/price-lists"
+          }
+        },
+        {
+          "name": "Update Price List",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"contact_id\":{{salesContactId}},\"name\":\"Updated Customer Pricing\",\"is_active\":true,\"items\":[{\"product_id\":{{productId}},\"unit_price\":155,\"discount_percent\":8}]}"
+            },
+            "url": "{{baseUrl}}/sales/price-lists/{{priceListId}}"
+          }
+        },
+        {
+          "name": "List Quotations",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/sales/quotations"
+          }
+        },
+        {
+          "name": "Create Quotation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data?.id) pm.collectionVariables.set('quotationId', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"customer_id\":{{salesContactId}},\"quote_date\":\"2026-06-14\",\"valid_until\":\"2026-07-14\",\"currency\":\"EGP\",\"lines\":[{\"product_id\":{{productId}},\"quantity\":2,\"tax_percent\":14}]}"
+            },
+            "url": "{{baseUrl}}/sales/quotations"
+          }
+        },
+        {
+          "name": "Update Quotation",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"customer_id\":{{salesContactId}},\"quote_date\":\"2026-06-14\",\"valid_until\":\"2026-07-14\",\"currency\":\"EGP\",\"lines\":[{\"product_id\":{{productId}},\"quantity\":3,\"tax_percent\":14}]}"
+            },
+            "url": "{{baseUrl}}/sales/quotations/{{quotationId}}"
+          }
+        },
+        {
+          "name": "Convert Quotation to Sales Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data?.id) pm.collectionVariables.set('salesOrderId', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/sales/quotations/{{quotationId}}/convert"
+          }
+        },
+        {
+          "name": "Download Quotation PDF",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/sales/quotations/{{quotationId}}/pdf"
+          }
+        },
+        {
+          "name": "List Sales Orders",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/sales/orders"
+          }
+        },
+        {
+          "name": "Create Sales Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data?.id) pm.collectionVariables.set('salesOrderId', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"customer_id\":{{salesContactId}},\"warehouse_id\":{{warehouseId}},\"order_date\":\"2026-06-14\",\"expected_ship_date\":\"2026-06-15\",\"currency\":\"EGP\",\"lines\":[{\"product_id\":{{productId}},\"quantity\":2,\"unit_price\":150,\"tax_percent\":14}]}"
+            },
+            "url": "{{baseUrl}}/sales/orders"
+          }
+        },
+        {
+          "name": "Update Sales Order",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"customer_id\":{{salesContactId}},\"warehouse_id\":{{warehouseId}},\"order_date\":\"2026-06-14\",\"expected_ship_date\":\"2026-06-15\",\"currency\":\"EGP\",\"lines\":[{\"product_id\":{{productId}},\"quantity\":2,\"unit_price\":150,\"tax_percent\":14}]}"
+            },
+            "url": "{{baseUrl}}/sales/orders/{{salesOrderId}}"
+          }
+        },
+        {
+          "name": "Confirm Sales Order",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/sales/orders/{{salesOrderId}}/confirm"
+          }
+        },
+        {
+          "name": "Ship Sales Order",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/sales/orders/{{salesOrderId}}/ship"
+          }
+        },
+        {
+          "name": "Invoice Sales Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"revenue_account_id\":1}"
+            },
+            "url": "{{baseUrl}}/sales/orders/{{salesOrderId}}/invoice"
+          }
+        },
+        {
+          "name": "Close Sales Order",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/sales/orders/{{salesOrderId}}/close"
+          }
+        },
+        {
+          "name": "Download Sales Invoice PDF",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/sales/orders/{{salesOrderId}}/invoice-pdf"
+          }
+        },
+        {
+          "name": "Download Delivery Note PDF",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/sales/orders/{{salesOrderId}}/delivery-note"
+          }
+        },
+        {
+          "name": "List Purchase Orders",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/sales/purchase-orders"
+          }
+        },
+        {
+          "name": "Create Purchase Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data?.id) pm.collectionVariables.set('purchaseOrderId', body.data.id);",
+                  "if (body.data?.lines?.[0]?.id) pm.collectionVariables.set('purchaseOrderLineId', body.data.lines[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"vendor_id\":{{salesVendorId}},\"warehouse_id\":{{warehouseId}},\"order_date\":\"2026-06-14\",\"expected_receipt_date\":\"2026-06-20\",\"currency\":\"EGP\",\"lines\":[{\"product_id\":{{productId}},\"quantity\":5,\"unit_price\":80}]}"
+            },
+            "url": "{{baseUrl}}/sales/purchase-orders"
+          }
+        },
+        {
+          "name": "Update Purchase Order",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"vendor_id\":{{salesVendorId}},\"warehouse_id\":{{warehouseId}},\"order_date\":\"2026-06-14\",\"expected_receipt_date\":\"2026-06-20\",\"currency\":\"EGP\",\"lines\":[{\"product_id\":{{productId}},\"quantity\":5,\"unit_price\":80}]}"
+            },
+            "url": "{{baseUrl}}/sales/purchase-orders/{{purchaseOrderId}}"
+          }
+        },
+        {
+          "name": "Confirm Purchase Order",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/sales/purchase-orders/{{purchaseOrderId}}/confirm"
+          }
+        },
+        {
+          "name": "Receive Purchase Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"received_on\":\"2026-06-15\",\"lines\":[{\"purchase_order_line_id\":{{purchaseOrderLineId}},\"quantity_received\":5}]}"
+            },
+            "url": "{{baseUrl}}/sales/purchase-orders/{{purchaseOrderId}}/receive"
+          }
+        },
+        {
+          "name": "Three-Way Match Purchase Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"expense_account_id\":1}"
+            },
+            "url": "{{baseUrl}}/sales/purchase-orders/{{purchaseOrderId}}/match"
+          }
+        },
+        {
+          "name": "Download Purchase Order PDF",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/sales/purchase-orders/{{purchaseOrderId}}/pdf"
+          }
+        },
+        {
+          "name": "Order Volume Report",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/sales/reports/order-volume"
+          }
+        },
+        {
+          "name": "Revenue By Period Report",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/sales/reports/revenue-by-period"
+          }
+        },
+        {
+          "name": "Top Customers Report",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/sales/reports/top-customers"
+          }
+        }
       ]
     },
     {
       "name": "Human Resources",
       "item": [
-        { "name": "List Departments", "request": { "method": "GET", "url": "{{baseUrl}}/hr/departments" } },
+        {
+          "name": "List Departments",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/departments"
+          }
+        },
         {
           "name": "Create Department",
-          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "if (body.data?.id) pm.collectionVariables.set('departmentId', body.data.id);"] } }],
-          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"code\":\"ENG\",\"name\":\"Engineering\",\"description\":\"Product engineering department\"}" }, "url": "{{baseUrl}}/hr/departments" }
-        },
-        { "name": "Update Department", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"code\":\"ENG\",\"name\":\"Engineering & Technology\",\"description\":\"Engineering and technology department\"}" }, "url": "{{baseUrl}}/hr/departments/{{departmentId}}" } },
-        { "name": "List Teams", "request": { "method": "GET", "url": "{{baseUrl}}/hr/teams" } },
-        {
-          "name": "Create Team",
-          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "if (body.data?.id) pm.collectionVariables.set('teamId', body.data.id);"] } }],
-          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"department_id\":{{departmentId}},\"code\":\"API\",\"name\":\"API Team\"}" }, "url": "{{baseUrl}}/hr/teams" }
-        },
-        { "name": "Update Team", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"department_id\":{{departmentId}},\"code\":\"API\",\"name\":\"Platform API Team\"}" }, "url": "{{baseUrl}}/hr/teams/{{teamId}}" } },
-        { "name": "List Employees", "request": { "method": "GET", "url": "{{baseUrl}}/hr/employees" } },
-        {
-          "name": "Create Employee",
-          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "if (body.data?.id) pm.collectionVariables.set('employeeId', body.data.id);"] } }],
-          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"department_id\":{{departmentId}},\"team_id\":{{teamId}},\"employee_number\":\"EMP-POSTMAN-001\",\"name\":\"Postman Employee\",\"email\":\"employee.postman@example.com\",\"phone\":\"+201000000000\",\"position\":\"Backend Engineer\",\"hire_date\":\"2026-06-11\",\"status\":\"active\",\"base_salary\":10000,\"currency\":\"EGP\",\"payroll_formula\":{\"bonuses\":1000,\"deductions\":500,\"tax_rate\":10}}" }, "url": "{{baseUrl}}/hr/employees" }
-        },
-        { "name": "Get Employee", "request": { "method": "GET", "url": "{{baseUrl}}/hr/employees/{{employeeId}}" } },
-        { "name": "Update Employee", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"department_id\":{{departmentId}},\"team_id\":{{teamId}},\"employee_number\":\"EMP-POSTMAN-001\",\"name\":\"Postman Employee\",\"email\":\"employee.postman@example.com\",\"phone\":\"+201000000001\",\"position\":\"Senior Backend Engineer\",\"hire_date\":\"2026-06-11\",\"status\":\"active\",\"base_salary\":12000,\"currency\":\"EGP\",\"payroll_formula\":{\"bonuses\":1200,\"deductions\":500,\"tax_rate\":10}}" }, "url": "{{baseUrl}}/hr/employees/{{employeeId}}" } },
-        {
-          "name": "Upload Employee Document",
-          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "const versions = body.data?.versions || [];", "if (versions.length) pm.collectionVariables.set('documentVersionId', versions[versions.length - 1].id);"] } }],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data?.id) pm.collectionVariables.set('departmentId', body.data.id);"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
-            "body": { "mode": "formdata", "formdata": [{ "key": "type", "value": "contract", "type": "text" }, { "key": "name", "value": "Employment Contract", "type": "text" }, { "key": "notes", "value": "Signed employment contract", "type": "text" }, { "key": "file", "type": "file", "src": [] }] },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"code\":\"ENG\",\"name\":\"Engineering\",\"description\":\"Product engineering department\"}"
+            },
+            "url": "{{baseUrl}}/hr/departments"
+          }
+        },
+        {
+          "name": "Update Department",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"code\":\"ENG\",\"name\":\"Engineering & Technology\",\"description\":\"Engineering and technology department\"}"
+            },
+            "url": "{{baseUrl}}/hr/departments/{{departmentId}}"
+          }
+        },
+        {
+          "name": "List Teams",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/teams"
+          }
+        },
+        {
+          "name": "Create Team",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data?.id) pm.collectionVariables.set('teamId', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"department_id\":{{departmentId}},\"code\":\"API\",\"name\":\"API Team\"}"
+            },
+            "url": "{{baseUrl}}/hr/teams"
+          }
+        },
+        {
+          "name": "Update Team",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"department_id\":{{departmentId}},\"code\":\"API\",\"name\":\"Platform API Team\"}"
+            },
+            "url": "{{baseUrl}}/hr/teams/{{teamId}}"
+          }
+        },
+        {
+          "name": "List Employees",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/employees"
+          }
+        },
+        {
+          "name": "Create Employee",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data?.id) pm.collectionVariables.set('employeeId', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"department_id\":{{departmentId}},\"team_id\":{{teamId}},\"employee_number\":\"EMP-POSTMAN-001\",\"name\":\"Postman Employee\",\"email\":\"employee.postman@example.com\",\"phone\":\"+201000000000\",\"position\":\"Backend Engineer\",\"hire_date\":\"2026-06-11\",\"status\":\"active\",\"base_salary\":10000,\"currency\":\"EGP\",\"payroll_formula\":{\"bonuses\":1000,\"deductions\":500,\"tax_rate\":10}}"
+            },
+            "url": "{{baseUrl}}/hr/employees"
+          }
+        },
+        {
+          "name": "Get Employee",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/employees/{{employeeId}}"
+          }
+        },
+        {
+          "name": "Update Employee",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"department_id\":{{departmentId}},\"team_id\":{{teamId}},\"employee_number\":\"EMP-POSTMAN-001\",\"name\":\"Postman Employee\",\"email\":\"employee.postman@example.com\",\"phone\":\"+201000000001\",\"position\":\"Senior Backend Engineer\",\"hire_date\":\"2026-06-11\",\"status\":\"active\",\"base_salary\":12000,\"currency\":\"EGP\",\"payroll_formula\":{\"bonuses\":1200,\"deductions\":500,\"tax_rate\":10}}"
+            },
+            "url": "{{baseUrl}}/hr/employees/{{employeeId}}"
+          }
+        },
+        {
+          "name": "Upload Employee Document",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const versions = body.data?.versions || [];",
+                  "if (versions.length) pm.collectionVariables.set('documentVersionId', versions[versions.length - 1].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "type",
+                  "value": "contract",
+                  "type": "text"
+                },
+                {
+                  "key": "name",
+                  "value": "Employment Contract",
+                  "type": "text"
+                },
+                {
+                  "key": "notes",
+                  "value": "Signed employment contract",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
             "url": "{{baseUrl}}/hr/employees/{{employeeId}}/documents",
             "description": "Select an employee document before sending. Repeating this request creates a new document version."
           }
         },
-        { "name": "Download Employee Document Version", "request": { "method": "GET", "url": "{{baseUrl}}/hr/documents/versions/{{documentVersionId}}/download" } },
-        { "name": "List Leave Types", "request": { "method": "GET", "url": "{{baseUrl}}/hr/leave-types" } },
+        {
+          "name": "Download Employee Document Version",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/documents/versions/{{documentVersionId}}/download"
+          }
+        },
+        {
+          "name": "List Leave Types",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/leave-types"
+          }
+        },
         {
           "name": "Create Leave Type",
-          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "if (body.data?.id) pm.collectionVariables.set('leaveTypeId', body.data.id);"] } }],
-          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"Postman Annual Leave\",\"code\":\"POSTMAN-ANNUAL\",\"annual_allowance\":21,\"is_paid\":true,\"requires_approval\":true}" }, "url": "{{baseUrl}}/hr/leave-types" }
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data?.id) pm.collectionVariables.set('leaveTypeId', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Postman Annual Leave\",\"code\":\"POSTMAN-ANNUAL\",\"annual_allowance\":21,\"is_paid\":true,\"requires_approval\":true}"
+            },
+            "url": "{{baseUrl}}/hr/leave-types"
+          }
         },
-        { "name": "Update Leave Type", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"Postman Annual Leave\",\"code\":\"POSTMAN-ANNUAL\",\"annual_allowance\":24,\"is_paid\":true,\"requires_approval\":true}" }, "url": "{{baseUrl}}/hr/leave-types/{{leaveTypeId}}" } },
-        { "name": "List Leave Requests", "request": { "method": "GET", "url": "{{baseUrl}}/hr/leave-requests" } },
+        {
+          "name": "Update Leave Type",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Postman Annual Leave\",\"code\":\"POSTMAN-ANNUAL\",\"annual_allowance\":24,\"is_paid\":true,\"requires_approval\":true}"
+            },
+            "url": "{{baseUrl}}/hr/leave-types/{{leaveTypeId}}"
+          }
+        },
+        {
+          "name": "List Leave Requests",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/leave-requests"
+          }
+        },
         {
           "name": "Submit My Leave Request",
-          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "if (body.data?.id) pm.collectionVariables.set('leaveRequestId', body.data.id);"] } }],
-          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"leave_type_id\":{{leaveTypeId}},\"starts_on\":\"2026-08-10\",\"ends_on\":\"2026-08-12\",\"reason\":\"Annual leave\"}" }, "url": "{{baseUrl}}/hr/leave-requests" },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data?.id) pm.collectionVariables.set('leaveRequestId', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"leave_type_id\":{{leaveTypeId}},\"starts_on\":\"2026-08-10\",\"ends_on\":\"2026-08-12\",\"reason\":\"Annual leave\"}"
+            },
+            "url": "{{baseUrl}}/hr/leave-requests"
+          },
           "description": "Run while authenticated as a company user with a linked employee profile."
         },
-        { "name": "Approve Leave Request", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"status\":\"approved\",\"review_notes\":\"Approved through Postman\"}" }, "url": "{{baseUrl}}/hr/leave-requests/{{leaveRequestId}}/review" } },
-        { "name": "List Attendance", "request": { "method": "GET", "url": "{{baseUrl}}/hr/attendance" } },
-        { "name": "Record Attendance", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"employee_id\":{{employeeId}},\"work_date\":\"2026-06-11\",\"clock_in\":\"2026-06-11 09:00:00\",\"clock_out\":\"2026-06-11 17:00:00\",\"source\":\"manual\",\"notes\":\"Regular workday\"}" }, "url": "{{baseUrl}}/hr/attendance" } },
-        { "name": "List Payroll Runs", "request": { "method": "GET", "url": "{{baseUrl}}/hr/payroll-runs" } },
+        {
+          "name": "Approve Leave Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\":\"approved\",\"review_notes\":\"Approved through Postman\"}"
+            },
+            "url": "{{baseUrl}}/hr/leave-requests/{{leaveRequestId}}/review"
+          }
+        },
+        {
+          "name": "List Attendance",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/attendance"
+          }
+        },
+        {
+          "name": "Record Attendance",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"employee_id\":{{employeeId}},\"work_date\":\"2026-06-11\",\"clock_in\":\"2026-06-11 09:00:00\",\"clock_out\":\"2026-06-11 17:00:00\",\"source\":\"manual\",\"notes\":\"Regular workday\"}"
+            },
+            "url": "{{baseUrl}}/hr/attendance"
+          }
+        },
+        {
+          "name": "List Payroll Runs",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/payroll-runs"
+          }
+        },
         {
           "name": "Create Payroll Run",
-          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "if (body.data?.id) pm.collectionVariables.set('payrollRunId', body.data.id);"] } }],
-          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"June 2026 Payroll\",\"period_start\":\"2026-06-01\",\"period_end\":\"2026-06-30\",\"pay_date\":\"2026-06-30\"}" }, "url": "{{baseUrl}}/hr/payroll-runs" }
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data?.id) pm.collectionVariables.set('payrollRunId', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"June 2026 Payroll\",\"period_start\":\"2026-06-01\",\"period_end\":\"2026-06-30\",\"pay_date\":\"2026-06-30\"}"
+            },
+            "url": "{{baseUrl}}/hr/payroll-runs"
+          }
         },
         {
           "name": "Process Payroll Run",
-          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "const items = body.data?.items || [];", "if (items.length) pm.collectionVariables.set('payrollItemId', items[0].id);"] } }],
-          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"items\":[{\"employee_id\":{{employeeId}},\"bonuses\":1500,\"deductions\":500,\"tax_rate\":10}]}" }, "url": "{{baseUrl}}/hr/payroll-runs/{{payrollRunId}}/process" }
-        },
-        { "name": "Download Payslip PDF", "request": { "method": "GET", "url": "{{baseUrl}}/hr/payslips/{{payrollItemId}}/pdf" } },
-        { "name": "Email Payslip", "request": { "method": "POST", "url": "{{baseUrl}}/hr/payslips/{{payrollItemId}}/email" } },
-        { "name": "List Job Postings", "request": { "method": "GET", "url": "{{baseUrl}}/hr/jobs" } },
-        {
-          "name": "Create Job Posting",
-          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "if (body.data?.id) pm.collectionVariables.set('jobId', body.data.id);"] } }],
-          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"department_id\":{{departmentId}},\"title\":\"Backend Engineer\",\"description\":\"Build and maintain ERP services\",\"status\":\"open\",\"closes_on\":\"2026-08-31\"}" }, "url": "{{baseUrl}}/hr/jobs" }
-        },
-        { "name": "Update Job Posting", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"department_id\":{{departmentId}},\"title\":\"Senior Backend Engineer\",\"description\":\"Lead ERP backend services\",\"status\":\"open\",\"closes_on\":\"2026-09-15\"}" }, "url": "{{baseUrl}}/hr/jobs/{{jobId}}" } },
-        {
-          "name": "Add Applicant",
-          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "if (body.data?.id) pm.collectionVariables.set('applicantId', body.data.id);"] } }],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const items = body.data?.items || [];",
+                  "if (items.length) pm.collectionVariables.set('payrollItemId', items[0].id);"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
-            "body": { "mode": "formdata", "formdata": [{ "key": "name", "value": "Postman Candidate", "type": "text" }, { "key": "email", "value": "candidate.postman@example.com", "type": "text" }, { "key": "phone", "value": "+201000000002", "type": "text" }, { "key": "stage", "value": "applied", "type": "text" }, { "key": "notes", "value": "Applied through Postman", "type": "text" }, { "key": "resume", "type": "file", "src": [] }] },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"items\":[{\"employee_id\":{{employeeId}},\"bonuses\":1500,\"deductions\":500,\"tax_rate\":10}]}"
+            },
+            "url": "{{baseUrl}}/hr/payroll-runs/{{payrollRunId}}/process"
+          }
+        },
+        {
+          "name": "Download Payslip PDF",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/payslips/{{payrollItemId}}/pdf"
+          }
+        },
+        {
+          "name": "Email Payslip",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/hr/payslips/{{payrollItemId}}/email"
+          }
+        },
+        {
+          "name": "List Job Postings",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/jobs"
+          }
+        },
+        {
+          "name": "Create Job Posting",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data?.id) pm.collectionVariables.set('jobId', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"department_id\":{{departmentId}},\"title\":\"Backend Engineer\",\"description\":\"Build and maintain ERP services\",\"status\":\"open\",\"closes_on\":\"2026-08-31\"}"
+            },
+            "url": "{{baseUrl}}/hr/jobs"
+          }
+        },
+        {
+          "name": "Update Job Posting",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"department_id\":{{departmentId}},\"title\":\"Senior Backend Engineer\",\"description\":\"Lead ERP backend services\",\"status\":\"open\",\"closes_on\":\"2026-09-15\"}"
+            },
+            "url": "{{baseUrl}}/hr/jobs/{{jobId}}"
+          }
+        },
+        {
+          "name": "Add Applicant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data?.id) pm.collectionVariables.set('applicantId', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Postman Candidate",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "candidate.postman@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "+201000000002",
+                  "type": "text"
+                },
+                {
+                  "key": "stage",
+                  "value": "applied",
+                  "type": "text"
+                },
+                {
+                  "key": "notes",
+                  "value": "Applied through Postman",
+                  "type": "text"
+                },
+                {
+                  "key": "resume",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
             "url": "{{baseUrl}}/hr/jobs/{{jobId}}/applicants"
           }
         },
-        { "name": "Update Applicant Stage", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"stage\":\"interview\",\"notes\":\"Interview scheduled\"}" }, "url": "{{baseUrl}}/hr/applicants/{{applicantId}}" } },
-        { "name": "Download Applicant Resume", "request": { "method": "GET", "url": "{{baseUrl}}/hr/applicants/{{applicantId}}/resume" } },
-        { "name": "Get My Employee Profile", "request": { "method": "GET", "url": "{{baseUrl}}/hr/me" } },
-        { "name": "Update My Employee Profile", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"phone\":\"+201000000003\",\"address\":{\"city\":\"Cairo\",\"country\":\"Egypt\"}}" }, "url": "{{baseUrl}}/hr/me" } },
-        { "name": "List My Leave Requests", "request": { "method": "GET", "url": "{{baseUrl}}/hr/me/leave-requests" } },
-        { "name": "List My Payslips", "request": { "method": "GET", "url": "{{baseUrl}}/hr/me/payslips" } },
-        { "name": "Headcount Report", "request": { "method": "GET", "url": "{{baseUrl}}/hr/reports/headcount" } },
-        { "name": "Turnover Report", "request": { "method": "GET", "url": "{{baseUrl}}/hr/reports/turnover" } },
-        { "name": "Leave Usage Report", "request": { "method": "GET", "url": "{{baseUrl}}/hr/reports/leave-usage" } },
-        { "name": "Payroll Summary Report", "request": { "method": "GET", "url": "{{baseUrl}}/hr/reports/payroll-summary" } },
-        { "name": "Export Payroll Summary CSV", "request": { "method": "GET", "url": "{{baseUrl}}/hr/reports/payroll-summary?format=csv" } }
+        {
+          "name": "Update Applicant Stage",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"stage\":\"interview\",\"notes\":\"Interview scheduled\"}"
+            },
+            "url": "{{baseUrl}}/hr/applicants/{{applicantId}}"
+          }
+        },
+        {
+          "name": "Download Applicant Resume",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/applicants/{{applicantId}}/resume"
+          }
+        },
+        {
+          "name": "Get My Employee Profile",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/me"
+          }
+        },
+        {
+          "name": "Update My Employee Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"phone\":\"+201000000003\",\"address\":{\"city\":\"Cairo\",\"country\":\"Egypt\"}}"
+            },
+            "url": "{{baseUrl}}/hr/me"
+          }
+        },
+        {
+          "name": "List My Leave Requests",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/me/leave-requests"
+          }
+        },
+        {
+          "name": "List My Payslips",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/me/payslips"
+          }
+        },
+        {
+          "name": "Headcount Report",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/reports/headcount"
+          }
+        },
+        {
+          "name": "Turnover Report",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/reports/turnover"
+          }
+        },
+        {
+          "name": "Leave Usage Report",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/reports/leave-usage"
+          }
+        },
+        {
+          "name": "Payroll Summary Report",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/reports/payroll-summary"
+          }
+        },
+        {
+          "name": "Export Payroll Summary CSV",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/reports/payroll-summary?format=csv"
+          }
+        }
+      ]
+    },
+    {
+      "name": "CRM",
+      "item": [
+        {
+          "name": "List CRM Contacts",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/crm/contacts"
+          }
+        },
+        {
+          "name": "Create CRM Contact",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data?.id) pm.collectionVariables.set('crmContactId', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"type\":\"lead\",\"status\":\"new\",\"name\":\"Lead One\",\"company_name\":\"Example Company\",\"email\":\"lead@example.com\",\"region\":\"Cairo\",\"source\":\"Website\",\"currency\":\"EGP\",\"tag_ids\":[]}"
+            },
+            "url": "{{baseUrl}}/crm/contacts"
+          }
+        },
+        {
+          "name": "Update CRM Contact",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"type\":\"prospect\",\"status\":\"qualified\",\"name\":\"Lead One\",\"company_name\":\"Example Company\",\"email\":\"lead@example.com\",\"region\":\"Cairo\",\"currency\":\"EGP\",\"tag_ids\":[]}"
+            },
+            "url": "{{baseUrl}}/crm/contacts/{{crmContactId}}"
+          }
+        },
+        {
+          "name": "Delete CRM Contact",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/crm/contacts/{{crmContactId}}"
+          }
+        },
+        {
+          "name": "Convert CRM Contact to Sales",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"type\":\"customer\",\"currency\":\"EGP\"}"
+            },
+            "url": "{{baseUrl}}/crm/contacts/{{crmContactId}}/convert"
+          }
+        },
+        {
+          "name": "List CRM Tags",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/crm/tags"
+          }
+        },
+        {
+          "name": "Create CRM Tag",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data?.id) pm.collectionVariables.set('crmTagId', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Enterprise\",\"color\":\"#2ec27e\"}"
+            },
+            "url": "{{baseUrl}}/crm/tags"
+          }
+        },
+        {
+          "name": "Update CRM Tag",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Enterprise Accounts\",\"color\":\"#2ec27e\"}"
+            },
+            "url": "{{baseUrl}}/crm/tags/{{crmTagId}}"
+          }
+        },
+        {
+          "name": "Delete CRM Tag",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/crm/tags/{{crmTagId}}"
+          }
+        },
+        {
+          "name": "List Pipeline Stages",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/crm/pipeline-stages"
+          }
+        },
+        {
+          "name": "Create Pipeline Stage",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data?.id) pm.collectionVariables.set('crmStageId', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Review\",\"key\":\"review\",\"sort_order\":35,\"probability\":65,\"is_won\":false,\"is_lost\":false}"
+            },
+            "url": "{{baseUrl}}/crm/pipeline-stages"
+          }
+        },
+        {
+          "name": "Update Pipeline Stage",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Review\",\"key\":\"review\",\"sort_order\":35,\"probability\":70,\"is_won\":false,\"is_lost\":false}"
+            },
+            "url": "{{baseUrl}}/crm/pipeline-stages/{{crmStageId}}"
+          }
+        },
+        {
+          "name": "Delete Pipeline Stage",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/crm/pipeline-stages/{{crmStageId}}"
+          }
+        },
+        {
+          "name": "Reorder Pipeline Stages",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"stages\":[{\"id\":\"{{crmStageId}}\",\"sort_order\":35}]}"
+            },
+            "url": "{{baseUrl}}/crm/pipeline-stages/reorder"
+          }
+        },
+        {
+          "name": "List Opportunities",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/crm/opportunities"
+          }
+        },
+        {
+          "name": "Create Opportunity",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data?.id) pm.collectionVariables.set('crmOpportunityId', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"contact_id\":\"{{crmContactId}}\",\"stage_id\":\"{{crmStageId}}\",\"title\":\"ERP rollout\",\"value\":100000,\"currency\":\"EGP\",\"expected_close_date\":\"2026-09-30\"}"
+            },
+            "url": "{{baseUrl}}/crm/opportunities"
+          }
+        },
+        {
+          "name": "Update Opportunity",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"contact_id\":\"{{crmContactId}}\",\"stage_id\":\"{{crmStageId}}\",\"title\":\"ERP rollout - expanded\",\"value\":150000,\"currency\":\"EGP\"}"
+            },
+            "url": "{{baseUrl}}/crm/opportunities/{{crmOpportunityId}}"
+          }
+        },
+        {
+          "name": "Delete Opportunity",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/crm/opportunities/{{crmOpportunityId}}"
+          }
+        },
+        {
+          "name": "Move Opportunity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"stage_id\":\"{{crmStageId}}\"}"
+            },
+            "url": "{{baseUrl}}/crm/opportunities/{{crmOpportunityId}}/move"
+          }
+        },
+        {
+          "name": "List CRM Activities",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/crm/activities"
+          }
+        },
+        {
+          "name": "Log CRM Activity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"contact_id\":\"{{crmContactId}}\",\"opportunity_id\":\"{{crmOpportunityId}}\",\"type\":\"call\",\"subject\":\"Discovery call\",\"body\":\"Qualified the opportunity.\"}"
+            },
+            "url": "{{baseUrl}}/crm/activities"
+          }
+        },
+        {
+          "name": "List CRM Tasks",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/crm/tasks"
+          }
+        },
+        {
+          "name": "Create CRM Task",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data?.id) pm.collectionVariables.set('crmTaskId', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"contact_id\":\"{{crmContactId}}\",\"opportunity_id\":\"{{crmOpportunityId}}\",\"title\":\"Send proposal\",\"priority\":\"high\",\"due_at\":\"2026-06-20 10:00:00\"}"
+            },
+            "url": "{{baseUrl}}/crm/tasks"
+          }
+        },
+        {
+          "name": "Update CRM Task",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"contact_id\":\"{{crmContactId}}\",\"opportunity_id\":\"{{crmOpportunityId}}\",\"title\":\"Send final proposal\",\"priority\":\"urgent\",\"status\":\"in_progress\"}"
+            },
+            "url": "{{baseUrl}}/crm/tasks/{{crmTaskId}}"
+          }
+        },
+        {
+          "name": "Delete CRM Task",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/crm/tasks/{{crmTaskId}}"
+          }
+        },
+        {
+          "name": "Complete CRM Task",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/crm/tasks/{{crmTaskId}}/complete"
+          }
+        },
+        {
+          "name": "List CRM Segments",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/crm/segments"
+          }
+        },
+        {
+          "name": "Create CRM Segment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data?.id) pm.collectionVariables.set('crmSegmentId', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Cairo prospects\",\"criteria\":{\"types\":[\"prospect\"],\"regions\":[\"Cairo\"],\"tag_ids\":[]}}"
+            },
+            "url": "{{baseUrl}}/crm/segments"
+          }
+        },
+        {
+          "name": "Update CRM Segment",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Cairo prospects\",\"criteria\":{\"types\":[\"lead\",\"prospect\"],\"regions\":[\"Cairo\"],\"tag_ids\":[]}}"
+            },
+            "url": "{{baseUrl}}/crm/segments/{{crmSegmentId}}"
+          }
+        },
+        {
+          "name": "Delete CRM Segment",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/crm/segments/{{crmSegmentId}}"
+          }
+        },
+        {
+          "name": "Preview Segment Contacts",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/crm/segments/{{crmSegmentId}}/contacts"
+          }
+        },
+        {
+          "name": "List CRM Campaigns",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/crm/campaigns"
+          }
+        },
+        {
+          "name": "Create CRM Campaign",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data?.id) pm.collectionVariables.set('crmCampaignId', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"segment_id\":\"{{crmSegmentId}}\",\"provider\":\"sendgrid\",\"external_id\":\"campaign-001\",\"name\":\"ERP Launch\",\"subject\":\"Modernize your operations\",\"content\":\"Campaign content\",\"status\":\"draft\"}"
+            },
+            "url": "{{baseUrl}}/crm/campaigns"
+          }
+        },
+        {
+          "name": "Update CRM Campaign",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"segment_id\":\"{{crmSegmentId}}\",\"provider\":\"sendgrid\",\"external_id\":\"campaign-001\",\"name\":\"ERP Launch\",\"subject\":\"Modernize your operations\",\"content\":\"Updated campaign content\",\"status\":\"sent\",\"sent_at\":\"2026-06-14 12:00:00\"}"
+            },
+            "url": "{{baseUrl}}/crm/campaigns/{{crmCampaignId}}"
+          }
+        },
+        {
+          "name": "Delete CRM Campaign",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/crm/campaigns/{{crmCampaignId}}"
+          }
+        },
+        {
+          "name": "Record SendGrid Campaign Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"campaign_id\":\"{{crmCampaignId}}\",\"contact_id\":\"{{crmContactId}}\",\"event_type\":\"open\",\"payload\":{\"message_id\":\"message-001\"}}"
+            },
+            "url": "{{baseUrl}}/crm/campaign-webhooks/sendgrid"
+          }
+        },
+        {
+          "name": "CRM Conversion Rate Report",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/crm/reports/conversion-rate"
+          }
+        },
+        {
+          "name": "CRM Pipeline Value Report",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/crm/reports/pipeline-value"
+          }
+        },
+        {
+          "name": "CRM Rep Performance Report",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/crm/reports/rep-performance"
+          }
+        }
       ]
     },
     {
       "name": "Projects",
       "item": [
-        { "name": "List Projects", "request": { "method": "GET", "url": "{{baseUrl}}/projects?per_page=15" } },
+        {
+          "name": "List Projects",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/projects?per_page=15"
+          }
+        },
         {
           "name": "Create Project",
-          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "if (body.data && body.data.id) pm.collectionVariables.set('projectId', body.data.id);"] } }],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data && body.data.id) pm.collectionVariables.set('projectId', body.data.id);"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\"name\":\"ERP Implementation\",\"description\":\"Implement ManzomaERP for the client\",\"start_date\":\"2026-06-08\",\"end_date\":\"2026-12-31\",\"budget\":100000,\"status\":\"active\"}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"ERP Implementation\",\"description\":\"Implement ManzomaERP for the client\",\"start_date\":\"2026-06-08\",\"end_date\":\"2026-12-31\",\"budget\":100000,\"status\":\"active\"}"
+            },
             "url": "{{baseUrl}}/projects"
           }
         },
-        { "name": "Project Gantt", "request": { "method": "GET", "url": "{{baseUrl}}/projects/gantt" } },
-        { "name": "Get Project", "request": { "method": "GET", "url": "{{baseUrl}}/projects/{{projectId}}" } },
-        { "name": "Update Project", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"ERP Implementation - Updated\",\"status\":\"on_hold\",\"budget\":110000}" }, "url": "{{baseUrl}}/projects/{{projectId}}" } },
-        { "name": "Project Report", "request": { "method": "GET", "url": "{{baseUrl}}/projects/{{projectId}}/report" } },
+        {
+          "name": "Project Gantt",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/projects/gantt"
+          }
+        },
+        {
+          "name": "Get Project",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/projects/{{projectId}}"
+          }
+        },
+        {
+          "name": "Update Project",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"ERP Implementation - Updated\",\"status\":\"on_hold\",\"budget\":110000}"
+            },
+            "url": "{{baseUrl}}/projects/{{projectId}}"
+          }
+        },
+        {
+          "name": "Project Report",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/projects/{{projectId}}/report"
+          }
+        },
         {
           "name": "Attach File to Project",
           "request": {
@@ -638,29 +3240,115 @@
             "body": {
               "mode": "formdata",
               "formdata": [
-                { "key": "file", "type": "file", "src": [] },
-                { "key": "comment", "value": "Project-level document", "type": "text" }
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "comment",
+                  "value": "Project-level document",
+                  "type": "text"
+                }
               ]
             },
             "url": "{{baseUrl}}/projects/{{projectId}}/attachments",
             "description": "Select a file in Postman before sending. Maximum file size is 20 MB."
           }
         },
-        { "name": "Add Project Comment", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"body\":\"Project-level note ready for the team.\"}" }, "url": "{{baseUrl}}/projects/{{projectId}}/comments" } },
-        { "name": "List Project Tasks", "request": { "method": "GET", "url": "{{baseUrl}}/projects/{{projectId}}/tasks?per_page=15" } },
         {
-          "name": "Create Project Task",
-          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "if (body.data && body.data.id) pm.collectionVariables.set('projectTaskId', body.data.id);"] } }],
+          "name": "Add Project Comment",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\"title\":\"Design project database\",\"description\":\"Prepare the project schema and relationships\",\"priority\":\"high\",\"status\":\"to_do\",\"estimated_hours\":20,\"sort_order\":1,\"start_date\":\"2026-06-08\",\"due_date\":\"2026-06-30\"}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"body\":\"Project-level note ready for the team.\"}"
+            },
+            "url": "{{baseUrl}}/projects/{{projectId}}/comments"
+          }
+        },
+        {
+          "name": "List Project Tasks",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/projects/{{projectId}}/tasks?per_page=15"
+          }
+        },
+        {
+          "name": "Create Project Task",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data && body.data.id) pm.collectionVariables.set('projectTaskId', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\":\"Design project database\",\"description\":\"Prepare the project schema and relationships\",\"priority\":\"high\",\"status\":\"to_do\",\"estimated_hours\":20,\"sort_order\":1,\"start_date\":\"2026-06-08\",\"due_date\":\"2026-06-30\"}"
+            },
             "url": "{{baseUrl}}/projects/{{projectId}}/tasks"
           }
         },
-        { "name": "Get Project Task", "request": { "method": "GET", "url": "{{baseUrl}}/project-tasks/{{projectTaskId}}" } },
-        { "name": "Update Project Task", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"priority\":\"critical\",\"status\":\"in_progress\",\"estimated_hours\":24}" }, "url": "{{baseUrl}}/project-tasks/{{projectTaskId}}" } },
-        { "name": "Log Task Time", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"work_date\":\"2026-06-08\",\"hours\":4,\"notes\":\"Implemented the initial project schema\"}" }, "url": "{{baseUrl}}/project-tasks/{{projectTaskId}}/time-logs" } },
+        {
+          "name": "Get Project Task",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/project-tasks/{{projectTaskId}}"
+          }
+        },
+        {
+          "name": "Update Project Task",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"priority\":\"critical\",\"status\":\"in_progress\",\"estimated_hours\":24}"
+            },
+            "url": "{{baseUrl}}/project-tasks/{{projectTaskId}}"
+          }
+        },
+        {
+          "name": "Log Task Time",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"work_date\":\"2026-06-08\",\"hours\":4,\"notes\":\"Implemented the initial project schema\"}"
+            },
+            "url": "{{baseUrl}}/project-tasks/{{projectTaskId}}/time-logs"
+          }
+        },
         {
           "name": "Attach File to Task",
           "request": {
@@ -668,18 +3356,182 @@
             "body": {
               "mode": "formdata",
               "formdata": [
-                { "key": "file", "type": "file", "src": [] },
-                { "key": "comment", "value": "Project task document", "type": "text" }
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "comment",
+                  "value": "Project task document",
+                  "type": "text"
+                }
               ]
             },
             "url": "{{baseUrl}}/project-tasks/{{projectTaskId}}/attachments",
             "description": "Select a file in Postman before sending. Maximum file size is 20 MB."
           }
         },
-        { "name": "Add Task Comment", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"body\":\"The initial database design is ready for review.\"}" }, "url": "{{baseUrl}}/project-tasks/{{projectTaskId}}/comments" } },
-        { "name": "Record Project Expense", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"task_id\":{{projectTaskId}},\"finance_reference\":\"EXP-PRJ-001\",\"category\":\"Software\",\"description\":\"Project tooling expense\",\"amount\":2500,\"expense_date\":\"2026-06-08\"}" }, "url": "{{baseUrl}}/projects/{{projectId}}/expenses" } },
-        { "name": "Delete Project Task", "request": { "method": "DELETE", "url": "{{baseUrl}}/project-tasks/{{projectTaskId}}" } },
-        { "name": "Delete Project", "request": { "method": "DELETE", "url": "{{baseUrl}}/projects/{{projectId}}" } }
+        {
+          "name": "Add Task Comment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"body\":\"The initial database design is ready for review.\"}"
+            },
+            "url": "{{baseUrl}}/project-tasks/{{projectTaskId}}/comments"
+          }
+        },
+        {
+          "name": "Record Project Expense",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"task_id\":{{projectTaskId}},\"finance_reference\":\"EXP-PRJ-001\",\"category\":\"Software\",\"description\":\"Project tooling expense\",\"amount\":2500,\"expense_date\":\"2026-06-08\"}"
+            },
+            "url": "{{baseUrl}}/projects/{{projectId}}/expenses"
+          }
+        },
+        {
+          "name": "Delete Project Task",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/project-tasks/{{projectTaskId}}"
+          }
+        },
+        {
+          "name": "Delete Project",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/projects/{{projectId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reporting & Business Intelligence",
+      "item": [
+        {
+          "name": "Get Reporting Catalog",
+          "request": { "method": "GET", "url": "{{baseUrl}}/reporting/catalog" }
+        },
+        {
+          "name": "Get KPI Dashboard",
+          "request": { "method": "GET", "url": "{{baseUrl}}/reporting/dashboard" }
+        },
+        {
+          "name": "Preview Custom Report",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"name\":\"Sales summary\",\"source\":\"sales_orders\",\"fields\":[\"status\"],\"groupings\":[\"status\"],\"metrics\":[{\"field\":\"total\",\"aggregate\":\"sum\"}],\"filters\":[],\"chart_type\":\"bar\"}" },
+            "url": "{{baseUrl}}/reporting/preview"
+          }
+        },
+        {
+          "name": "Run Prebuilt Sales Report",
+          "request": { "method": "GET", "url": "{{baseUrl}}/reporting/prebuilt/sales-revenue" }
+        },
+        {
+          "name": "List Custom Reports",
+          "request": { "method": "GET", "url": "{{baseUrl}}/reporting/reports" }
+        },
+        {
+          "name": "Create Custom Report",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"name\":\"Sales summary\",\"source\":\"sales_orders\",\"fields\":[\"status\"],\"groupings\":[\"status\"],\"metrics\":[{\"field\":\"total\",\"aggregate\":\"sum\"}],\"filters\":[],\"chart_type\":\"bar\"}" },
+            "url": "{{baseUrl}}/reporting/reports"
+          }
+        },
+        {
+          "name": "Create KPI Widget",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"title\":\"Sales revenue\",\"source\":\"sales_orders\",\"chart_type\":\"bar\",\"configuration\":{\"fields\":[\"status\"],\"groupings\":[\"status\"],\"metrics\":[{\"field\":\"total\",\"aggregate\":\"sum\"}]},\"position\":0,\"width\":2}" },
+            "url": "{{baseUrl}}/reporting/widgets"
+          }
+        },
+        {
+          "name": "List Report Schedules",
+          "request": { "method": "GET", "url": "{{baseUrl}}/reporting/schedules" }
+        },
+        {
+          "name": "List Report Runs",
+          "request": { "method": "GET", "url": "{{baseUrl}}/reporting/runs" }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Notification Feed",
+          "request": { "method": "GET", "url": "{{baseUrl}}/notifications" }
+        },
+        {
+          "name": "Unread Count",
+          "request": { "method": "GET", "url": "{{baseUrl}}/notifications/unread-count" }
+        },
+        {
+          "name": "Mark All Read",
+          "request": { "method": "POST", "url": "{{baseUrl}}/notifications/read-all" }
+        },
+        {
+          "name": "Get Preferences",
+          "request": { "method": "GET", "url": "{{baseUrl}}/notifications/preferences" }
+        },
+        {
+          "name": "Update Preferences",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"preferences\":[{\"event_type\":\"inventory.reorder\",\"in_app\":true,\"email\":true,\"sms\":true}]}" },
+            "url": "{{baseUrl}}/notifications/preferences"
+          }
+        },
+        {
+          "name": "Get Company Channel Settings",
+          "request": { "method": "GET", "url": "{{baseUrl}}/notifications/settings" }
+        },
+        {
+          "name": "Update Company Channel Settings",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"email\":{\"enabled\":true,\"mailer\":\"smtp\",\"host\":\"smtp.example.com\",\"port\":587,\"username\":\"user\",\"password\":\"secret\",\"encryption\":\"tls\",\"from_address\":\"erp@example.com\",\"from_name\":\"ManzomaERP\"},\"sms\":{\"enabled\":true},\"twilio\":{\"sid\":\"AC...\",\"token\":\"secret\",\"from\":\"+15550000000\"}}" },
+            "url": "{{baseUrl}}/notifications/settings"
+          }
+        },
+        {
+          "name": "Send Announcement",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"title\":\"Maintenance window\",\"message\":\"The ERP will be maintained tonight.\",\"severity\":\"warning\"}" },
+            "url": "{{baseUrl}}/notifications/announce"
+          }
+        },
+        {
+          "name": "Delivery Audit",
+          "request": { "method": "GET", "url": "{{baseUrl}}/notifications/deliveries" }
+        }
       ]
     }
   ]
