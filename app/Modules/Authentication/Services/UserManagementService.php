@@ -8,9 +8,11 @@ use App\Modules\Authentication\DTOs\CreateUserData;
 use App\Modules\Authentication\Enums\UserRole;
 use App\Modules\Authentication\Models\User;
 use App\Modules\Authentication\Policies\UserManagementPolicy;
+use App\Modules\Companies\Models\Company;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 class UserManagementService
 {
@@ -37,10 +39,22 @@ class UserManagementService
     public function create(User $actor, CreateUserData $data): User
     {
         $this->policy->ensureCanManageUsers($actor);
+        $companyId = $this->policy->resolveCompanyId($actor, $data->role, $data->companyId);
 
-        return DB::transaction(function () use ($actor, $data) {
+        if ($companyId) {
+            $company = Company::with('subscription.plan')->findOrFail($companyId);
+            $limit = $company->subscription?->plan?->max_users;
+
+            if ($limit !== null && $company->users()->count() >= $limit) {
+                throw ValidationException::withMessages([
+                    'company_id' => ['This company has reached its subscription user limit.'],
+                ]);
+            }
+        }
+
+        return DB::transaction(function () use ($data, $companyId) {
             $user = $this->users->create([
-                'company_id' => $this->policy->resolveCompanyId($actor, $data->role, $data->companyId),
+                'company_id' => $companyId,
                 'name' => $data->name,
                 'email' => $data->email,
                 'password' => Hash::make($data->password),
@@ -65,5 +79,19 @@ class UserManagementService
 
             return $this->users->loadProfile($target);
         });
+    }
+
+    public function forcePasswordReset(User $actor, User $target): User
+    {
+        $this->policy->ensureCanManageUsers($actor);
+        $this->policy->ensureCanManageTarget($actor, $target);
+        abort_unless($actor->can('auth.force_password_reset'), 403);
+
+        $target->forceFill([
+            'must_change_password' => true,
+        ])->save();
+        $target->tokens()->delete();
+
+        return $this->users->loadProfile($target);
     }
 }

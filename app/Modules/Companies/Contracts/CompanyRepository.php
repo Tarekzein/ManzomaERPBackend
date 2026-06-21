@@ -10,4 +10,6 @@ interface CompanyRepository
     public function create(array $attributes): Company;
 
     public function paginate(string $search, int $perPage): LengthAwarePaginator;
+
+    public function save(Company $company, array $attributes): Company;
 }

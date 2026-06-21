@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Authentication\Models\User;
 use App\Modules\Notifications\Http\Requests\NotificationRequest;
 use App\Modules\Notifications\Models\NotificationDeliveryLog;
+use App\Modules\Notifications\Services\NotificationSecrets;
 use App\Modules\Notifications\Services\NotificationService;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
@@ -85,11 +86,19 @@ class NotificationController extends Controller
         $company = $user->company;
         $settings = $company->settings ?? [];
         $notifications = $request->validated();
+        $twilioTokenChanged = ($notifications['twilio']['token'] ?? null) !== '********';
+        $emailPasswordChanged = ($notifications['email']['password'] ?? null) !== '********';
         if (($notifications['twilio']['token'] ?? null) === '********') {
             $notifications['twilio']['token'] = $settings['notifications']['twilio']['token'] ?? null;
         }
         if (($notifications['email']['password'] ?? null) === '********') {
             $notifications['email']['password'] = $settings['notifications']['email']['password'] ?? null;
+        }
+        if ($twilioTokenChanged && isset($notifications['twilio']['token'])) {
+            $notifications['twilio']['token'] = NotificationSecrets::encrypt($notifications['twilio']['token']);
+        }
+        if ($emailPasswordChanged && isset($notifications['email']['password'])) {
+            $notifications['email']['password'] = NotificationSecrets::encrypt($notifications['email']['password']);
         }
         $settings['notifications'] = $notifications;
         $company->update(['settings' => $settings]);

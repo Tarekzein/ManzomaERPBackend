@@ -8,6 +8,7 @@ use App\Modules\Authentication\Contracts\UserRepository;
 use App\Modules\Authentication\DTOs\LoginData;
 use App\Modules\Authentication\DTOs\RegisterData;
 use App\Modules\Authentication\Enums\UserRole;
+use App\Modules\Authentication\Models\TrustedLoginDevice;
 use App\Modules\Authentication\Models\User;
 use App\Modules\Companies\DTOs\CreateCompanyData;
 use App\Modules\Companies\Services\CompanyService;
@@ -18,6 +19,8 @@ use App\Modules\Subscriptions\Services\CompanySubscriptionService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
+use Laravel\Fortify\Fortify;
 
 class AuthenticationService
 {
@@ -90,6 +93,12 @@ class AuthenticationService
             throw ValidationException::withMessages(['email' => ['The provided credentials are incorrect.']]);
         }
 
+        $this->verifyTwoFactor($user, $data);
+
+        // A new login starts a new inactivity window. Otherwise an old
+        // last_activity_at value can immediately invalidate the fresh token.
+        $user->forceFill(['last_activity_at' => now()])->saveQuietly();
+
         return $this->tokenResponse($user, $data->deviceName);
     }
 
@@ -108,11 +117,82 @@ class AuthenticationService
         $user->tokens()->delete();
     }
 
+    public function changePassword(User $user, string $currentPassword, string $password): User
+    {
+        if (! Hash::check($currentPassword, $user->password)) {
+            throw ValidationException::withMessages(['current_password' => ['The current password is incorrect.']]);
+        }
+
+        $user->forceFill([
+            'password' => Hash::make($password),
+            'must_change_password' => false,
+        ])->save();
+
+        return $this->users->loadProfile($user);
+    }
+
     private function tokenResponse(User $user, string $deviceName): array
     {
         return [
             'user' => $this->users->loadProfile($user),
             'token' => $user->createToken($deviceName)->plainTextToken,
         ];
+    }
+
+    private function verifyTwoFactor(User $user, LoginData $data): void
+    {
+        if (! $user->hasEnabledTwoFactorAuthentication()) {
+            return;
+        }
+
+        $fingerprint = $this->deviceFingerprint($data);
+        $trustedDevice = TrustedLoginDevice::query()
+            ->where('user_id', $user->id)
+            ->where('fingerprint_hash', $fingerprint)
+            ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->first();
+
+        if ($trustedDevice && ! $data->twoFactorCode && ! $data->recoveryCode) {
+            $trustedDevice->forceFill([
+                'ip_address' => $data->ipAddress,
+                'last_used_at' => now(),
+                'expires_at' => now()->addDays(90),
+            ])->save();
+
+            return;
+        }
+
+        $validCode = $data->twoFactorCode && app(TwoFactorAuthenticationProvider::class)->verify(
+            Fortify::currentEncrypter()->decrypt($user->two_factor_secret),
+            $data->twoFactorCode
+        );
+        $recoveryCode = $data->recoveryCode ?: $data->twoFactorCode;
+        $validRecovery = $recoveryCode && in_array($recoveryCode, $user->recoveryCodes(), true);
+
+        if (! $validCode && ! $validRecovery) {
+            throw ValidationException::withMessages(['two_factor_code' => ['A valid two-factor or recovery code is required for this device.']]);
+        }
+
+        if ($validRecovery) {
+            $user->replaceRecoveryCode($recoveryCode);
+        }
+
+        TrustedLoginDevice::updateOrCreate(
+            ['user_id' => $user->id, 'fingerprint_hash' => $fingerprint],
+            [
+                'device_name' => $data->deviceName,
+                'ip_address' => $data->ipAddress,
+                'last_used_at' => now(),
+                'expires_at' => now()->addDays(90),
+            ],
+        );
+    }
+
+    private function deviceFingerprint(LoginData $data): string
+    {
+        return hash('sha256', implode('|', [
+            mb_strtolower($data->deviceName),
+            mb_strtolower($data->userAgent ?: 'unknown-agent'),
+        ]));
     }
 }

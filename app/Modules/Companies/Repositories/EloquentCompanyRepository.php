@@ -22,4 +22,11 @@ class EloquentCompanyRepository implements CompanyRepository
             ->orderBy('name')
             ->paginate($perPage);
     }
+
+    public function save(Company $company, array $attributes): Company
+    {
+        $company->fill($attributes)->save();
+
+        return $company->refresh()->load('subscription.plan');
+    }
 }

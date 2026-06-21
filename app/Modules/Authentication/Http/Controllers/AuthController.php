@@ -59,4 +59,17 @@ class AuthController extends Controller
 
         return ApiResponse::success(null, 'Logged out from all devices');
     }
+
+    public function changePassword(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'confirmed', 'min:10', 'regex:/[a-z]/', 'regex:/[A-Z]/', 'regex:/[0-9]/', 'regex:/[^A-Za-z0-9]/'],
+        ]);
+
+        return ApiResponse::success(
+            $this->authentication->changePassword($request->user(), $data['current_password'], $data['password']),
+            'Password changed'
+        );
+    }
 }

@@ -8,24 +8,29 @@ use App\Modules\HR\Models\Employee;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, HasRoles, Notifiable;
+    use HasApiTokens, HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
 
-    protected $fillable = ['company_id', 'name', 'email', 'password'];
+    protected $fillable = ['company_id', 'custom_role_id', 'name', 'email', 'password', 'must_change_password', 'last_activity_at'];
 
-    protected $hidden = ['password', 'remember_token'];
+    protected $hidden = ['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'];
 
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'must_change_password' => 'boolean',
+            'last_activity_at' => 'datetime',
+            'two_factor_confirmed_at' => 'datetime',
         ];
     }
 
@@ -39,9 +44,19 @@ class User extends Authenticatable
         return $this->belongsTo(Company::class);
     }
 
+    public function customRole(): BelongsTo
+    {
+        return $this->belongsTo(CompanyCustomRole::class, 'custom_role_id');
+    }
+
     public function employee()
     {
         return $this->hasOne(Employee::class);
+    }
+
+    public function trustedLoginDevices(): HasMany
+    {
+        return $this->hasMany(TrustedLoginDevice::class);
     }
 
     public function isSuperAdmin(): bool

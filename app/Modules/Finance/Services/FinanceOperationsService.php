@@ -17,7 +17,9 @@ use Illuminate\Validation\ValidationException;
 
 class FinanceOperationsService
 {
-    public function __construct(private readonly FinancePolicy $policy) {}
+    public function __construct(private readonly FinancePolicy $policy)
+    {
+    }
 
     public function taxes(User $u)
     {
@@ -98,14 +100,30 @@ class FinanceOperationsService
         $companyId = $this->policy->companyId($u, 'finance.edit');
         $base = $u->company->currency;
         $key = config('services.open_exchange_rates.app_id');
-        if (! $key) {
+        if (!$key) {
             throw ValidationException::withMessages(['exchange_rates' => ['OPEN_EXCHANGE_RATES_APP_ID is not configured.']]);
         }
-        $response = Http::timeout(10)->get('https://openexchangerates.org/api/latest.json', ['app_id' => $key, 'base' => $base, 'symbols' => implode(',', $quotes)])->throw()->json();
+        $response = Http::timeout(10)->get('https://api.exchangeratesapi.io/v1/latest', ['access_key' => $key])->throw()->json();
+        
+        $apiBase = $response['base'] ?? 'EUR';
+        $quotesToSave = array_unique(array_merge($quotes, [$base, $apiBase]));
+        
+        $savedRates = [];
         foreach ($response['rates'] ?? [] as $quote => $rate) {
-            ExchangeRate::updateOrCreate(['company_id' => $companyId, 'base_currency' => $base, 'quote_currency' => $quote, 'rate_date' => now()->toDateString()], ['rate' => $rate, 'source' => 'open_exchange_rates']);
+            if (in_array($quote, $quotesToSave)) {
+                ExchangeRate::updateOrCreate([
+                    'company_id' => $companyId, 
+                    'base_currency' => $apiBase, 
+                    'quote_currency' => $quote, 
+                    'rate_date' => now()->toDateString()
+                ], [
+                    'rate' => $rate, 
+                    'source' => 'open_exchange_rates'
+                ]);
+                $savedRates[$quote] = $rate;
+            }
         }
 
-        return $response['rates'] ?? [];
+        return $savedRates;
     }
 }

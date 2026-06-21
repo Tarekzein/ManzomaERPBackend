@@ -7,15 +7,15 @@ use App\Modules\Companies\Models\Company;
 use App\Modules\CRM\Models\CRMContact;
 use App\Modules\CRM\Models\CRMOpportunity;
 use App\Modules\CRM\Models\CRMTask;
-use App\Modules\Finance\Models\Payment;
 use App\Modules\Finance\Models\Invoice;
 use App\Modules\Finance\Models\JournalEntry;
+use App\Modules\Finance\Models\Payment;
 use App\Modules\HR\Models\Department;
 use App\Modules\HR\Models\Employee;
 use App\Modules\HR\Models\LeaveRequest;
 use App\Modules\HR\Models\PayrollItem;
-use App\Modules\Inventory\Models\StockBalance;
 use App\Modules\Inventory\Models\ReorderAlert;
+use App\Modules\Inventory\Models\StockBalance;
 use App\Modules\Projects\Enums\ProjectStatus;
 use App\Modules\Projects\Enums\TaskStatus;
 use App\Modules\Projects\Models\Project;
@@ -28,6 +28,8 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardService
 {
+    public function __construct(private readonly EffectiveAccessService $access) {}
+
     public function summary(User $user): array
     {
         return $user->isSuperAdmin() ? $this->platformSummary() : $this->companySummary($user);
@@ -73,96 +75,100 @@ class DashboardService
         $companyId = $user->company_id;
 
         if ($companyId === null) {
-            return ['scope' => 'company', 'metrics' => [], 'recent_projects' => []];
+            return ['scope' => 'company', 'metrics' => [], 'analytics' => [], 'access' => $this->access->effectiveAccess($user)];
+        }
+
+        $metrics = [];
+        $analytics = [];
+        $recentProjects = [];
+
+        if ($this->access->canAccessModule($user, 'projects')) {
+            $metrics['active_projects'] = Project::where('company_id', $companyId)->where('status', ProjectStatus::Active->value)->count();
+            $metrics['open_tasks'] = ProjectTask::whereHas('project', fn ($query) => $query->where('company_id', $companyId))
+                ->where('status', '!=', TaskStatus::Done->value)->count();
+            $recentProjects = Project::query()->where('company_id', $companyId)->withCount('tasks')->latest()->limit(5)->get();
+            $analytics['projects'] = [
+                'projects_by_status' => $this->groupedCount(Project::where('company_id', $companyId), 'status'),
+                'tasks_by_status' => ProjectTask::query()
+                    ->whereHas('project', fn ($query) => $query->where('company_id', $companyId))
+                    ->selectRaw('status name, count(*) value')->groupBy('status')->get(),
+                'budget_total' => (float) Project::where('company_id', $companyId)->sum('budget'),
+            ];
+        }
+
+        if ($this->access->canAccessModule($user, 'inventory')) {
+            $metrics['reorder_alerts'] = ReorderAlert::where('company_id', $companyId)->whereNull('resolved_at')->count();
+            $analytics['inventory'] = [
+                'valuation_by_warehouse' => StockBalance::query()
+                    ->join('warehouses', 'warehouses.id', '=', 'stock_balances.warehouse_id')
+                    ->where('stock_balances.company_id', $companyId)
+                    ->selectRaw('warehouses.name name, sum(stock_balances.quantity * stock_balances.average_cost) value, sum(stock_balances.quantity) quantity')
+                    ->groupBy('warehouses.id', 'warehouses.name')->orderByDesc('value')->get(),
+                'reorder_alerts' => ReorderAlert::query()->with('balance.product', 'balance.warehouse')
+                    ->where('company_id', $companyId)->whereNull('resolved_at')->latest()->limit(5)->get(),
+            ];
+        }
+
+        if ($this->access->canAccessModule($user, 'finance')) {
+            $metrics['draft_journals'] = JournalEntry::where('company_id', $companyId)->whereNull('posted_at')->count();
+            $metrics['open_invoices'] = Invoice::where('company_id', $companyId)->whereNotIn('status', ['paid', 'cancelled'])->count();
+            $analytics['finance'] = [
+                'invoice_trend' => $this->monthlyFinancials($companyId),
+                'invoice_statuses' => $this->groupedCount(Invoice::where('company_id', $companyId), 'status'),
+                'receivables_outstanding' => (float) Invoice::where('company_id', $companyId)->where('type', 'receivable')->sum(DB::raw('total - paid_total')),
+                'payables_outstanding' => (float) Invoice::where('company_id', $companyId)->where('type', 'payable')->sum(DB::raw('total - paid_total')),
+                'payments_total' => (float) Payment::where('company_id', $companyId)->sum('amount'),
+            ];
+        }
+
+        if ($this->access->canAccessModule($user, 'sales')) {
+            $metrics['open_sales_orders'] = SalesOrder::where('company_id', $companyId)->whereNotIn('status', ['closed'])->count();
+            $metrics['open_purchase_orders'] = PurchaseOrder::where('company_id', $companyId)->whereNotIn('status', ['closed'])->count();
+            $metrics['sales_revenue'] = (float) SalesOrder::where('company_id', $companyId)->whereIn('status', ['invoiced', 'closed'])->sum('total');
+            $analytics['sales'] = [
+                'order_trend' => $this->monthlySales($companyId),
+                'sales_statuses' => $this->groupedCount(SalesOrder::where('company_id', $companyId), 'status'),
+                'purchase_statuses' => $this->groupedCount(PurchaseOrder::where('company_id', $companyId), 'status'),
+            ];
+        }
+
+        if ($this->access->canAccessModule($user, 'crm')) {
+            $metrics['open_opportunities'] = CRMOpportunity::where('company_id', $companyId)->where('status', 'open')->count();
+            $metrics['pipeline_value'] = (float) CRMOpportunity::where('company_id', $companyId)->where('status', 'open')->sum('value');
+            $metrics['leads_this_month'] = CRMContact::where('company_id', $companyId)->where('type', 'lead')->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count();
+            $metrics['overdue_crm_followups'] = CRMTask::where('company_id', $companyId)->whereNotIn('status', ['completed', 'cancelled'])->where('due_at', '<', now())->count();
+            $analytics['crm'] = [
+                'contacts_by_type' => $this->groupedCount(CRMContact::where('company_id', $companyId), 'type'),
+                'pipeline_by_stage' => CRMOpportunity::query()
+                    ->join('crm_pipeline_stages', 'crm_pipeline_stages.id', '=', 'crm_opportunities.stage_id')
+                    ->where('crm_opportunities.company_id', $companyId)
+                    ->selectRaw('crm_pipeline_stages.name name, count(*) opportunities, sum(crm_opportunities.value) value')
+                    ->groupBy('crm_pipeline_stages.id', 'crm_pipeline_stages.name', 'crm_pipeline_stages.sort_order')
+                    ->orderBy('crm_pipeline_stages.sort_order')->get(),
+            ];
+        }
+
+        if ($this->access->canAccessModule($user, 'hr')) {
+            $analytics['hr'] = [
+                'headcount_by_department' => Department::query()
+                    ->leftJoin('hr_employees', function ($join) {
+                        $join->on('hr_employees.department_id', '=', 'hr_departments.id')->where('hr_employees.status', '=', 'active');
+                    })
+                    ->where('hr_departments.company_id', $companyId)
+                    ->selectRaw('hr_departments.name name, count(hr_employees.id) value')
+                    ->groupBy('hr_departments.id', 'hr_departments.name')->orderByDesc('value')->get(),
+                'leave_by_status' => $this->groupedCount(LeaveRequest::where('company_id', $companyId), 'status'),
+                'active_employees' => Employee::where('company_id', $companyId)->where('status', 'active')->count(),
+                'payroll_total' => (float) PayrollItem::whereHas('employee', fn ($query) => $query->where('company_id', $companyId))->sum('net_salary'),
+            ];
         }
 
         return [
             'scope' => 'company',
-            'metrics' => [
-                'active_projects' => Project::where('company_id', $companyId)->where('status', ProjectStatus::Active->value)->count(),
-                'open_tasks' => ProjectTask::whereHas('project', fn ($query) => $query->where('company_id', $companyId))
-                    ->where('status', '!=', TaskStatus::Done->value)
-                    ->count(),
-                'reorder_alerts' => ReorderAlert::where('company_id', $companyId)->whereNull('resolved_at')->count(),
-                'draft_journals' => JournalEntry::where('company_id', $companyId)->whereNull('posted_at')->count(),
-                'open_invoices' => Invoice::where('company_id', $companyId)->whereNotIn('status', ['paid', 'cancelled'])->count(),
-                'open_sales_orders' => SalesOrder::where('company_id', $companyId)->whereNotIn('status', ['closed'])->count(),
-                'open_purchase_orders' => PurchaseOrder::where('company_id', $companyId)->whereNotIn('status', ['closed'])->count(),
-                'sales_revenue' => (float) SalesOrder::where('company_id', $companyId)->whereIn('status', ['invoiced', 'closed'])->sum('total'),
-                'open_opportunities' => CRMOpportunity::where('company_id', $companyId)->where('status', 'open')->count(),
-                'pipeline_value' => (float) CRMOpportunity::where('company_id', $companyId)->where('status', 'open')->sum('value'),
-                'leads_this_month' => CRMContact::where('company_id', $companyId)->where('type', 'lead')->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count(),
-                'overdue_crm_followups' => CRMTask::where('company_id', $companyId)->whereNotIn('status', ['completed', 'cancelled'])->where('due_at', '<', now())->count(),
-            ],
-            'recent_projects' => Project::query()
-                ->where('company_id', $companyId)
-                ->withCount('tasks')
-                ->latest()
-                ->limit(5)
-                ->get(),
-            'analytics' => [
-                'finance' => [
-                    'invoice_trend' => $this->monthlyFinancials($companyId),
-                    'invoice_statuses' => $this->groupedCount(Invoice::where('company_id', $companyId), 'status'),
-                    'receivables_outstanding' => (float) Invoice::where('company_id', $companyId)->where('type', 'receivable')->sum(DB::raw('total - paid_total')),
-                    'payables_outstanding' => (float) Invoice::where('company_id', $companyId)->where('type', 'payable')->sum(DB::raw('total - paid_total')),
-                    'payments_total' => (float) Payment::where('company_id', $companyId)->sum('amount'),
-                ],
-                'sales' => [
-                    'order_trend' => $this->monthlySales($companyId),
-                    'sales_statuses' => $this->groupedCount(SalesOrder::where('company_id', $companyId), 'status'),
-                    'purchase_statuses' => $this->groupedCount(PurchaseOrder::where('company_id', $companyId), 'status'),
-                ],
-                'crm' => [
-                    'contacts_by_type' => $this->groupedCount(CRMContact::where('company_id', $companyId), 'type'),
-                    'pipeline_by_stage' => CRMOpportunity::query()
-                        ->join('crm_pipeline_stages', 'crm_pipeline_stages.id', '=', 'crm_opportunities.stage_id')
-                        ->where('crm_opportunities.company_id', $companyId)
-                        ->selectRaw('crm_pipeline_stages.name name, count(*) opportunities, sum(crm_opportunities.value) value')
-                        ->groupBy('crm_pipeline_stages.id', 'crm_pipeline_stages.name', 'crm_pipeline_stages.sort_order')
-                        ->orderBy('crm_pipeline_stages.sort_order')
-                        ->get(),
-                ],
-                'inventory' => [
-                    'valuation_by_warehouse' => StockBalance::query()
-                        ->join('warehouses', 'warehouses.id', '=', 'stock_balances.warehouse_id')
-                        ->where('stock_balances.company_id', $companyId)
-                        ->selectRaw('warehouses.name name, sum(stock_balances.quantity * stock_balances.average_cost) value, sum(stock_balances.quantity) quantity')
-                        ->groupBy('warehouses.id', 'warehouses.name')
-                        ->orderByDesc('value')
-                        ->get(),
-                    'reorder_alerts' => ReorderAlert::query()
-                        ->with('balance.product', 'balance.warehouse')
-                        ->where('company_id', $companyId)
-                        ->whereNull('resolved_at')
-                        ->latest()
-                        ->limit(5)
-                        ->get(),
-                ],
-                'projects' => [
-                    'projects_by_status' => $this->groupedCount(Project::where('company_id', $companyId), 'status'),
-                    'tasks_by_status' => ProjectTask::query()
-                        ->whereHas('project', fn ($query) => $query->where('company_id', $companyId))
-                        ->selectRaw('status name, count(*) value')
-                        ->groupBy('status')
-                        ->get(),
-                    'budget_total' => (float) Project::where('company_id', $companyId)->sum('budget'),
-                ],
-                'hr' => [
-                    'headcount_by_department' => Department::query()
-                        ->leftJoin('hr_employees', function ($join) {
-                            $join->on('hr_employees.department_id', '=', 'hr_departments.id')->where('hr_employees.status', '=', 'active');
-                        })
-                        ->where('hr_departments.company_id', $companyId)
-                        ->selectRaw('hr_departments.name name, count(hr_employees.id) value')
-                        ->groupBy('hr_departments.id', 'hr_departments.name')
-                        ->orderByDesc('value')
-                        ->get(),
-                    'leave_by_status' => $this->groupedCount(LeaveRequest::where('company_id', $companyId), 'status'),
-                    'active_employees' => Employee::where('company_id', $companyId)->where('status', 'active')->count(),
-                    'payroll_total' => (float) PayrollItem::whereHas('employee', fn ($query) => $query->where('company_id', $companyId))->sum('net_salary'),
-                ],
-            ],
+            'metrics' => $metrics,
+            'recent_projects' => $recentProjects,
+            'analytics' => $analytics,
+            'access' => $this->access->effectiveAccess($user),
         ];
     }
 

@@ -29,6 +29,11 @@ class CompanySubscriptionController extends Controller
         );
     }
 
+    public function cancel(Request $request): JsonResponse
+    {
+        return ApiResponse::success($this->subscriptions->cancel($this->user($request)), 'Company subscription cancelled');
+    }
+
     private function user(Request $request): User
     {
         /** @var User $user */

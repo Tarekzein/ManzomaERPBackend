@@ -40,4 +40,14 @@ class CompanySubscriptionService
             return $this->subscriptions->replaceActive($company, $plan, $data->billingCycle, $metadata);
         });
     }
+
+    public function cancel(User $actor): CompanySubscription
+    {
+        $this->policy->ensureCanSubscribe($actor);
+        $subscription = $this->subscriptions->current($actor->company);
+        abort_unless($subscription, 404, 'No active subscription was found.');
+        $subscription->update(['status' => 'cancelled', 'cancelled_at' => now(), 'ends_at' => now()]);
+
+        return $subscription->refresh()->load('plan.features');
+    }
 }

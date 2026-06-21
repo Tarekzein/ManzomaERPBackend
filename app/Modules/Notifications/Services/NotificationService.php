@@ -31,6 +31,7 @@ class NotificationService
 
         return collect($this->eventTypes())->map(function (array $event, string $type) use ($saved) {
             $preference = $saved->get($type);
+
             return ['event_type' => $type] + $event + [
                 'in_app' => $preference?->in_app ?? true,
                 'email' => $preference?->email ?? true,
@@ -105,7 +106,7 @@ class NotificationService
         if ($mailer === 'smtp') {
             foreach (['host', 'port', 'username', 'password', 'encryption'] as $key) {
                 if (! empty($email[$key])) {
-                    config(["mail.mailers.smtp.{$key}" => $email[$key]]);
+                    config(["mail.mailers.smtp.{$key}" => $key === 'password' ? NotificationSecrets::decrypt($email[$key]) : $email[$key]]);
                 }
             }
         }

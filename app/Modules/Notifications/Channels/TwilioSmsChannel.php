@@ -3,6 +3,7 @@
 namespace App\Modules\Notifications\Channels;
 
 use App\Modules\Notifications\Models\NotificationDeliveryLog;
+use App\Modules\Notifications\Services\NotificationSecrets;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -15,7 +16,7 @@ class TwilioSmsChannel
         $settings = $notifiable->company?->settings['notifications']['twilio'] ?? [];
         $to = $notifiable->routeNotificationForSms();
         $sid = $settings['sid'] ?? config('services.twilio.sid');
-        $token = $settings['token'] ?? config('services.twilio.token');
+        $token = NotificationSecrets::decrypt($settings['token'] ?? null) ?? config('services.twilio.token');
         $from = $settings['from'] ?? config('services.twilio.from');
 
         if (! $to || ! $sid || ! $token || ! $from) {

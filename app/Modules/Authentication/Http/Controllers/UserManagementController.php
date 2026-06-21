@@ -51,4 +51,9 @@ class UserManagementController extends Controller
             'User role updated'
         );
     }
+
+    public function forcePasswordReset(Request $request, User $user): JsonResponse
+    {
+        return ApiResponse::success($this->users->forcePasswordReset($request->user(), $user), 'Password reset required');
+    }
 }

@@ -1,5 +1,7 @@
 <?php
 
+use App\Modules\Platform\Http\Middleware\EnforceCompanyAccess;
+use App\Modules\Platform\Http\Middleware\TrackApiUsage;
 use App\Support\ApiResponse;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -27,6 +29,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo(
             fn (Request $request) => $request->is('api/*') ? null : '/'
         );
+        $middleware->appendToGroup('api', [
+            EnforceCompanyAccess::class,
+            TrackApiUsage::class,
+            'throttle:erp-api',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->shouldRenderJsonWhen(

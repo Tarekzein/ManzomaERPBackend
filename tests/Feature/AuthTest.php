@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Modules\Authentication\Models\User;
 use Database\Seeders\SubscriptionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\PersonalAccessToken;
@@ -34,6 +35,8 @@ class AuthTest extends TestCase
             ->assertJsonPath('data.user.company.subscription.billing_cycle', 'annual')
             ->assertJsonStructure(['data' => ['token']]);
 
+        User::where('email', 'mona@example.com')->update(['last_activity_at' => now()->subDay()]);
+
         $login = $this->postJson('/api/auth/login', [
             'email' => 'mona@example.com',
             'password' => 'Secret#123',
@@ -41,6 +44,8 @@ class AuthTest extends TestCase
         ]);
 
         $token = $login->assertOk()->json('data.token');
+
+        $this->assertTrue(User::where('email', 'mona@example.com')->firstOrFail()->last_activity_at->isToday());
 
         $this->withToken($token)
             ->getJson('/api/auth/me')

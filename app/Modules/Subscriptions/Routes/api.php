@@ -12,6 +12,7 @@ Route::prefix('subscriptions')->name('subscriptions.')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/current', [CompanySubscriptionController::class, 'current'])->name('current');
         Route::post('/subscribe', [CompanySubscriptionController::class, 'subscribe'])->name('subscribe');
+        Route::post('/cancel', [CompanySubscriptionController::class, 'cancel'])->name('cancel');
 
         Route::post('/plans', [SubscriptionAdminController::class, 'storePlan'])->name('plans.store');
         Route::put('/plans/{plan}', [SubscriptionAdminController::class, 'updatePlan'])->name('plans.update');

@@ -4,10 +4,13 @@ namespace App\Modules\Authentication\Repositories;
 
 use App\Modules\Authentication\Contracts\UserRepository;
 use App\Modules\Authentication\Models\User;
+use App\Modules\Platform\Services\EffectiveAccessService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class EloquentUserRepository implements UserRepository
 {
+    public function __construct(private readonly EffectiveAccessService $access) {}
+
     public function findByEmail(string $email): ?User
     {
         return User::where('email', $email)->first();
@@ -28,7 +31,7 @@ class EloquentUserRepository implements UserRepository
     public function paginate(?int $companyId, int $perPage): LengthAwarePaginator
     {
         return User::query()
-            ->with('company', 'roles')
+            ->with('company', 'roles', 'customRole')
             ->when($companyId !== null, fn ($query) => $query->where('company_id', $companyId))
             ->orderBy('name')
             ->paginate($perPage);
@@ -36,6 +39,10 @@ class EloquentUserRepository implements UserRepository
 
     public function loadProfile(User $user): User
     {
-        return $user->load('company.subscription.plan.features', 'roles.permissions');
+        $user->load('company.subscription.plan.features', 'roles.permissions', 'customRole', 'permissions');
+        $user->setAttribute('access', $this->access->effectiveAccess($user));
+        $user->syncOriginalAttribute('access');
+
+        return $user;
     }
 }

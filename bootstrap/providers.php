@@ -3,6 +3,7 @@
 use App\Modules\Authentication\Providers\AuthenticationServiceProvider;
 use App\Modules\Companies\Providers\CompaniesServiceProvider;
 use App\Modules\CRM\Providers\CRMServiceProvider;
+use App\Modules\CustomModules\Providers\CustomModulesServiceProvider;
 use App\Modules\Finance\Providers\FinanceServiceProvider;
 use App\Modules\HR\Providers\HRServiceProvider;
 use App\Modules\Inventory\Providers\InventoryServiceProvider;
@@ -18,6 +19,7 @@ use App\Providers\HorizonServiceProvider;
 return [
     AppServiceProvider::class,
     CompaniesServiceProvider::class,
+    CustomModulesServiceProvider::class,
     CRMServiceProvider::class,
     FinanceServiceProvider::class,
     InventoryServiceProvider::class,
