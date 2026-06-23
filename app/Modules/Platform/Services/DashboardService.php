@@ -20,6 +20,7 @@ use App\Modules\Projects\Enums\ProjectStatus;
 use App\Modules\Projects\Enums\TaskStatus;
 use App\Modules\Projects\Models\Project;
 use App\Modules\Projects\Models\ProjectTask;
+use App\Modules\Projects\Models\ProjectTimeLog;
 use App\Modules\Sales\Models\PurchaseOrder;
 use App\Modules\Sales\Models\SalesOrder;
 use App\Modules\Subscriptions\Models\CompanySubscription;
@@ -28,7 +29,7 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardService
 {
-    public function __construct(private readonly EffectiveAccessService $access) {}
+    public function __construct(private readonly EffectiveAccessService $access, private readonly WorkScopeService $scope) {}
 
     public function summary(User $user): array
     {
@@ -76,6 +77,10 @@ class DashboardService
 
         if ($companyId === null) {
             return ['scope' => 'company', 'metrics' => [], 'analytics' => [], 'access' => $this->access->effectiveAccess($user)];
+        }
+
+        if (! $this->scope->isCompanyWide($user)) {
+            return $this->scopedCompanySummary($user, $companyId);
         }
 
         $metrics = [];
@@ -170,6 +175,150 @@ class DashboardService
             'analytics' => $analytics,
             'access' => $this->access->effectiveAccess($user),
         ];
+    }
+
+    private function scopedCompanySummary(User $user, int $companyId): array
+    {
+        $scopedUserIds = $this->scope->scopedUserIds($user);
+        $scopedEmployeeIds = $this->scope->scopedEmployeeIds($user);
+        $directReportUserIds = $this->scope->directReportUserIds($user);
+        $directReportEmployeeIds = $this->scope->directReportEmployeeIds($user);
+        $isManager = $this->scope->isManager($user);
+        $projectScope = fn ($query) => $this->scope->applyProjectScope($query->where('company_id', $companyId), $user);
+        $taskScope = fn ($query) => $query->whereHas('project', fn ($project) => $projectScope($project))
+            ->whereIn('assignee_id', $scopedUserIds);
+
+        $metrics = [];
+        $analytics = [];
+
+        if ($this->access->canAccessModule($user, 'projects')) {
+            $metrics['assigned_projects'] = Project::query()
+                ->where('company_id', $companyId)
+                ->tap(fn ($query) => $this->scope->applyProjectScope($query, $user))
+                ->count();
+            $metrics['my_open_tasks'] = ProjectTask::query()
+                ->whereHas('project', fn ($query) => $query->where('company_id', $companyId))
+                ->where('assignee_id', $user->id)
+                ->where('status', '!=', TaskStatus::Done->value)
+                ->count();
+            $metrics['my_overdue_tasks'] = ProjectTask::query()
+                ->whereHas('project', fn ($query) => $query->where('company_id', $companyId))
+                ->where('assignee_id', $user->id)
+                ->where('status', '!=', TaskStatus::Done->value)
+                ->whereDate('due_date', '<', now()->toDateString())
+                ->count();
+            $metrics['my_hours_this_month'] = (float) ProjectTimeLog::query()
+                ->where('user_id', $user->id)
+                ->whereDate('work_date', '>=', now()->startOfMonth()->toDateString())
+                ->sum('hours');
+
+            $analytics['projects'] = [
+                'projects_by_status' => Project::query()
+                    ->where('company_id', $companyId)
+                    ->tap(fn ($query) => $this->scope->applyProjectScope($query, $user))
+                    ->selectRaw('status name, count(*) value')
+                    ->groupBy('status')
+                    ->get(),
+                'tasks_by_status' => ProjectTask::query()
+                    ->whereHas('project', fn ($query) => $projectScope($query))
+                    ->whereIn('assignee_id', $scopedUserIds)
+                    ->selectRaw('status name, count(*) value')
+                    ->groupBy('status')
+                    ->get(),
+            ];
+        }
+
+        if ($this->access->canAccessModule($user, 'hr') && $scopedEmployeeIds !== []) {
+            $metrics['my_pending_leave_requests'] = LeaveRequest::query()
+                ->where('company_id', $companyId)
+                ->where('employee_id', $scopedEmployeeIds[0] ?? 0)
+                ->where('status', 'pending')
+                ->count();
+
+            $analytics['hr'] = [
+                'leave_by_status' => LeaveRequest::query()
+                    ->where('company_id', $companyId)
+                    ->whereIn('employee_id', $scopedEmployeeIds)
+                    ->selectRaw('status name, count(*) value')
+                    ->groupBy('status')
+                    ->get(),
+                'my_payslips_total' => (float) PayrollItem::query()
+                    ->where('employee_id', $scopedEmployeeIds[0] ?? 0)
+                    ->sum('net_salary'),
+            ];
+        }
+
+        $summary = [
+            'scope' => $isManager ? 'manager' : 'employee',
+            'metrics' => $metrics,
+            'personal' => [
+                'upcoming_tasks' => ProjectTask::query()
+                    ->with('project:id,name,status', 'assignee:id,name,email')
+                    ->whereHas('project', fn ($query) => $query->where('company_id', $companyId))
+                    ->where('assignee_id', $user->id)
+                    ->where('status', '!=', TaskStatus::Done->value)
+                    ->orderByRaw('due_date is null, due_date asc')
+                    ->limit(8)
+                    ->get(),
+                'leave_requests' => $scopedEmployeeIds === [] ? [] : LeaveRequest::query()
+                    ->with('leaveType', 'reviewer:id,name,email')
+                    ->where('company_id', $companyId)
+                    ->where('employee_id', $scopedEmployeeIds[0])
+                    ->latest()
+                    ->limit(5)
+                    ->get(),
+            ],
+            'recent_projects' => Project::query()
+                ->where('company_id', $companyId)
+                ->tap(fn ($query) => $this->scope->applyProjectScope($query, $user))
+                ->with('owner:id,name,email')
+                ->withCount('tasks')
+                ->latest()
+                ->limit(5)
+                ->get(),
+            'analytics' => $analytics,
+            'access' => $this->access->effectiveAccess($user),
+        ];
+
+        if ($isManager) {
+            $teamTaskQuery = ProjectTask::query()
+                ->whereHas('project', fn ($query) => $query->where('company_id', $companyId))
+                ->whereIn('assignee_id', $directReportUserIds);
+
+            $summary['team'] = [
+                'direct_reports' => $this->scope->directReports($user)->values(),
+                'open_tasks' => (clone $teamTaskQuery)->where('status', '!=', TaskStatus::Done->value)->count(),
+                'overdue_tasks' => (clone $teamTaskQuery)->where('status', '!=', TaskStatus::Done->value)->whereDate('due_date', '<', now()->toDateString())->count(),
+                'pending_leave_approvals' => $directReportEmployeeIds === [] ? 0 : LeaveRequest::query()
+                    ->where('company_id', $companyId)
+                    ->whereIn('employee_id', $directReportEmployeeIds)
+                    ->where('status', 'pending')
+                    ->count(),
+                'workload_by_employee' => ProjectTask::query()
+                    ->leftJoin('users', 'users.id', '=', 'project_tasks.assignee_id')
+                    ->whereHas('project', fn ($query) => $query->where('company_id', $companyId))
+                    ->whereIn('assignee_id', $directReportUserIds)
+                    ->where('status', '!=', TaskStatus::Done->value)
+                    ->selectRaw('users.name name, count(*) value')
+                    ->groupBy('users.id', 'users.name')
+                    ->orderByDesc('value')
+                    ->get(),
+                'time_logged_this_month' => (float) ProjectTimeLog::query()
+                    ->whereIn('user_id', $directReportUserIds)
+                    ->whereDate('work_date', '>=', now()->startOfMonth()->toDateString())
+                    ->sum('hours'),
+                'pending_leave_requests' => $directReportEmployeeIds === [] ? [] : LeaveRequest::query()
+                    ->with('employee', 'leaveType')
+                    ->where('company_id', $companyId)
+                    ->whereIn('employee_id', $directReportEmployeeIds)
+                    ->where('status', 'pending')
+                    ->latest()
+                    ->limit(8)
+                    ->get(),
+            ];
+        }
+
+        return $summary;
     }
 
     private function groupedCount($query, string $column)

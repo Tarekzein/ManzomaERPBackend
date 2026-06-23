@@ -10,9 +10,10 @@ use Illuminate\Database\Eloquent\Builder;
 
 class EloquentProjectTaskRepository implements ProjectTaskRepository
 {
-    public function paginate(Project $project, int $perPage, array $filters = [], ?string $sort = null): LengthAwarePaginator
+    public function paginate(Project $project, int $perPage, array $filters = [], ?string $sort = null, array $assigneeScope = []): LengthAwarePaginator
     {
         return $project->tasks()
+            ->when($assigneeScope !== [], fn ($query) => $query->whereIn('assignee_id', $assigneeScope))
             ->tap(fn ($query) => $this->applyFilters($query, $filters))
             ->with(['assignee:id,name,email'])
             ->withSum('timeLogs as actual_hours', 'hours')

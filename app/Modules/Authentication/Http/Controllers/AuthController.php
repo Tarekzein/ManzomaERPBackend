@@ -21,7 +21,7 @@ class AuthController extends Controller
     {
         return ApiResponse::success(
             $this->authentication->register(RegisterData::from($request->validated())),
-            'Registration completed',
+            'Checkout session created',
             status: 201
         );
     }

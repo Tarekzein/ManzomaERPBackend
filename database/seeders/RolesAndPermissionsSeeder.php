@@ -34,6 +34,10 @@ class RolesAndPermissionsSeeder extends Seeder
         $permissions = collect($modules)
             ->flatMap(fn (string $module) => collect($actions)->map(fn (string $action) => "{$module}.{$action}"))
             ->merge([
+                'users.view',
+                'users.create',
+                'users.edit',
+                'users.delete',
                 'auth.force_password_reset',
                 'roles.assign',
                 'audit.view',
@@ -49,7 +53,7 @@ class RolesAndPermissionsSeeder extends Seeder
         $companyAdmin = Role::findOrCreate(UserRole::CompanyAdmin->value);
         $manager = Role::findOrCreate(UserRole::Manager->value);
         $employee = Role::findOrCreate(UserRole::Employee->value);
-        $viewer = Role::findOrCreate(UserRole::Viewer->value);
+        Role::where('name', 'Viewer')->delete();
 
         $superAdmin->syncPermissions(Permission::all());
 
@@ -58,10 +62,11 @@ class RolesAndPermissionsSeeder extends Seeder
         ));
 
         $manager->syncPermissions($permissions->filter(
-            fn (string $permission) => str_ends_with($permission, '.view')
+            fn (string $permission) => ! str_starts_with($permission, 'users.')
+                && (str_ends_with($permission, '.view')
                 || str_ends_with($permission, '.create')
                 || str_ends_with($permission, '.edit')
-                || str_ends_with($permission, '.export')
+                || str_ends_with($permission, '.export'))
         ));
 
         $employee->syncPermissions([
@@ -71,10 +76,6 @@ class RolesAndPermissionsSeeder extends Seeder
             'projects.edit',
             'notifications.view',
         ]);
-
-        $viewer->syncPermissions($permissions->filter(
-            fn (string $permission) => str_ends_with($permission, '.view')
-        ));
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }

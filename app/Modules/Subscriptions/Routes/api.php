@@ -3,6 +3,7 @@
 use App\Modules\Subscriptions\Http\Controllers\CompanySubscriptionController;
 use App\Modules\Subscriptions\Http\Controllers\SubscriptionAdminController;
 use App\Modules\Subscriptions\Http\Controllers\SubscriptionCatalogController;
+use App\Modules\Subscriptions\Http\Controllers\SubscriptionPaymentController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('subscriptions')->name('subscriptions.')->group(function () {
@@ -22,4 +23,10 @@ Route::prefix('subscriptions')->name('subscriptions.')->group(function () {
         Route::post('/features', [SubscriptionAdminController::class, 'storeFeature'])->name('features.store');
         Route::put('/features/{feature}', [SubscriptionAdminController::class, 'updateFeature'])->name('features.update');
     });
+});
+
+Route::prefix('payments')->name('payments.')->group(function () {
+    Route::get('/{reference}/status', [SubscriptionPaymentController::class, 'status'])->name('status');
+    Route::post('/{reference}/mock-result', [SubscriptionPaymentController::class, 'mockResult'])->name('mock-result');
+    Route::post('/paymob/callback', [SubscriptionPaymentController::class, 'callback'])->name('paymob.callback');
 });

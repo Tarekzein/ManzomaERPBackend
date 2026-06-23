@@ -2,6 +2,8 @@
 
 namespace App\Modules\Projects\Repositories;
 
+use App\Modules\Authentication\Models\User;
+use App\Modules\Platform\Services\WorkScopeService;
 use App\Modules\Projects\Contracts\ProjectRepository;
 use App\Modules\Projects\Models\Project;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -10,10 +12,13 @@ use Illuminate\Database\Eloquent\Collection;
 
 class EloquentProjectRepository implements ProjectRepository
 {
-    public function paginate(?int $companyId, int $perPage, array $filters = [], ?string $sort = null): LengthAwarePaginator
+    public function __construct(private readonly WorkScopeService $scope) {}
+
+    public function paginate(?int $companyId, int $perPage, array $filters = [], ?string $sort = null, ?User $actor = null): LengthAwarePaginator
     {
         return Project::query()
             ->when($companyId, fn ($query) => $query->where('company_id', $companyId))
+            ->when($actor, fn ($query) => $this->scope->applyProjectScope($query, $actor))
             ->tap(fn ($query) => $this->applyFilters($query, $filters))
             ->with(['owner:id,name,email'])
             ->withCount('tasks')
@@ -53,10 +58,11 @@ class EloquentProjectRepository implements ProjectRepository
             ->loadSum('expenses as actual_expenses', 'amount');
     }
 
-    public function timeline(?int $companyId): Collection
+    public function timeline(?int $companyId, ?User $actor = null): Collection
     {
         return Project::query()
             ->when($companyId, fn ($query) => $query->where('company_id', $companyId))
+            ->when($actor, fn ($query) => $this->scope->applyProjectScope($query, $actor))
             ->with(['tasks.assignee:id,name,email'])
             ->orderBy('start_date')
             ->get();

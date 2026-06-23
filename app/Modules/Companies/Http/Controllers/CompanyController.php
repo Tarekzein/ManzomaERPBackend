@@ -46,6 +46,24 @@ class CompanyController extends Controller
         return ApiResponse::success($this->companies->updateSettings($request->user(), $company, $data), 'Company settings updated');
     }
 
+    public function setup(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => ['sometimes', 'string', 'max:150'],
+            'display_name' => ['sometimes', 'nullable', 'string', 'max:150'],
+            'address' => ['sometimes', 'nullable', 'string', 'max:500'],
+            'contact_email' => ['sometimes', 'nullable', 'email', 'max:255'],
+            'contact_phone' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'logo' => ['sometimes', 'nullable', 'image', 'max:2048'],
+        ]);
+
+        if ($request->hasFile('logo')) {
+            $data['logo_path'] = $request->file('logo')->store('company-logos', 'public');
+        }
+
+        return ApiResponse::success($this->companies->updateSetup($request->user(), $data), 'Company setup saved');
+    }
+
     public function suspend(Request $request, Company $company): JsonResponse
     {
         return ApiResponse::success($this->companies->setActive($request->user(), $company, false), 'Company suspended');

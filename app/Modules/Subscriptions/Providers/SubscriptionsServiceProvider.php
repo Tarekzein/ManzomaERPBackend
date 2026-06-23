@@ -4,10 +4,12 @@ namespace App\Modules\Subscriptions\Providers;
 
 use App\Modules\Subscriptions\Contracts\CompanySubscriptionRepository;
 use App\Modules\Subscriptions\Contracts\FeatureRepository;
+use App\Modules\Subscriptions\Contracts\PaymobGateway;
 use App\Modules\Subscriptions\Contracts\PlanRepository;
 use App\Modules\Subscriptions\Repositories\EloquentCompanySubscriptionRepository;
 use App\Modules\Subscriptions\Repositories\EloquentFeatureRepository;
 use App\Modules\Subscriptions\Repositories\EloquentPlanRepository;
+use App\Modules\Subscriptions\Services\MockPaymobGateway;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -17,6 +19,7 @@ class SubscriptionsServiceProvider extends ServiceProvider
         PlanRepository::class => EloquentPlanRepository::class,
         FeatureRepository::class => EloquentFeatureRepository::class,
         CompanySubscriptionRepository::class => EloquentCompanySubscriptionRepository::class,
+        PaymobGateway::class => MockPaymobGateway::class,
     ];
 
     public function boot(): void

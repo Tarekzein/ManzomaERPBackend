@@ -16,7 +16,14 @@ class LeaveService
 
     public function list(User $u)
     {
-        return LeaveRequest::with('employee', 'leaveType', 'reviewer')->where('company_id', $this->policy->companyId($u))->latest()->get();
+        $companyId = $this->policy->companyId($u);
+        $employeeIds = $this->policy->scopedEmployeeIds($u);
+
+        return LeaveRequest::with('employee', 'leaveType', 'reviewer')
+            ->where('company_id', $companyId)
+            ->when($employeeIds !== [], fn ($query) => $query->whereIn('employee_id', $employeeIds))
+            ->latest()
+            ->get();
     }
 
     public function mine(User $u)

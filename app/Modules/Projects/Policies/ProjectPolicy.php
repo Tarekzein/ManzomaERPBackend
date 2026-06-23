@@ -4,12 +4,15 @@ namespace App\Modules\Projects\Policies;
 
 use App\Modules\Authentication\Enums\UserRole;
 use App\Modules\Authentication\Models\User;
+use App\Modules\Platform\Services\WorkScopeService;
 use App\Modules\Projects\Models\Project;
 use App\Modules\Projects\Models\ProjectTask;
 use Illuminate\Auth\Access\AuthorizationException;
 
 class ProjectPolicy
 {
+    public function __construct(private readonly WorkScopeService $scope) {}
+
     public function ensureCanList(User $actor): void
     {
         if (! $actor->isSuperAdmin() && ! $actor->company_id) {
@@ -23,7 +26,7 @@ class ProjectPolicy
             return;
         }
 
-        if ($actor->company_id === $project->company_id) {
+        if ($this->scope->canViewProject($actor, $project)) {
             return;
         }
 
@@ -32,7 +35,7 @@ class ProjectPolicy
 
     public function ensureCanManageProject(User $actor, ?Project $project = null): void
     {
-        if ($actor->isSuperAdmin() || $actor->hasAnyRole([UserRole::CompanyAdmin->value, UserRole::Manager->value])) {
+        if ($actor->isSuperAdmin() || $actor->hasRole(UserRole::CompanyAdmin->value)) {
             if ($project) {
                 $this->ensureCanViewProject($actor, $project);
             }
@@ -40,7 +43,26 @@ class ProjectPolicy
             return;
         }
 
+        if ($actor->hasRole(UserRole::Manager->value)) {
+            if ($project && $project->owner_id !== $actor->id) {
+                throw new AuthorizationException('Managers can only manage projects they own.');
+            }
+
+            return;
+        }
+
         throw new AuthorizationException('You cannot manage projects.');
+    }
+
+    public function canManageProject(User $actor, ?Project $project = null): bool
+    {
+        try {
+            $this->ensureCanManageProject($actor, $project);
+
+            return true;
+        } catch (AuthorizationException) {
+            return false;
+        }
     }
 
     public function ensureCanWorkOnTask(User $actor, ProjectTask $task): void

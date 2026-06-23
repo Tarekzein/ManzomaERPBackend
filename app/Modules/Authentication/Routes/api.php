@@ -31,8 +31,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
     Route::post('/users', [UserManagementController::class, 'store'])->name('users.store');
     Route::get('/roles', [UserManagementController::class, 'roles'])->name('roles.index');
+    Route::patch('/users/{user}', [UserManagementController::class, 'update'])->name('users.update');
     Route::patch('/users/{user}/role', [UserManagementController::class, 'updateRole'])->name('users.role.update');
+    Route::post('/users/{user}/activate', [UserManagementController::class, 'activate'])->name('users.activate');
+    Route::post('/users/{user}/deactivate', [UserManagementController::class, 'deactivate'])->name('users.deactivate');
     Route::post('/users/{user}/force-password-reset', [UserManagementController::class, 'forcePasswordReset'])->name('users.force-password-reset');
+    Route::delete('/users/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy');
     Route::get('/custom-roles', [CustomRoleController::class, 'index'])->name('custom-roles.index');
     Route::post('/custom-roles', [CustomRoleController::class, 'store'])->name('custom-roles.store');
     Route::put('/custom-roles/{role}', [CustomRoleController::class, 'update'])->name('custom-roles.update');

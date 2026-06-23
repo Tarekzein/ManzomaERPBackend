@@ -9,6 +9,7 @@ use App\Modules\Authentication\Enums\UserRole;
 use App\Modules\Authentication\Models\User;
 use App\Modules\Authentication\Policies\UserManagementPolicy;
 use App\Modules\Companies\Models\Company;
+use App\Modules\HR\Services\EmployeeProfileService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -20,6 +21,7 @@ class UserManagementService
         private readonly UserRepository $users,
         private readonly RoleRepository $roles,
         private readonly UserManagementPolicy $policy,
+        private readonly EmployeeProfileService $profiles,
     ) {}
 
     public function list(User $actor, int $perPage): LengthAwarePaginator
@@ -39,6 +41,7 @@ class UserManagementService
     public function create(User $actor, CreateUserData $data): User
     {
         $this->policy->ensureCanManageUsers($actor);
+        abort_unless($actor->can('users.create'), 403);
         $companyId = $this->policy->resolveCompanyId($actor, $data->role, $data->companyId);
 
         if ($companyId) {
@@ -58,9 +61,12 @@ class UserManagementService
                 'name' => $data->name,
                 'email' => $data->email,
                 'password' => Hash::make($data->password),
+                'must_change_password' => true,
+                'is_active' => true,
             ]);
 
             $this->roles->assign($user, $data->role->value);
+            $this->profiles->ensureForUser($user->load('company'));
 
             return $this->users->loadProfile($user);
         });
@@ -70,15 +76,54 @@ class UserManagementService
     {
         $this->policy->ensureCanManageUsers($actor);
         $this->policy->ensureCanManageTarget($actor, $target);
+        abort_unless($actor->can('users.edit'), 403);
 
         return DB::transaction(function () use ($actor, $target, $role, $companyId) {
             $this->users->save($target, [
                 'company_id' => $this->policy->resolveCompanyId($actor, $role, $companyId ?? $target->company_id),
             ]);
             $this->roles->sync($target, $role->value);
+            $this->profiles->ensureForUser($target->refresh()->load('company'));
 
             return $this->users->loadProfile($target);
         });
+    }
+
+    public function update(User $actor, User $target, array $data): User
+    {
+        $this->policy->ensureCanManageUsers($actor);
+        $this->policy->ensureCanManageTarget($actor, $target);
+        abort_unless($actor->can('users.edit'), 403);
+
+        return $this->users->loadProfile($this->users->save($target, [
+            'name' => $data['name'] ?? $target->name,
+            'email' => $data['email'] ?? $target->email,
+        ]));
+    }
+
+    public function setActive(User $actor, User $target, bool $active): User
+    {
+        $this->policy->ensureCanManageUsers($actor);
+        $this->policy->ensureCanManageTarget($actor, $target);
+        abort_unless($actor->can('users.edit'), 403);
+
+        $target = $this->users->save($target, [
+            'is_active' => $active,
+            'deactivated_at' => $active ? null : now(),
+        ]);
+
+        if (! $active) {
+            $target->tokens()->delete();
+        }
+
+        return $this->users->loadProfile($target);
+    }
+
+    public function remove(User $actor, User $target): User
+    {
+        abort_unless($actor->can('users.delete'), 403);
+
+        return $this->setActive($actor, $target, false);
     }
 
     public function forcePasswordReset(User $actor, User $target): User

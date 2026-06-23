@@ -31,7 +31,8 @@ class ProjectService
             $actor->isSuperAdmin() ? null : $actor->company_id,
             $perPage,
             $filters,
-            $sort
+            $sort,
+            $actor
         );
     }
 

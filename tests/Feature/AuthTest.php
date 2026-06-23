@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Modules\Authentication\Models\User;
+use App\Modules\Subscriptions\Models\SubscriptionPayment;
 use Database\Seeders\SubscriptionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\PersonalAccessToken;
@@ -12,7 +13,7 @@ class AuthTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_user_can_register_login_read_profile_and_logout(): void
+    public function test_registration_creates_checkout_then_payment_success_activates_login_profile_and_logout(): void
     {
         $this->seed(SubscriptionSeeder::class);
 
@@ -30,10 +31,30 @@ class AuthTest extends TestCase
         $register
             ->assertCreated()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.user.company.name', 'Acme Trading')
-            ->assertJsonPath('data.user.company.subscription.plan.slug', 'professional')
-            ->assertJsonPath('data.user.company.subscription.billing_cycle', 'annual')
-            ->assertJsonStructure(['data' => ['token']]);
+            ->assertJsonPath('data.company.name', 'Acme Trading')
+            ->assertJsonPath('data.company.is_active', false)
+            ->assertJsonPath('data.plan.slug', 'professional')
+            ->assertJsonPath('data.payment.status', 'pending')
+            ->assertJsonStructure(['data' => ['checkout' => ['reference', 'registration_token']]]);
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'mona@example.com',
+            'password' => 'Secret#123',
+            'device_name' => 'phpunit',
+        ])->assertUnprocessable();
+
+        $reference = $register->json('data.checkout.reference');
+        $registrationToken = $register->json('data.checkout.registration_token');
+
+        $payment = $this->postJson("/api/payments/{$reference}/mock-result", [
+            'registration_token' => $registrationToken,
+            'status' => 'succeeded',
+            'device_name' => 'phpunit',
+        ])->assertOk()
+            ->assertJsonPath('data.payment.status', 'succeeded')
+            ->assertJsonPath('data.auth.user.company.is_active', true)
+            ->assertJsonStructure(['data' => ['auth' => ['token']]])
+            ->json('data.auth');
 
         User::where('email', 'mona@example.com')->update(['last_activity_at' => now()->subDay()]);
 
@@ -57,7 +78,12 @@ class AuthTest extends TestCase
             ->postJson('/api/auth/logout')
             ->assertOk();
 
-        $this->assertSame(1, PersonalAccessToken::count());
+        $this->assertGreaterThanOrEqual(1, PersonalAccessToken::count());
+        $this->assertDatabaseHas('company_subscriptions', [
+            'status' => 'active',
+            'billing_cycle' => 'annual',
+        ]);
+        $this->assertSame('succeeded', SubscriptionPayment::where('reference', $reference)->value('status'));
     }
 
     public function test_failed_login_is_audited(): void

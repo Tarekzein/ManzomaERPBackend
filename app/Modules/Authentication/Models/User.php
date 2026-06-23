@@ -19,7 +19,18 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
 
-    protected $fillable = ['company_id', 'custom_role_id', 'name', 'email', 'password', 'must_change_password', 'last_activity_at'];
+    protected $fillable = [
+        'company_id',
+        'custom_role_id',
+        'name',
+        'email',
+        'password',
+        'must_change_password',
+        'is_active',
+        'last_activity_at',
+        'deactivated_at',
+        'last_login_at',
+    ];
 
     protected $hidden = ['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'];
 
@@ -29,7 +40,10 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'must_change_password' => 'boolean',
+            'is_active' => 'boolean',
             'last_activity_at' => 'datetime',
+            'deactivated_at' => 'datetime',
+            'last_login_at' => 'datetime',
             'two_factor_confirmed_at' => 'datetime',
         ];
     }

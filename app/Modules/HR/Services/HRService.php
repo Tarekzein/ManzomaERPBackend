@@ -26,7 +26,19 @@ class HRService
 
     public function list(User $u, string $model, array $with = [])
     {
-        return $this->repo->list($model, $this->policy->companyId($u), $with);
+        $companyId = $this->policy->companyId($u);
+        $query = $model::query()->where('company_id', $companyId)->with($with);
+        $scopedEmployeeIds = $this->policy->scopedEmployeeIds($u);
+
+        if ($scopedEmployeeIds !== []) {
+            if ($model === Employee::class) {
+                $query->whereIn('id', $scopedEmployeeIds);
+            } elseif ($model === AttendanceEntry::class) {
+                $query->whereIn('employee_id', $scopedEmployeeIds);
+            }
+        }
+
+        return $query->latest('id')->get();
     }
 
     public function save(User $u, string $model, array $d, ?Model $record = null): Model
@@ -40,7 +52,9 @@ class HRService
     public function employee(User $u, ?Employee $employee = null): Employee
     {
         if ($employee) {
-            $this->policy->ensureOwned($u, $employee);
+            if (! $this->policy->canViewEmployee($u, $employee)) {
+                throw new \Illuminate\Auth\Access\AuthorizationException('You cannot view this employee profile.');
+            }
 
             return $employee->load('department', 'team', 'manager', 'reports', 'documents.versions');
         }

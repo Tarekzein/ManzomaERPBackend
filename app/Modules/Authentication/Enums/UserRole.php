@@ -8,7 +8,6 @@ enum UserRole: string
     case CompanyAdmin = 'Company Admin';
     case Manager = 'Manager';
     case Employee = 'Employee';
-    case Viewer = 'Viewer';
 
     public static function values(): array
     {
@@ -17,7 +16,7 @@ enum UserRole: string
 
     public static function companyManagedValues(): array
     {
-        return [self::Manager->value, self::Employee->value, self::Viewer->value];
+        return [self::Manager->value, self::Employee->value];
     }
 
     public function requiresCompany(): bool

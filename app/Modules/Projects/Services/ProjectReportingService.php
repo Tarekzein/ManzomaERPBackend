@@ -21,7 +21,7 @@ class ProjectReportingService
         $this->policy->ensureCanList($actor);
 
         return $this->projects
-            ->timeline($actor->isSuperAdmin() ? null : $actor->company_id)
+            ->timeline($actor->isSuperAdmin() ? null : $actor->company_id, $actor)
             ->map(fn (Project $project) => [
                 'id' => "project-{$project->id}",
                 'type' => 'project',

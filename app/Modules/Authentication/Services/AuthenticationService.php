@@ -15,9 +15,12 @@ use App\Modules\Companies\Services\CompanyService;
 use App\Modules\Finance\Services\FinanceSetupService;
 use App\Modules\Inventory\Services\InventorySetupService;
 use App\Modules\Subscriptions\DTOs\SubscribeData;
+use App\Modules\Subscriptions\Models\SubscriptionPlan;
 use App\Modules\Subscriptions\Services\CompanySubscriptionService;
+use App\Modules\Subscriptions\Services\SubscriptionPaymentService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
 use Laravel\Fortify\Fortify;
@@ -30,20 +33,35 @@ class AuthenticationService
         private readonly RoleRepository $roles,
         private readonly CompanyService $companies,
         private readonly CompanySubscriptionService $subscriptions,
+        private readonly SubscriptionPaymentService $payments,
         private readonly FinanceSetupService $financeSetup,
         private readonly InventorySetupService $inventorySetup,
     ) {}
 
     public function register(RegisterData $data): array
     {
-        $user = $this->createCompanyAdmin($data);
+        $token = Str::random(48);
+        $user = $this->createCompanyAdmin($data, false);
+        $plan = SubscriptionPlan::where('slug', $data->planSlug)->where('is_active', true)->firstOrFail();
+        $payment = $this->payments->createRegistrationPayment($user, $plan, $data->billingCycle, $token);
 
-        return $this->tokenResponse($user, $data->deviceName);
+        return [
+            'checkout' => [
+                'reference' => $payment->reference,
+                'registration_token' => $token,
+                'checkout_url' => $payment->checkout_url,
+                'status' => $payment->status,
+            ],
+            'company' => $payment->company,
+            'user' => $this->users->loadProfile($user),
+            'plan' => $payment->plan,
+            'payment' => $payment,
+        ];
     }
 
-    public function createCompanyAdmin(RegisterData $data): User
+    public function createCompanyAdmin(RegisterData $data, bool $active = true): User
     {
-        return DB::transaction(function () use ($data) {
+        return DB::transaction(function () use ($data, $active) {
             $company = $this->companies->create(
                 new CreateCompanyData(
                     $data->companyName,
@@ -52,6 +70,7 @@ class AuthenticationService
                     'EGP',
                 ),
                 $data->planSlug,
+                $active,
             );
 
             $user = $this->users->create([
@@ -62,13 +81,15 @@ class AuthenticationService
             ]);
 
             $this->roles->assign($user, UserRole::CompanyAdmin->value);
-            $this->subscriptions->start(
-                $company,
-                new SubscribeData($data->planSlug, $data->billingCycle),
-                ['source' => 'registration', 'subscribed_by_user_id' => $user->id],
-            );
-            $this->financeSetup->provision($company);
-            $this->inventorySetup->provision($company);
+            if ($active) {
+                $this->subscriptions->start(
+                    $company,
+                    new SubscribeData($data->planSlug, $data->billingCycle),
+                    ['source' => 'registration', 'subscribed_by_user_id' => $user->id],
+                );
+                $this->financeSetup->provision($company);
+                $this->inventorySetup->provision($company);
+            }
 
             return $this->users->loadProfile($user);
         });
@@ -78,7 +99,9 @@ class AuthenticationService
     {
         $user = $this->users->findByEmail($data->email);
         $credentialsAreValid = $user !== null && Hash::check($data->password, $user->password);
-        $accountIsActive = $user !== null && ($user->isSuperAdmin() || $user->company?->is_active === true);
+        $accountIsActive = $user !== null
+            && $user->is_active === true
+            && ($user->isSuperAdmin() || $user->company?->is_active === true);
         $success = $credentialsAreValid && $accountIsActive;
 
         $this->loginAttempts->record([
@@ -97,7 +120,7 @@ class AuthenticationService
 
         // A new login starts a new inactivity window. Otherwise an old
         // last_activity_at value can immediately invalidate the fresh token.
-        $user->forceFill(['last_activity_at' => now()])->saveQuietly();
+        $user->forceFill(['last_activity_at' => now(), 'last_login_at' => now()])->saveQuietly();
 
         return $this->tokenResponse($user, $data->deviceName);
     }
@@ -131,7 +154,7 @@ class AuthenticationService
         return $this->users->loadProfile($user);
     }
 
-    private function tokenResponse(User $user, string $deviceName): array
+    public function tokenResponse(User $user, string $deviceName): array
     {
         return [
             'user' => $this->users->loadProfile($user),

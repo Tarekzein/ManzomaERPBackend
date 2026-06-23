@@ -3,6 +3,7 @@
 namespace App\Modules\Projects\Services;
 
 use App\Modules\Authentication\Models\User;
+use App\Modules\Platform\Services\WorkScopeService;
 use App\Modules\Projects\Contracts\ProjectActivityRepository;
 use App\Modules\Projects\Contracts\ProjectTaskRepository;
 use App\Modules\Projects\Enums\TaskStatus;
@@ -15,6 +16,7 @@ use App\Modules\Projects\Policies\ProjectPolicy;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ProjectTaskService
 {
@@ -22,21 +24,29 @@ class ProjectTaskService
         private readonly ProjectTaskRepository $tasks,
         private readonly ProjectActivityRepository $activity,
         private readonly ProjectPolicy $policy,
+        private readonly WorkScopeService $scope,
     ) {}
 
     public function list(User $actor, Project $project, int $perPage, array $filters = [], ?string $sort = null): LengthAwarePaginator
     {
         $this->policy->ensureCanViewProject($actor, $project);
 
-        return $this->tasks->paginate($project, $perPage, $filters, $sort);
+        return $this->tasks->paginate(
+            $project,
+            $perPage,
+            $filters,
+            $sort,
+            $this->scope->isCompanyWide($actor) ? [] : $this->scope->scopedUserIds($actor)
+        );
     }
 
     public function create(User $actor, Project $project, array $data): ProjectTask
     {
         $this->policy->ensureCanManageProject($actor, $project);
 
-        return DB::transaction(function () use ($project, $data) {
+        return DB::transaction(function () use ($actor, $project, $data) {
             $this->ensureAssigneeBelongsToProjectCompany($data['assignee_id'] ?? null, $project);
+            $this->ensureAssigneeWithinActorScope($actor, $data['assignee_id'] ?? null);
             $task = $this->tasks->create($this->taskData($project, $data));
 
             return $this->tasks->withDetails($task);
@@ -47,15 +57,29 @@ class ProjectTaskService
     {
         $this->policy->ensureCanViewProject($actor, $task->project);
 
+        if (! $this->scope->isCompanyWide($actor) && ! in_array($task->assignee_id, $this->scope->scopedUserIds($actor), true)) {
+            throw new \Illuminate\Auth\Access\AuthorizationException('You cannot view this task.');
+        }
+
         return $this->tasks->withDetails($task);
     }
 
     public function update(User $actor, ProjectTask $task, array $data): ProjectTask
     {
-        $this->policy->ensureCanManageProject($actor, $task->project);
+        if (! $this->policy->canManageProject($actor, $task->project)) {
+            $this->policy->ensureCanWorkOnTask($actor, $task);
+            $disallowed = array_diff(array_keys($data), ['status']);
 
-        return DB::transaction(function () use ($task, $data) {
+            if ($disallowed !== []) {
+                throw ValidationException::withMessages([
+                    'task' => ['You can only update the status of tasks assigned to you.'],
+                ]);
+            }
+        }
+
+        return DB::transaction(function () use ($actor, $task, $data) {
             $this->ensureAssigneeBelongsToProjectCompany($data['assignee_id'] ?? null, $task->project);
+            $this->ensureAssigneeWithinActorScope($actor, $data['assignee_id'] ?? null);
 
             return $this->tasks->withDetails($this->tasks->save($task, $this->completionData($task, $data)));
         });
@@ -165,5 +189,18 @@ class ProjectTaskService
 
         $assignee = User::query()->findOrFail($assigneeId);
         $this->policy->ensureUserBelongsToCompany($assignee, $project->company_id);
+    }
+
+    private function ensureAssigneeWithinActorScope(User $actor, ?int $assigneeId): void
+    {
+        if (! $assigneeId || $this->scope->isCompanyWide($actor)) {
+            return;
+        }
+
+        if (! in_array($assigneeId, $this->scope->scopedUserIds($actor), true)) {
+            throw ValidationException::withMessages([
+                'assignee_id' => ['You can only assign tasks to yourself or your direct reports.'],
+            ]);
+        }
     }
 }

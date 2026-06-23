@@ -93,7 +93,8 @@ class DashboardAndCompaniesTest extends TestCase
 
         $this->getJson('/api/dashboard')
             ->assertOk()
-            ->assertJsonStructure(['data' => ['analytics' => ['hr', 'projects']]])
+            ->assertJsonPath('data.scope', 'employee')
+            ->assertJsonStructure(['data' => ['analytics' => ['projects'], 'personal' => ['upcoming_tasks', 'leave_requests']]])
             ->assertJsonMissingPath('data.analytics.finance')
             ->assertJsonMissingPath('data.analytics.inventory')
             ->assertJsonMissingPath('data.analytics.crm');
@@ -105,5 +106,55 @@ class DashboardAndCompaniesTest extends TestCase
             ->assertJsonMissingPath('data.crm_contacts');
 
         $this->getJson('/api/finance/accounts')->assertForbidden();
+    }
+
+    public function test_manager_and_employee_effective_dashboard_access_match_default_roles(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $companyAdmin = User::where('email', 'company.admin@example.com')->firstOrFail();
+
+        $manager = User::factory()->create(['company_id' => $companyAdmin->company_id]);
+        $manager->syncRoles([UserRole::Manager->value]);
+        Sanctum::actingAs($manager);
+
+        $this->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('data.access.modules.finance.enabled', true)
+            ->assertJsonPath('data.access.modules.inventory.enabled', true)
+            ->assertJsonPath('data.access.modules.sales.enabled', true)
+            ->assertJsonPath('data.access.modules.crm.enabled', true)
+            ->assertJsonPath('data.access.modules.projects.enabled', true)
+            ->assertJsonMissingPath('data.access.modules.users')
+            ->assertJsonMissing(['users.view']);
+
+        $this->getJson('/api/dashboard')
+            ->assertOk()
+            ->assertJsonPath('data.scope', 'manager')
+            ->assertJsonStructure(['data' => ['analytics' => ['projects'], 'personal' => ['upcoming_tasks'], 'team' => ['direct_reports', 'open_tasks', 'overdue_tasks']]])
+            ->assertJsonMissingPath('data.analytics.finance')
+            ->assertJsonMissingPath('data.analytics.inventory')
+            ->assertJsonMissingPath('data.analytics.sales')
+            ->assertJsonMissingPath('data.analytics.crm');
+
+        $employee = User::factory()->create(['company_id' => $companyAdmin->company_id]);
+        $employee->syncRoles([UserRole::Employee->value]);
+        Sanctum::actingAs($employee);
+
+        $this->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('data.access.modules.hr.enabled', true)
+            ->assertJsonPath('data.access.modules.projects.enabled', true)
+            ->assertJsonPath('data.access.modules.finance.enabled', false)
+            ->assertJsonPath('data.access.modules.inventory.enabled', false)
+            ->assertJsonMissing(['users.view']);
+
+        $this->getJson('/api/dashboard')
+            ->assertOk()
+            ->assertJsonPath('data.scope', 'employee')
+            ->assertJsonStructure(['data' => ['analytics' => ['projects'], 'personal' => ['upcoming_tasks', 'leave_requests']]])
+            ->assertJsonMissingPath('data.analytics.finance')
+            ->assertJsonMissingPath('data.analytics.inventory')
+            ->assertJsonMissingPath('data.analytics.sales')
+            ->assertJsonMissingPath('data.analytics.crm');
     }
 }

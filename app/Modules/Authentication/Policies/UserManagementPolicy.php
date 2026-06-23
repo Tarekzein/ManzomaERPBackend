@@ -10,7 +10,7 @@ class UserManagementPolicy
 {
     public function ensureCanManageUsers(User $actor): void
     {
-        if (! $actor->isSuperAdmin() && ! $actor->hasRole(UserRole::CompanyAdmin->value)) {
+        if (! $actor->isSuperAdmin() && ! $actor->hasRole(UserRole::CompanyAdmin->value) && ! $actor->can('users.view')) {
             throw new AuthorizationException('You are not allowed to manage users.');
         }
     }

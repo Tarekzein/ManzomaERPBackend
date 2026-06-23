@@ -12,6 +12,7 @@ use App\Modules\Authentication\Services\UserManagementService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class UserManagementController extends Controller
 {
@@ -50,6 +51,31 @@ class UserManagementController extends Controller
             ),
             'User role updated'
         );
+    }
+
+    public function update(Request $request, User $user): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => ['sometimes', 'string', 'max:255'],
+            'email' => ['sometimes', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+        ]);
+
+        return ApiResponse::success($this->users->update($request->user(), $user, $data), 'User updated');
+    }
+
+    public function activate(Request $request, User $user): JsonResponse
+    {
+        return ApiResponse::success($this->users->setActive($request->user(), $user, true), 'User activated');
+    }
+
+    public function deactivate(Request $request, User $user): JsonResponse
+    {
+        return ApiResponse::success($this->users->setActive($request->user(), $user, false), 'User deactivated');
+    }
+
+    public function destroy(Request $request, User $user): JsonResponse
+    {
+        return ApiResponse::success($this->users->remove($request->user(), $user), 'User removed');
     }
 
     public function forcePasswordReset(Request $request, User $user): JsonResponse
