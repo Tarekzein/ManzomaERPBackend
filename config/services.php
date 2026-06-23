@@ -9,6 +9,14 @@ return [
         'token' => env('TWILIO_AUTH_TOKEN'),
         'from' => env('TWILIO_FROM'),
     ],
+    'translation' => [
+        'driver' => env('TRANSLATION_DRIVER', 'libretranslate'),
+        'libretranslate' => [
+            'url' => env('LIBRETRANSLATE_URL', 'http://127.0.0.1:5000'),
+            'api_key' => env('LIBRETRANSLATE_API_KEY'),
+            'timeout' => env('TRANSLATION_TIMEOUT', 10),
+        ],
+    ],
 
     /*
     |--------------------------------------------------------------------------

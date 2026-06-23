@@ -8,6 +8,14 @@
 4. Run `php artisan config:cache`, `route:cache`, and `event:cache` during release.
 5. Verify `/api/health`, queue processing, scheduled report delivery, notification delivery, and external webhooks.
 
+## Automatic Translation
+
+- The Docker stack runs LibreTranslate internally with English and Arabic models only.
+- Set `LIBRETRANSLATE_URL=http://libretranslate:5000` for containers, or `http://127.0.0.1:5000` when running Laravel directly and exposing the service locally.
+- The first container start downloads language models and needs additional startup time, disk space, and memory.
+- Verify the service with `GET /languages` before testing `POST /api/translations/batch`.
+- Translation failures fall back to original ERP text and never block operational requests.
+
 ## Backups and Recovery
 
 - Take encrypted daily database backups and object-storage versioned backups.

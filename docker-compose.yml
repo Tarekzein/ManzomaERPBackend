@@ -2,12 +2,16 @@ services:
   app:
     build: .
     env_file: .env
+    environment:
+      LIBRETRANSLATE_URL: http://libretranslate:5000
     volumes:
       - .:/var/www/html
     depends_on:
       mysql:
         condition: service_healthy
       redis:
+        condition: service_started
+      libretranslate:
         condition: service_started
 
   web:
@@ -54,5 +58,14 @@ services:
   redis:
     image: redis:7-alpine
 
+  libretranslate:
+    image: libretranslate/libretranslate:v1.6.5
+    environment:
+      LT_LOAD_ONLY: en,ar
+      LT_DISABLE_WEB_UI: "true"
+    volumes:
+      - libretranslate-data:/home/libretranslate/.local
+
 volumes:
   mysql-data:
+  libretranslate-data:
