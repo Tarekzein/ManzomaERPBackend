@@ -67,7 +67,7 @@ class UserManagementTest extends TestCase
         ])->assertUnprocessable();
     }
 
-    public function test_non_admin_user_cannot_manage_users(): void
+    public function test_manager_can_delegate_limited_permissions_but_employee_cannot_manage_users(): void
     {
         $this->seed(DatabaseSeeder::class);
 
@@ -75,6 +75,28 @@ class UserManagementTest extends TestCase
         $manager = User::factory()->create(['company_id' => $company->id]);
         $manager->assignRole(UserRole::Manager->value);
         Sanctum::actingAs($manager);
+
+        $this->getJson('/api/users')->assertOk();
+        $this->getJson('/api/roles')->assertOk()->assertJsonFragment([UserRole::Employee->value]);
+        $this->getJson('/api/permissions')
+            ->assertOk()
+            ->assertJsonFragment(['hr.view'])
+            ->assertJsonMissing(['users.delete']);
+
+        $this->postJson('/api/users', [
+            'name' => 'Team Member',
+            'email' => 'team.member@example.com',
+            'password' => 'Secret#123',
+            'password_confirmation' => 'Secret#123',
+            'role' => UserRole::Employee->value,
+            'permissions' => ['hr.view', 'projects.view'],
+        ])->assertCreated()
+            ->assertJsonPath('data.company_id', $company->id)
+            ->assertJsonPath('data.access.permissions.0', 'hr.view');
+
+        $employee = User::factory()->create(['company_id' => $company->id]);
+        $employee->assignRole(UserRole::Employee->value);
+        Sanctum::actingAs($employee);
 
         $this->getJson('/api/users')->assertForbidden();
         $this->getJson('/api/roles')->assertForbidden();

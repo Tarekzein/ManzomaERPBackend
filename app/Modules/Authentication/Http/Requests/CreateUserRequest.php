@@ -17,6 +17,8 @@ class CreateUserRequest extends FormRequest
             'password' => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()],
             'role' => ['required', Rule::in(app(UserManagementService::class)->assignableRoles($this->user()))],
             'company_id' => ['nullable', 'integer', 'exists:companies,id'],
+            'permissions' => ['sometimes', 'array'],
+            'permissions.*' => ['required', 'string', Rule::in(app(UserManagementService::class)->assignablePermissions($this->user()))],
         ];
     }
 }

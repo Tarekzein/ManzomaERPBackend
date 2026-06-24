@@ -13,6 +13,8 @@ class UpdateUserRoleRequest extends FormRequest
         return [
             'role' => ['required', Rule::in(app(UserManagementService::class)->assignableRoles($this->user()))],
             'company_id' => ['nullable', 'integer', 'exists:companies,id'],
+            'permissions' => ['sometimes', 'array'],
+            'permissions.*' => ['required', 'string', Rule::in(app(UserManagementService::class)->assignablePermissions($this->user()))],
         ];
     }
 }

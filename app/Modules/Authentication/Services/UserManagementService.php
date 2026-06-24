@@ -38,6 +38,14 @@ class UserManagementService
         return $this->policy->assignableRoles($actor);
     }
 
+    public function assignablePermissions(User $actor): array
+    {
+        $this->policy->ensureCanManageUsers($actor);
+        abort_unless($actor->can('roles.assign') || $actor->isSuperAdmin(), 403);
+
+        return $this->policy->assignablePermissions($actor);
+    }
+
     public function create(User $actor, CreateUserData $data): User
     {
         $this->policy->ensureCanManageUsers($actor);
@@ -55,7 +63,7 @@ class UserManagementService
             }
         }
 
-        return DB::transaction(function () use ($data, $companyId) {
+        return DB::transaction(function () use ($actor, $data, $companyId) {
             $user = $this->users->create([
                 'company_id' => $companyId,
                 'name' => $data->name,
@@ -66,23 +74,25 @@ class UserManagementService
             ]);
 
             $this->roles->assign($user, $data->role->value);
+            $this->syncDirectPermissions($actor, $user, $data->permissions);
             $this->profiles->ensureForUser($user->load('company'));
 
             return $this->users->loadProfile($user);
         });
     }
 
-    public function updateRole(User $actor, User $target, UserRole $role, ?int $companyId): User
+    public function updateRole(User $actor, User $target, UserRole $role, ?int $companyId, ?array $permissions = null): User
     {
         $this->policy->ensureCanManageUsers($actor);
         $this->policy->ensureCanManageTarget($actor, $target);
         abort_unless($actor->can('users.edit'), 403);
 
-        return DB::transaction(function () use ($actor, $target, $role, $companyId) {
+        return DB::transaction(function () use ($actor, $target, $role, $companyId, $permissions) {
             $this->users->save($target, [
                 'company_id' => $this->policy->resolveCompanyId($actor, $role, $companyId ?? $target->company_id),
             ]);
             $this->roles->sync($target, $role->value);
+            $this->syncDirectPermissions($actor, $target, $permissions);
             $this->profiles->ensureForUser($target->refresh()->load('company'));
 
             return $this->users->loadProfile($target);
@@ -138,5 +148,26 @@ class UserManagementService
         $target->tokens()->delete();
 
         return $this->users->loadProfile($target);
+    }
+
+    private function syncDirectPermissions(User $actor, User $target, ?array $permissions): void
+    {
+        if ($permissions === null) {
+            return;
+        }
+
+        abort_unless($actor->can('roles.assign') || $actor->isSuperAdmin(), 403);
+
+        $allowed = $this->policy->assignablePermissions($actor);
+        $invalid = collect($permissions)->diff($allowed)->values();
+
+        if ($invalid->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'permissions' => ['You cannot assign these permissions: '.$invalid->implode(', ')],
+            ]);
+        }
+
+        $target->syncPermissions($permissions);
+        $target->forceFill(['custom_role_id' => null])->save();
     }
 }

@@ -31,6 +31,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
     Route::post('/users', [UserManagementController::class, 'store'])->name('users.store');
     Route::get('/roles', [UserManagementController::class, 'roles'])->name('roles.index');
+    Route::get('/permissions', [UserManagementController::class, 'permissions'])->name('permissions.index');
     Route::patch('/users/{user}', [UserManagementController::class, 'update'])->name('users.update');
     Route::patch('/users/{user}/role', [UserManagementController::class, 'updateRole'])->name('users.role.update');
     Route::post('/users/{user}/activate', [UserManagementController::class, 'activate'])->name('users.activate');

@@ -44,7 +44,7 @@ class EnforceCompanyAccess
         }
 
         if ($user && ! $user->isSuperAdmin() && ($module = $this->access->moduleForPath($request->path()))) {
-            $permission = $this->access->permissionForAction($module, $this->actionForRequest($request));
+            $permission = $this->permissionForRequest($request, $module);
 
             if (! $this->access->can($user, $permission, $module)) {
                 return ApiResponse::error('You do not have permission to perform this action.', status: 403);
@@ -52,6 +52,15 @@ class EnforceCompanyAccess
         }
 
         return $next($request);
+    }
+
+    private function permissionForRequest(Request $request, string $module): string
+    {
+        if ($request->is('api/hr/me') || ($request->is('api/hr/leave-requests') && $request->isMethod('post'))) {
+            return 'hr.view';
+        }
+
+        return $this->access->permissionForAction($module, $this->actionForRequest($request));
     }
 
     private function actionForRequest(Request $request): string

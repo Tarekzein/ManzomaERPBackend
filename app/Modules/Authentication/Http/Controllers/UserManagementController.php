@@ -31,6 +31,11 @@ class UserManagementController extends Controller
         return ApiResponse::success($this->users->assignableRoles($request->user()), 'Assignable roles loaded');
     }
 
+    public function permissions(Request $request): JsonResponse
+    {
+        return ApiResponse::success($this->users->assignablePermissions($request->user()), 'Assignable permissions loaded');
+    }
+
     public function store(CreateUserRequest $request): JsonResponse
     {
         return ApiResponse::success(
@@ -47,7 +52,8 @@ class UserManagementController extends Controller
                 $request->user(),
                 $user,
                 UserRole::from($request->validated('role')),
-                $request->validated('company_id')
+                $request->validated('company_id'),
+                $request->validated('permissions')
             ),
             'User role updated'
         );

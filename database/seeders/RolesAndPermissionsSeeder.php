@@ -62,11 +62,12 @@ class RolesAndPermissionsSeeder extends Seeder
         ));
 
         $manager->syncPermissions($permissions->filter(
-            fn (string $permission) => ! str_starts_with($permission, 'users.')
+            fn (string $permission) => in_array($permission, ['users.view', 'users.create', 'users.edit', 'roles.assign', 'auth.force_password_reset'], true)
+                || (! str_starts_with($permission, 'users.')
                 && (str_ends_with($permission, '.view')
                 || str_ends_with($permission, '.create')
                 || str_ends_with($permission, '.edit')
-                || str_ends_with($permission, '.export'))
+                || str_ends_with($permission, '.export')))
         ));
 
         $employee->syncPermissions([
