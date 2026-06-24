@@ -12,7 +12,8 @@ readonly class CreateUserData
         public string $password,
         public UserRole $role,
         public ?int $companyId,
-        public ?array $permissions = null,
+        public ?array $allowedPermissions = null,
+        public ?array $deniedPermissions = null,
     ) {}
 
     public static function from(array $data): self
@@ -23,7 +24,8 @@ readonly class CreateUserData
             $data['password'],
             UserRole::from($data['role']),
             $data['company_id'] ?? null,
-            array_key_exists('permissions', $data) ? $data['permissions'] : null
+            $data['allowed_permissions'] ?? $data['permissions'] ?? null,
+            $data['denied_permissions'] ?? null,
         );
     }
 }

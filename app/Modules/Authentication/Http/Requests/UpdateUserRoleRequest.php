@@ -10,11 +10,19 @@ class UpdateUserRoleRequest extends FormRequest
 {
     public function rules(): array
     {
+        $service = app(UserManagementService::class);
+        $roles = $service->assignableRoleNames($this->user());
+        $permissions = $service->assignablePermissionNames($this->user());
+
         return [
-            'role' => ['required', Rule::in(app(UserManagementService::class)->assignableRoles($this->user()))],
+            'role' => ['required', Rule::in($roles)],
             'company_id' => ['nullable', 'integer', 'exists:companies,id'],
             'permissions' => ['sometimes', 'array'],
-            'permissions.*' => ['required', 'string', Rule::in(app(UserManagementService::class)->assignablePermissions($this->user()))],
+            'permissions.*' => ['required', 'string', Rule::in($permissions)],
+            'allowed_permissions' => ['sometimes', 'array'],
+            'allowed_permissions.*' => ['required', 'string', Rule::in($permissions)],
+            'denied_permissions' => ['sometimes', 'array'],
+            'denied_permissions.*' => ['required', 'string', Rule::in($permissions)],
         ];
     }
 }

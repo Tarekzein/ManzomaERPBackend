@@ -7,13 +7,16 @@ use App\Modules\Authentication\Contracts\UserRepository;
 use App\Modules\Authentication\DTOs\CreateUserData;
 use App\Modules\Authentication\Enums\UserRole;
 use App\Modules\Authentication\Models\User;
+use App\Modules\Authentication\Models\UserPermissionOverride;
 use App\Modules\Authentication\Policies\UserManagementPolicy;
 use App\Modules\Companies\Models\Company;
 use App\Modules\HR\Services\EmployeeProfileService;
+use App\Modules\Platform\Services\EffectiveAccessService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Spatie\Permission\Models\Permission;
 
 class UserManagementService
 {
@@ -22,6 +25,7 @@ class UserManagementService
         private readonly RoleRepository $roles,
         private readonly UserManagementPolicy $policy,
         private readonly EmployeeProfileService $profiles,
+        private readonly EffectiveAccessService $access,
     ) {}
 
     public function list(User $actor, int $perPage): LengthAwarePaginator
@@ -35,21 +39,48 @@ class UserManagementService
     {
         $this->policy->ensureCanManageUsers($actor);
 
-        return $this->policy->assignableRoles($actor);
+        return collect($this->policy->assignableRoles($actor))
+            ->map(fn (string $role) => [
+                'name' => $role,
+                'default_permissions' => $this->filteredRoleDefaults($actor, UserRole::from($role)),
+            ])
+            ->values()
+            ->all();
     }
 
     public function assignablePermissions(User $actor): array
     {
         $this->policy->ensureCanManageUsers($actor);
-        abort_unless($actor->can('roles.assign') || $actor->isSuperAdmin(), 403);
+        abort_unless($this->can($actor, 'roles.assign') || $actor->isSuperAdmin(), 403);
 
-        return $this->policy->assignablePermissions($actor);
+        return collect($this->assignablePermissionNames($actor))
+            ->map(fn (string $permission) => [
+                'name' => $permission,
+                'module' => $this->access->permissionModule($permission) ?? explode('.', $permission, 2)[0],
+                'action' => $this->access->permissionAction($permission),
+            ])
+            ->values()
+            ->all();
+    }
+
+    public function assignableRoleNames(User $actor): array
+    {
+        $this->policy->ensureCanManageUsers($actor);
+
+        return $this->policy->assignableRoles($actor);
+    }
+
+    public function assignablePermissionNames(User $actor, ?UserRole $targetRole = null): array
+    {
+        $this->policy->ensureCanManageUsers($actor);
+
+        return $this->policy->assignablePermissions($actor, $targetRole);
     }
 
     public function create(User $actor, CreateUserData $data): User
     {
         $this->policy->ensureCanManageUsers($actor);
-        abort_unless($actor->can('users.create'), 403);
+        abort_unless($this->can($actor, 'users.create'), 403);
         $companyId = $this->policy->resolveCompanyId($actor, $data->role, $data->companyId);
 
         if ($companyId) {
@@ -74,25 +105,25 @@ class UserManagementService
             ]);
 
             $this->roles->assign($user, $data->role->value);
-            $this->syncDirectPermissions($actor, $user, $data->permissions);
+            $this->syncPermissionOverrides($actor, $user, $data->role, $data->allowedPermissions, $data->deniedPermissions);
             $this->profiles->ensureForUser($user->load('company'));
 
             return $this->users->loadProfile($user);
         });
     }
 
-    public function updateRole(User $actor, User $target, UserRole $role, ?int $companyId, ?array $permissions = null): User
+    public function updateRole(User $actor, User $target, UserRole $role, ?int $companyId, ?array $allowedPermissions = null, ?array $deniedPermissions = null): User
     {
         $this->policy->ensureCanManageUsers($actor);
         $this->policy->ensureCanManageTarget($actor, $target);
-        abort_unless($actor->can('users.edit'), 403);
+        abort_unless($this->can($actor, 'users.edit'), 403);
 
-        return DB::transaction(function () use ($actor, $target, $role, $companyId, $permissions) {
+        return DB::transaction(function () use ($actor, $target, $role, $companyId, $allowedPermissions, $deniedPermissions) {
             $this->users->save($target, [
                 'company_id' => $this->policy->resolveCompanyId($actor, $role, $companyId ?? $target->company_id),
             ]);
             $this->roles->sync($target, $role->value);
-            $this->syncDirectPermissions($actor, $target, $permissions);
+            $this->syncPermissionOverrides($actor, $target, $role, $allowedPermissions, $deniedPermissions);
             $this->profiles->ensureForUser($target->refresh()->load('company'));
 
             return $this->users->loadProfile($target);
@@ -103,7 +134,7 @@ class UserManagementService
     {
         $this->policy->ensureCanManageUsers($actor);
         $this->policy->ensureCanManageTarget($actor, $target);
-        abort_unless($actor->can('users.edit'), 403);
+        abort_unless($this->can($actor, 'users.edit'), 403);
 
         return $this->users->loadProfile($this->users->save($target, [
             'name' => $data['name'] ?? $target->name,
@@ -115,7 +146,7 @@ class UserManagementService
     {
         $this->policy->ensureCanManageUsers($actor);
         $this->policy->ensureCanManageTarget($actor, $target);
-        abort_unless($actor->can('users.edit'), 403);
+        abort_unless($this->can($actor, 'users.edit'), 403);
 
         $target = $this->users->save($target, [
             'is_active' => $active,
@@ -131,7 +162,7 @@ class UserManagementService
 
     public function remove(User $actor, User $target): User
     {
-        abort_unless($actor->can('users.delete'), 403);
+        abort_unless($this->can($actor, 'users.delete'), 403);
 
         return $this->setActive($actor, $target, false);
     }
@@ -140,7 +171,7 @@ class UserManagementService
     {
         $this->policy->ensureCanManageUsers($actor);
         $this->policy->ensureCanManageTarget($actor, $target);
-        abort_unless($actor->can('auth.force_password_reset'), 403);
+        abort_unless($this->can($actor, 'auth.force_password_reset'), 403);
 
         $target->forceFill([
             'must_change_password' => true,
@@ -150,16 +181,26 @@ class UserManagementService
         return $this->users->loadProfile($target);
     }
 
-    private function syncDirectPermissions(User $actor, User $target, ?array $permissions): void
+    private function syncPermissionOverrides(User $actor, User $target, UserRole $targetRole, ?array $allowedPermissions, ?array $deniedPermissions): void
     {
-        if ($permissions === null) {
+        if ($allowedPermissions === null && $deniedPermissions === null) {
             return;
         }
 
-        abort_unless($actor->can('roles.assign') || $actor->isSuperAdmin(), 403);
+        abort_unless($this->can($actor, 'roles.assign') || $actor->isSuperAdmin(), 403);
 
-        $allowed = $this->policy->assignablePermissions($actor);
-        $invalid = collect($permissions)->diff($allowed)->values();
+        $allowedPermissions = collect($allowedPermissions ?? [])->filter()->unique()->values();
+        $deniedPermissions = collect($deniedPermissions ?? [])->filter()->unique()->values();
+        $overlap = $allowedPermissions->intersect($deniedPermissions)->values();
+
+        if ($overlap->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'permissions' => ['A permission cannot be both allowed and denied: '.$overlap->implode(', ')],
+            ]);
+        }
+
+        $assignable = collect($this->policy->assignablePermissions($actor, $targetRole));
+        $invalid = $allowedPermissions->merge($deniedPermissions)->diff($assignable)->values();
 
         if ($invalid->isNotEmpty()) {
             throw ValidationException::withMessages([
@@ -167,7 +208,39 @@ class UserManagementService
             ]);
         }
 
-        $target->syncPermissions($permissions);
+        $target->syncPermissions([]);
+        $target->permissionOverrides()->delete();
+
+        $allowedPermissions->each(fn (string $permission) => $target->permissionOverrides()->create([
+            'permission_name' => $permission,
+            'effect' => UserPermissionOverride::EFFECT_ALLOW,
+        ]));
+        $deniedPermissions->each(fn (string $permission) => $target->permissionOverrides()->create([
+            'permission_name' => $permission,
+            'effect' => UserPermissionOverride::EFFECT_DENY,
+        ]));
+
         $target->forceFill(['custom_role_id' => null])->save();
+    }
+
+    private function filteredRoleDefaults(User $actor, UserRole $role): array
+    {
+        $rolePermissions = Permission::query()
+            ->whereHas('roles', fn ($query) => $query->where('name', $role->value))
+            ->orderBy('name')
+            ->pluck('name');
+
+        if ($actor->isSuperAdmin()) {
+            return $rolePermissions->all();
+        }
+
+        $assignable = collect($this->policy->assignablePermissions($actor, $role));
+
+        return $rolePermissions->intersect($assignable)->values()->all();
+    }
+
+    private function can(User $actor, string $permission): bool
+    {
+        return $actor->isSuperAdmin() || $this->access->effectivePermissionNames($actor)->contains($permission);
     }
 }

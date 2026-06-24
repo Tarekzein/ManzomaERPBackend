@@ -67,6 +67,56 @@ class UserManagementTest extends TestCase
         ])->assertUnprocessable();
     }
 
+    public function test_company_admin_only_receives_subscription_allowed_assignable_permissions(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $companyAdmin = User::where('email', 'company.admin@example.com')->firstOrFail();
+        Sanctum::actingAs($companyAdmin);
+
+        $this->getJson('/api/permissions')
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'projects.view'])
+            ->assertJsonMissing(['name' => 'custom_modules.view'])
+            ->assertJsonMissing(['name' => 'platform.view'])
+            ->assertJsonMissing(['name' => 'users.delete']);
+
+        $this->postJson('/api/users', [
+            'name' => 'Injected User',
+            'email' => 'injected@example.com',
+            'password' => 'Secret#123',
+            'password_confirmation' => 'Secret#123',
+            'role' => UserRole::Employee->value,
+            'allowed_permissions' => ['custom_modules.view'],
+        ])->assertUnprocessable();
+    }
+
+    public function test_user_permission_denies_remove_role_default_permissions_from_effective_access(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $companyAdmin = User::where('email', 'company.admin@example.com')->firstOrFail();
+        Sanctum::actingAs($companyAdmin);
+
+        $response = $this->postJson('/api/users', [
+            'name' => 'Restricted Manager',
+            'email' => 'restricted.manager@example.com',
+            'password' => 'Secret#123',
+            'password_confirmation' => 'Secret#123',
+            'role' => UserRole::Manager->value,
+            'denied_permissions' => ['projects.view'],
+        ])->assertCreated();
+
+        $this->assertNotContains('projects.view', $response->json('data.access.permissions'));
+        $this->assertContains('projects.view', $response->json('data.access.role_permissions'));
+        $this->assertContains('projects.view', $response->json('data.access.denied_permissions'));
+        $this->assertDatabaseHas('user_permission_overrides', [
+            'user_id' => $response->json('data.id'),
+            'permission_name' => 'projects.view',
+            'effect' => 'deny',
+        ]);
+    }
+
     public function test_manager_can_delegate_limited_permissions_but_employee_cannot_manage_users(): void
     {
         $this->seed(DatabaseSeeder::class);

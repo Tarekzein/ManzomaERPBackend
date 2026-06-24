@@ -61,9 +61,10 @@ class RolesAndPermissionsSeeder extends Seeder
             fn (string $permission) => str_starts_with($permission, 'platform.')
         ));
 
+        $managerModules = ['hr', 'finance', 'inventory', 'sales', 'crm', 'projects', 'reporting', 'notifications'];
         $manager->syncPermissions($permissions->filter(
             fn (string $permission) => in_array($permission, ['users.view', 'users.create', 'users.edit', 'roles.assign', 'auth.force_password_reset'], true)
-                || (! str_starts_with($permission, 'users.')
+                || (in_array(explode('.', $permission)[0] ?? '', $managerModules, true)
                 && (str_ends_with($permission, '.view')
                 || str_ends_with($permission, '.create')
                 || str_ends_with($permission, '.edit')

@@ -31,7 +31,7 @@ class EloquentUserRepository implements UserRepository
     public function paginate(?int $companyId, int $perPage): LengthAwarePaginator
     {
         return User::query()
-            ->with('company', 'roles', 'customRole')
+            ->with('company', 'roles.permissions', 'customRole', 'permissions', 'permissionOverrides')
             ->when($companyId !== null, fn ($query) => $query->where('company_id', $companyId))
             ->orderBy('name')
             ->paginate($perPage);
@@ -39,7 +39,7 @@ class EloquentUserRepository implements UserRepository
 
     public function loadProfile(User $user): User
     {
-        $user->load('company.subscription.plan.features', 'roles.permissions', 'customRole', 'permissions');
+        $user->load('company.subscription.plan.features', 'roles.permissions', 'customRole', 'permissions', 'permissionOverrides');
         $user->setAttribute('access', $this->access->effectiveAccess($user));
         $user->syncOriginalAttribute('access');
 

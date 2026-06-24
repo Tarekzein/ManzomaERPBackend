@@ -73,6 +73,11 @@ class User extends Authenticatable
         return $this->hasMany(TrustedLoginDevice::class);
     }
 
+    public function permissionOverrides(): HasMany
+    {
+        return $this->hasMany(UserPermissionOverride::class);
+    }
+
     public function isSuperAdmin(): bool
     {
         return $this->hasRole(UserRole::SuperAdmin->value);

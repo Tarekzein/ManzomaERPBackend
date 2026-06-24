@@ -53,7 +53,8 @@ class UserManagementController extends Controller
                 $user,
                 UserRole::from($request->validated('role')),
                 $request->validated('company_id'),
-                $request->validated('permissions')
+                $request->validated('allowed_permissions') ?? $request->validated('permissions'),
+                $request->validated('denied_permissions')
             ),
             'User role updated'
         );

@@ -125,7 +125,8 @@ class DashboardAndCompaniesTest extends TestCase
             ->assertJsonPath('data.access.modules.crm.enabled', true)
             ->assertJsonPath('data.access.modules.projects.enabled', true)
             ->assertJsonMissingPath('data.access.modules.users')
-            ->assertJsonMissing(['users.view']);
+            ->assertJsonMissing(['users.delete'])
+            ->assertJsonMissing(['custom_modules.view']);
 
         $this->getJson('/api/dashboard')
             ->assertOk()
