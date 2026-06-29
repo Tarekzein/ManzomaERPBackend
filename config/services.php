@@ -26,6 +26,11 @@ return [
         'base_url' => env('PAYMOB_BASE_URL', 'https://accept.paymob.com/api'),
         'currency' => env('PAYMOB_CURRENCY', 'EGP'),
     ],
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect_uri' => env('GOOGLE_REDIRECT_URI'),
+    ],
 
     /*
     |--------------------------------------------------------------------------

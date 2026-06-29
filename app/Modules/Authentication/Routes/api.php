@@ -2,6 +2,7 @@
 
 use App\Modules\Authentication\Http\Controllers\AuthController;
 use App\Modules\Authentication\Http\Controllers\CustomRoleController;
+use App\Modules\Authentication\Http\Controllers\GoogleOAuthController;
 use App\Modules\Authentication\Http\Controllers\TrustedDeviceController;
 use App\Modules\Authentication\Http\Controllers\TwoFactorController;
 use App\Modules\Authentication\Http\Controllers\UserManagementController;
@@ -10,11 +11,15 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('auth')->name('auth.')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->name('register');
     Route::post('/login', [AuthController::class, 'login'])->name('login');
+    Route::get('/google/url', [GoogleOAuthController::class, 'loginUrl'])->name('google.url');
+    Route::post('/google/callback', [GoogleOAuthController::class, 'callback'])->name('google.callback');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/me', [AuthController::class, 'me'])->name('me');
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
         Route::post('/logout-all', [AuthController::class, 'logoutAll'])->name('logout-all');
+        Route::get('/google/link-url', [GoogleOAuthController::class, 'linkUrl'])->name('google.link-url');
+        Route::delete('/google', [GoogleOAuthController::class, 'unlink'])->name('google.unlink');
         Route::post('/change-password', [AuthController::class, 'changePassword'])->name('change-password');
         Route::get('/two-factor', [TwoFactorController::class, 'status'])->name('two-factor.status');
         Route::post('/two-factor/enable', [TwoFactorController::class, 'enable'])->name('two-factor.enable');
