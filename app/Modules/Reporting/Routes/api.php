@@ -3,6 +3,9 @@
 use App\Modules\Reporting\Http\Controllers\ReportingController;
 use Illuminate\Support\Facades\Route;
 
+// Public shared report endpoint (no auth required)
+Route::get('reporting/shared/{token}', [ReportingController::class, 'sharedReport'])->name('reporting.shared');
+
 Route::middleware('auth:sanctum')->prefix('reporting')->name('reporting.')->group(function () {
     Route::get('catalog', [ReportingController::class, 'catalog'])->name('catalog');
     Route::get('dashboard', [ReportingController::class, 'dashboard'])->name('dashboard');
@@ -15,6 +18,10 @@ Route::middleware('auth:sanctum')->prefix('reporting')->name('reporting.')->grou
     Route::delete('reports/{report}', [ReportingController::class, 'deleteReport'])->name('reports.destroy');
     Route::post('reports/{report}/run', [ReportingController::class, 'runReport'])->name('reports.run');
     Route::get('reports/{report}/export/{format}', [ReportingController::class, 'export'])->name('reports.export');
+    Route::post('reports/{report}/favorite', [ReportingController::class, 'toggleFavorite'])->name('reports.favorite');
+    Route::post('reports/{report}/toggle-share', [ReportingController::class, 'toggleShare'])->name('reports.toggle-share');
+    Route::post('reports/{report}/bust-cache', [ReportingController::class, 'bustCache'])->name('reports.bust-cache');
+    Route::post('reports/{report}/run-comparison', [ReportingController::class, 'runWithComparison'])->name('reports.run-comparison');
 
     Route::get('widgets', [ReportingController::class, 'widgets'])->name('widgets.index');
     Route::post('widgets', [ReportingController::class, 'storeWidget'])->name('widgets.store');
@@ -27,4 +34,9 @@ Route::middleware('auth:sanctum')->prefix('reporting')->name('reporting.')->grou
     Route::put('schedules/{schedule}', [ReportingController::class, 'updateSchedule'])->name('schedules.update');
     Route::delete('schedules/{schedule}', [ReportingController::class, 'deleteSchedule'])->name('schedules.destroy');
     Route::get('runs', [ReportingController::class, 'runs'])->name('runs.index');
+
+    Route::get('alerts', [ReportingController::class, 'alerts'])->name('alerts.index');
+    Route::post('alerts', [ReportingController::class, 'storeAlert'])->name('alerts.store');
+    Route::put('alerts/{alert}', [ReportingController::class, 'updateAlert'])->name('alerts.update');
+    Route::delete('alerts/{alert}', [ReportingController::class, 'deleteAlert'])->name('alerts.destroy');
 });

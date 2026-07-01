@@ -123,6 +123,26 @@ class CRMRequest extends FormRequest
                 'occurred_at' => ['nullable', 'date'],
                 'payload' => ['nullable', 'array'],
             ],
+            'crm.notes.store', 'crm.notes.update' => [
+                'company_id' => ['nullable', 'integer', 'exists:companies,id'],
+                'contact_id' => ['nullable', 'integer', 'exists:crm_contacts,id'],
+                'opportunity_id' => ['nullable', 'integer', 'exists:crm_opportunities,id'],
+                'body' => ['required', 'string', 'max:65535'],
+                'is_pinned' => ['nullable', 'boolean'],
+            ],
+            'crm.contacts.bulk' => [
+                'company_id' => ['nullable', 'integer', 'exists:companies,id'],
+                'ids' => ['required', 'array', 'min:1', 'max:500'],
+                'ids.*' => ['integer', 'exists:crm_contacts,id'],
+                'action' => ['required', Rule::in(['delete', 'tag', 'untag', 'assign', 'status'])],
+                'tag_ids' => ['nullable', 'array'],
+                'tag_ids.*' => ['integer', 'exists:crm_tags,id'],
+                'owner_id' => ['nullable', 'integer', 'exists:users,id'],
+                'status' => ['nullable', 'string', 'max:50'],
+            ],
+            'crm.contacts.merge' => [
+                'secondary_id' => ['required', 'integer', 'exists:crm_contacts,id'],
+            ],
             default => [],
         };
     }

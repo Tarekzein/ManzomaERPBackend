@@ -4,6 +4,7 @@ namespace App\Modules\Reporting\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Reporting\Http\Requests\ReportingRequest;
+use App\Modules\Reporting\Models\ReportAlert;
 use App\Modules\Reporting\Models\ReportDashboardWidget;
 use App\Modules\Reporting\Models\ReportDefinition;
 use App\Modules\Reporting\Models\ReportRun;
@@ -148,5 +149,61 @@ class ReportingController extends Controller
     public function runs(Request $request)
     {
         return ApiResponse::success($this->reporting->list($request->user(), ReportRun::class, $request));
+    }
+
+    public function toggleFavorite(Request $request, ReportDefinition $report)
+    {
+        return ApiResponse::success($this->reporting->toggleFavorite($request->user(), $report));
+    }
+
+    public function toggleShare(Request $request, ReportDefinition $report)
+    {
+        return ApiResponse::success($this->reporting->toggleShare($request->user(), $report), 'Report share toggled');
+    }
+
+    public function sharedReport(Request $request, string $token)
+    {
+        return ApiResponse::success($this->reporting->runByToken($token));
+    }
+
+    public function bustCache(Request $request, ReportDefinition $report)
+    {
+        $companyId = $this->policy->companyId($request->user(), 'reporting.view', $request->integer('company_id') ?: null);
+        $definition = $report->only(['source', 'fields', 'filters', 'groupings', 'metrics', 'chart_type']);
+        $this->engine->bustCache($companyId, $definition);
+        $result = $this->reporting->run($request->user(), $report);
+
+        return ApiResponse::success($result, 'Cache busted and report refreshed');
+    }
+
+    public function runWithComparison(ReportingRequest $request, ReportDefinition $report)
+    {
+        $companyId = $this->policy->ensureOwned($request->user(), $report, 'reporting.view');
+        $definition = $report->only(['source', 'fields', 'filters', 'groupings', 'metrics', 'chart_type']);
+        $result = $this->engine->executeWithComparison($companyId, $definition, $request->validated('compare_to'));
+
+        return ApiResponse::success($result);
+    }
+
+    public function alerts(Request $request)
+    {
+        return ApiResponse::success($this->reporting->listAlerts($request->user(), $request));
+    }
+
+    public function storeAlert(ReportingRequest $request)
+    {
+        return ApiResponse::success($this->reporting->saveAlert($request->user(), $request->validated()), 'Alert created', status: 201);
+    }
+
+    public function updateAlert(ReportingRequest $request, ReportAlert $alert)
+    {
+        return ApiResponse::success($this->reporting->saveAlert($request->user(), $request->validated(), $alert), 'Alert updated');
+    }
+
+    public function deleteAlert(Request $request, ReportAlert $alert)
+    {
+        $this->reporting->deleteAlert($request->user(), $alert);
+
+        return ApiResponse::success(null, 'Alert deleted');
     }
 }

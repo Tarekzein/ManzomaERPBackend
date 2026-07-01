@@ -7,6 +7,7 @@ use App\Modules\CRM\Models\CRMActivity;
 use App\Modules\CRM\Models\CRMCampaign;
 use App\Modules\CRM\Models\CRMCampaignEvent;
 use App\Modules\CRM\Models\CRMContact;
+use App\Modules\CRM\Models\CRMNote;
 use App\Modules\CRM\Models\CRMOpportunity;
 use App\Modules\CRM\Models\CRMPipelineStage;
 use App\Modules\CRM\Models\CRMSegment;
@@ -17,6 +18,7 @@ use App\Modules\Sales\Models\SalesContact;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -166,8 +168,12 @@ class CRMService
         $this->ensureOpportunity($companyId, $data['opportunity_id'] ?? null);
         unset($data['company_id']);
 
-        return CRMActivity::create(['company_id' => $companyId, 'user_id' => $user->id, 'occurred_at' => $data['occurred_at'] ?? now()] + $data)
-            ->load('contact', 'opportunity', 'user');
+        $activity = CRMActivity::create(['company_id' => $companyId, 'user_id' => $user->id, 'occurred_at' => $data['occurred_at'] ?? now()] + $data);
+        if (! empty($data['contact_id'])) {
+            $this->recomputeLeadScore(CRMContact::find($data['contact_id']));
+        }
+
+        return $activity->load('contact', 'opportunity', 'user');
     }
 
     public function saveTask(User $user, array $data, ?CRMTask $task = null): CRMTask
@@ -265,6 +271,159 @@ class CRMService
         }
 
         $record->delete();
+    }
+
+    public function listNotes(User $user, Request $request): \Illuminate\Support\Collection
+    {
+        $companyId = $this->companyId($user, $request);
+        $query = CRMNote::with('user', 'contact', 'opportunity')
+            ->where('company_id', $companyId)
+            ->when($request->filled('contact_id'), fn ($q) => $q->where('contact_id', $request->integer('contact_id')))
+            ->when($request->filled('opportunity_id'), fn ($q) => $q->where('opportunity_id', $request->integer('opportunity_id')))
+            ->orderByDesc('is_pinned')
+            ->latest();
+
+        return $query->get();
+    }
+
+    public function saveNote(User $user, array $data, ?CRMNote $note = null): CRMNote
+    {
+        $companyId = $note
+            ? $this->policy->ensureOwned($user, $note)
+            : $this->resolveLinkedCompany($user, $data, 'crm.create');
+        $this->assertCompanyAccess($user, $companyId, $note ? 'crm.edit' : 'crm.create');
+        $this->ensureContact($companyId, $data['contact_id'] ?? null);
+        $this->ensureOpportunity($companyId, $data['opportunity_id'] ?? null);
+        unset($data['company_id']);
+
+        $record = $note ?: new CRMNote(['company_id' => $companyId, 'user_id' => $user->id]);
+        $record->fill($data)->save();
+
+        return $record->load('user', 'contact', 'opportunity');
+    }
+
+    public function pinNote(User $user, CRMNote $note): CRMNote
+    {
+        $this->policy->ensureOwned($user, $note, 'crm.edit');
+        $note->update(['is_pinned' => ! $note->is_pinned]);
+
+        return $note->refresh()->load('user', 'contact', 'opportunity');
+    }
+
+    public function deleteNote(User $user, CRMNote $note): void
+    {
+        $this->policy->ensureOwned($user, $note, 'crm.delete');
+        $note->delete();
+    }
+
+    public function trashedContacts(User $user, Request $request): \Illuminate\Support\Collection
+    {
+        $companyId = $this->companyId($user, $request);
+
+        return CRMContact::onlyTrashed()->with('owner', 'tags')->where('company_id', $companyId)->latest('deleted_at')->get();
+    }
+
+    public function restoreContact(User $user, int $id): CRMContact
+    {
+        $contact = CRMContact::withTrashed()->findOrFail($id);
+        $this->policy->ensureOwned($user, $contact, 'crm.edit');
+        $contact->restore();
+
+        return $contact->refresh()->load('owner', 'salesContact', 'tags');
+    }
+
+    public function trashedOpportunities(User $user, Request $request): \Illuminate\Support\Collection
+    {
+        $companyId = $this->companyId($user, $request);
+
+        return CRMOpportunity::onlyTrashed()->with('contact', 'stage', 'owner')->where('company_id', $companyId)->latest('deleted_at')->get();
+    }
+
+    public function restoreOpportunity(User $user, int $id): CRMOpportunity
+    {
+        $opportunity = CRMOpportunity::withTrashed()->findOrFail($id);
+        $this->policy->ensureOwned($user, $opportunity, 'crm.edit');
+        $opportunity->restore();
+
+        return $opportunity->refresh()->load('contact.tags', 'stage', 'owner');
+    }
+
+    public function bulkContacts(User $user, string $action, array $ids, array $payload, ?int $requestedCompanyId = null): array
+    {
+        $companyId = $this->companyId($user, null, 'crm.edit', $requestedCompanyId);
+        $contacts = CRMContact::where('company_id', $companyId)->whereIn('id', $ids)->get();
+
+        match ($action) {
+            'delete' => $contacts->each(fn ($c) => $c->delete()),
+            'tag' => $contacts->each(fn ($c) => $c->tags()->syncWithoutDetaching($this->validTagIds($companyId, $payload['tag_ids'] ?? []))),
+            'untag' => $contacts->each(fn ($c) => $c->tags()->detach($payload['tag_ids'] ?? [])),
+            'assign' => $this->bulkAssign($companyId, $ids, $payload),
+            'status' => CRMContact::where('company_id', $companyId)->whereIn('id', $ids)->update(['status' => $payload['status']]),
+            default => throw \Illuminate\Validation\ValidationException::withMessages(['action' => ['Unknown bulk action.']]),
+        };
+
+        return ['affected' => $contacts->count()];
+    }
+
+    public function mergeContacts(User $user, CRMContact $primary, CRMContact $secondary): CRMContact
+    {
+        $companyId = $this->policy->ensureOwned($user, $primary, 'crm.edit');
+        $this->policy->ensureOwned($user, $secondary, 'crm.edit');
+
+        if ((int) $primary->company_id !== (int) $secondary->company_id) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['secondary_id' => ['Both contacts must belong to the same company.']]);
+        }
+
+        return DB::transaction(function () use ($primary, $secondary) {
+            CRMActivity::where('contact_id', $secondary->id)->update(['contact_id' => $primary->id]);
+            CRMOpportunity::where('contact_id', $secondary->id)->update(['contact_id' => $primary->id]);
+            CRMTask::where('contact_id', $secondary->id)->update(['contact_id' => $primary->id]);
+            CRMNote::where('contact_id', $secondary->id)->update(['contact_id' => $primary->id]);
+
+            $primary->tags()->syncWithoutDetaching($secondary->tags()->pluck('crm_tags.id'));
+
+            foreach (['email', 'phone', 'company_name', 'region', 'source'] as $field) {
+                if (! $primary->$field && $secondary->$field) {
+                    $primary->$field = $secondary->$field;
+                }
+            }
+            $primary->save();
+
+            $secondary->forceDelete();
+            $this->recomputeLeadScore($primary->fresh());
+
+            return $primary->refresh()->load('owner', 'salesContact', 'tags');
+        });
+    }
+
+    public function recomputeLeadScore(CRMContact $contact): CRMContact
+    {
+        $activitiesCount = CRMActivity::where('contact_id', $contact->id)->count();
+        $opportunities = CRMOpportunity::where('contact_id', $contact->id)->get();
+        $oppsCount = $opportunities->count();
+        $totalValue = $opportunities->sum('value');
+        $allTasks = CRMTask::where('contact_id', $contact->id)->get();
+        $totalTasks = $allTasks->count();
+        $completedTasks = $allTasks->where('status', 'completed')->count();
+        $lastActivity = CRMActivity::where('contact_id', $contact->id)->latest('occurred_at')->value('occurred_at');
+        $daysSinceLast = $lastActivity ? now()->diffInDays($lastActivity) : 999;
+
+        $score = min(25, $activitiesCount * 5)
+            + min(20, $oppsCount * 10)
+            + (int) min(20, log10(max(1, (float) $totalValue)) * 4)
+            + (int) (($totalTasks > 0 ? $completedTasks / $totalTasks : 0) * 20)
+            + max(0, 15 - (int) ($daysSinceLast / 7));
+
+        $score = max(0, min(100, $score));
+        $contact->update(['lead_score' => $score, 'score_computed_at' => now()]);
+
+        return $contact->fresh();
+    }
+
+    private function bulkAssign(int $companyId, array $ids, array $payload): void
+    {
+        $this->ensureCompanyUser($companyId, $payload['owner_id'] ?? null);
+        CRMContact::where('company_id', $companyId)->whereIn('id', $ids)->update(['owner_id' => $payload['owner_id'] ?? null]);
     }
 
     private function conversionRate(int $companyId): array

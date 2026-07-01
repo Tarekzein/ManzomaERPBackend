@@ -40,7 +40,7 @@ class HRService
 
     public function list(User $u, string $model, array $with = [], array $filters = [])
     {
-        $companyId = $this->policy->companyId($u);
+        $companyId = $this->policy->companyId($u, $this->readPermissionFor($model));
         $query = $model::query()->where('company_id', $companyId)->with($with);
         $scopedEmployeeIds = $this->policy->scopedEmployeeIds($u);
 
@@ -155,7 +155,7 @@ class HRService
 
     public function applicant(User $u, JobPosting $job, array $d, ?UploadedFile $resume = null): Applicant
     {
-        $company = $this->policy->ensureOwned($u, $job, 'hr.create');
+        $company = $this->policy->ensureOwned($u, $job, 'hr.recruitment.manage');
         if ($resume) {
             $d['resume_disk'] = config('hr.filesystem_disk');
             $d['resume_path'] = $resume->store("hr/recruitment/{$job->id}", $d['resume_disk']);
@@ -231,6 +231,16 @@ class HRService
             DisciplinaryAction::class => 'hr.disciplinary.manage',
             JobPosting::class, Applicant::class => 'hr.recruitment.manage',
             default => $creating ? 'hr.create' : 'hr.edit',
+        };
+    }
+
+    private function readPermissionFor(string $model): string
+    {
+        return match ($model) {
+            JobPosting::class, Applicant::class => 'hr.recruitment.manage',
+            DisciplinaryAction::class => 'hr.disciplinary.manage',
+            EmployeeBenefit::class => 'hr.payroll.view',
+            default => 'hr.view',
         };
     }
 

@@ -4,9 +4,12 @@ namespace App\Modules\CRM\Models;
 
 use App\Modules\Authentication\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class CRMOpportunity extends Model
 {
+    use SoftDeletes;
+
     protected $table = 'crm_opportunities';
 
     protected $guarded = [];
@@ -17,6 +20,7 @@ class CRMOpportunity extends Model
             'expected_close_date' => 'date',
             'won_at' => 'datetime',
             'lost_at' => 'datetime',
+            'deleted_at' => 'datetime',
         ];
     }
 
@@ -43,5 +47,10 @@ class CRMOpportunity extends Model
     public function tasks()
     {
         return $this->hasMany(CRMTask::class, 'opportunity_id');
+    }
+
+    public function notes()
+    {
+        return $this->hasMany(CRMNote::class, 'opportunity_id');
     }
 }

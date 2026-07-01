@@ -7,6 +7,7 @@ use App\Modules\CRM\Http\Requests\CRMRequest;
 use App\Modules\CRM\Models\CRMActivity;
 use App\Modules\CRM\Models\CRMCampaign;
 use App\Modules\CRM\Models\CRMContact;
+use App\Modules\CRM\Models\CRMNote;
 use App\Modules\CRM\Models\CRMOpportunity;
 use App\Modules\CRM\Models\CRMPipelineStage;
 use App\Modules\CRM\Models\CRMSegment;
@@ -221,5 +222,78 @@ class CRMController extends Controller
     public function report(Request $request, string $report)
     {
         return ApiResponse::success($this->crm->reports($request->user(), $request, $report), 'CRM report loaded');
+    }
+
+    public function notes(Request $request)
+    {
+        return ApiResponse::success($this->crm->listNotes($request->user(), $request));
+    }
+
+    public function storeNote(CRMRequest $request)
+    {
+        return ApiResponse::success($this->crm->saveNote($request->user(), $request->validated()), 'Note created', status: 201);
+    }
+
+    public function updateNote(CRMRequest $request, CRMNote $note)
+    {
+        return ApiResponse::success($this->crm->saveNote($request->user(), $request->validated(), $note), 'Note updated');
+    }
+
+    public function pinNote(Request $request, CRMNote $note)
+    {
+        return ApiResponse::success($this->crm->pinNote($request->user(), $note), 'Note pin toggled');
+    }
+
+    public function deleteNote(Request $request, CRMNote $note)
+    {
+        $this->crm->deleteNote($request->user(), $note);
+
+        return ApiResponse::success(null, 'Note deleted');
+    }
+
+    public function trashedContacts(Request $request)
+    {
+        return ApiResponse::success($this->crm->trashedContacts($request->user(), $request));
+    }
+
+    public function restoreContact(Request $request, int $id)
+    {
+        return ApiResponse::success($this->crm->restoreContact($request->user(), $id), 'Contact restored');
+    }
+
+    public function trashedOpportunities(Request $request)
+    {
+        return ApiResponse::success($this->crm->trashedOpportunities($request->user(), $request));
+    }
+
+    public function restoreOpportunity(Request $request, int $id)
+    {
+        return ApiResponse::success($this->crm->restoreOpportunity($request->user(), $id), 'Opportunity restored');
+    }
+
+    public function bulkContacts(CRMRequest $request)
+    {
+        return ApiResponse::success(
+            $this->crm->bulkContacts(
+                $request->user(),
+                $request->validated('action'),
+                $request->validated('ids'),
+                $request->validated(),
+                $request->validated('company_id'),
+            ),
+            'Bulk action completed',
+        );
+    }
+
+    public function mergeContacts(CRMRequest $request, CRMContact $contact)
+    {
+        $secondary = CRMContact::findOrFail($request->validated('secondary_id'));
+
+        return ApiResponse::success($this->crm->mergeContacts($request->user(), $contact, $secondary), 'Contacts merged');
+    }
+
+    public function refreshScore(Request $request, CRMContact $contact)
+    {
+        return ApiResponse::success($this->crm->recomputeLeadScore($contact), 'Lead score refreshed');
     }
 }

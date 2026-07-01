@@ -3,7 +3,9 @@
 namespace App\Modules\Reporting\Services;
 
 use App\Modules\Reporting\Models\ReportDefinition;
+use Carbon\Carbon;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -51,6 +53,50 @@ class ReportEngine
     }
 
     public function execute(int $companyId, array $definition): array
+    {
+        $ttl = (int) config('reporting.cache_ttl', 300);
+        $cacheKey = 'report:' . $companyId . ':' . md5(json_encode($definition));
+
+        return Cache::remember($cacheKey, $ttl, fn () => $this->executeRaw($companyId, $definition));
+    }
+
+    public function bustCache(int $companyId, array $definition): void
+    {
+        Cache::forget('report:' . $companyId . ':' . md5(json_encode($definition)));
+    }
+
+    public function executeWithComparison(int $companyId, array $definition, string $compareTo): array
+    {
+        $sourceConfig = $this->sources()[$definition['source'] ?? ''] ?? null;
+        if (! $sourceConfig) {
+            throw ValidationException::withMessages(['source' => ['The selected reporting source is not available.']]);
+        }
+
+        $dateField = $sourceConfig['dateField'];
+        [$fromDate, $toDate] = $this->extractDateRange($definition['filters'] ?? [], $dateField);
+
+        [$prevFrom, $prevTo] = match ($compareTo) {
+            'previous_period' => $this->shiftPeriod($fromDate, $toDate),
+            'previous_year' => [$fromDate->copy()->subYear(), $toDate->copy()->subYear()],
+            default => throw ValidationException::withMessages(['compare_to' => ['Invalid comparison period.']]),
+        };
+
+        $current = $this->execute($companyId, $definition);
+
+        $prevDefinition = $definition;
+        $prevDefinition['filters'] = $this->replaceDateFilter($prevDefinition['filters'] ?? [], $dateField, $prevFrom, $prevTo);
+        $previous = $this->execute($companyId, $prevDefinition);
+
+        return [
+            'current' => $current,
+            'previous' => $previous,
+            'compare_to' => $compareTo,
+            'current_period' => ['from' => $fromDate->toDateString(), 'to' => $toDate->toDateString()],
+            'previous_period' => ['from' => $prevFrom->toDateString(), 'to' => $prevTo->toDateString()],
+        ];
+    }
+
+    private function executeRaw(int $companyId, array $definition): array
     {
         $source = $this->sources()[$definition['source'] ?? ''] ?? null;
         if (! $source) {
@@ -126,9 +172,40 @@ class ReportEngine
             $value = $filter['value'] ?? null;
             match ($operator) {
                 'contains' => $query->where($field, 'like', "%{$value}%"),
+                'starts_with' => $query->where($field, 'like', "{$value}%"),
+                'ends_with' => $query->where($field, 'like', "%{$value}"),
                 'in' => $query->whereIn($field, is_array($value) ? $value : explode(',', (string) $value)),
+                'between' => $query->whereBetween($field, (array) $value),
+                'is_null' => $query->whereNull($field),
+                'not_null' => $query->whereNotNull($field),
                 default => $query->where($field, $operator, $value),
             };
         }
+    }
+
+    private function extractDateRange(array $filters, string $dateField): array
+    {
+        foreach ($filters as $filter) {
+            if ($filter['field'] === $dateField && $filter['operator'] === 'between' && is_array($filter['value'] ?? null)) {
+                return [Carbon::parse($filter['value'][0]), Carbon::parse($filter['value'][1])];
+            }
+        }
+        // Default: current month
+        return [now()->startOfMonth(), now()->endOfMonth()];
+    }
+
+    private function shiftPeriod(Carbon $from, Carbon $to): array
+    {
+        $days = $from->diffInDays($to) + 1;
+
+        return [$from->copy()->subDays($days), $to->copy()->subDays($days)];
+    }
+
+    private function replaceDateFilter(array $filters, string $dateField, Carbon $from, Carbon $to): array
+    {
+        $filters = array_filter($filters, fn ($f) => $f['field'] !== $dateField);
+        $filters[] = ['field' => $dateField, 'operator' => 'between', 'value' => [$from->toDateString(), $to->toDateString()]];
+
+        return array_values($filters);
     }
 }

@@ -5,9 +5,12 @@ namespace App\Modules\CRM\Models;
 use App\Modules\Authentication\Models\User;
 use App\Modules\Sales\Models\SalesContact;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class CRMContact extends Model
 {
+    use SoftDeletes;
+
     protected $table = 'crm_contacts';
 
     protected $guarded = [];
@@ -18,6 +21,9 @@ class CRMContact extends Model
             'address' => 'array',
             'custom_attributes' => 'array',
             'converted_at' => 'datetime',
+            'deleted_at' => 'datetime',
+            'score_computed_at' => 'datetime',
+            'lead_score' => 'integer',
         ];
     }
 
@@ -49,5 +55,10 @@ class CRMContact extends Model
     public function tasks()
     {
         return $this->hasMany(CRMTask::class, 'contact_id');
+    }
+
+    public function notes()
+    {
+        return $this->hasMany(CRMNote::class, 'contact_id');
     }
 }
