@@ -11,7 +11,7 @@ class EloquentPlanRepository implements PlanRepository
 {
     public function activeWithFeatures(): Collection
     {
-        return SubscriptionPlan::with('features')
+        return SubscriptionPlan::with(['features', 'promotions' => fn ($query) => $query->orderByDesc('starts_at')])
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->get();
@@ -19,7 +19,7 @@ class EloquentPlanRepository implements PlanRepository
 
     public function findActiveBySlug(string $slug): SubscriptionPlan
     {
-        return SubscriptionPlan::where('slug', $slug)->where('is_active', true)->firstOrFail();
+        return SubscriptionPlan::with('promotions')->where('slug', $slug)->where('is_active', true)->firstOrFail();
     }
 
     public function create(array $attributes): SubscriptionPlan

@@ -20,6 +20,10 @@ Route::prefix('subscriptions')->name('subscriptions.')->group(function () {
         Route::put('/plans/{plan}/features', [SubscriptionAdminController::class, 'assignFeatures'])->name('plans.features.update');
         Route::put('/plans/{plan}/features/{feature}', [SubscriptionAdminController::class, 'savePlanFeature'])->name('plans.features.save');
         Route::delete('/plans/{plan}/features/{feature}', [SubscriptionAdminController::class, 'removePlanFeature'])->name('plans.features.remove');
+        Route::get('/plans/{plan}/promotions', [SubscriptionAdminController::class, 'promotions'])->name('plans.promotions.index');
+        Route::post('/plans/{plan}/promotions', [SubscriptionAdminController::class, 'storePromotion'])->name('plans.promotions.store');
+        Route::put('/plans/{plan}/promotions/{promotion}', [SubscriptionAdminController::class, 'updatePromotion'])->name('plans.promotions.update');
+        Route::delete('/plans/{plan}/promotions/{promotion}', [SubscriptionAdminController::class, 'deletePromotion'])->name('plans.promotions.delete');
         Route::post('/features', [SubscriptionAdminController::class, 'storeFeature'])->name('features.store');
         Route::put('/features/{feature}', [SubscriptionAdminController::class, 'updateFeature'])->name('features.update');
     });

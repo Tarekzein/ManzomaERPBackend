@@ -43,6 +43,11 @@ class PayablesReceivablesController extends Controller
         return ApiResponse::success($this->service->pay($r->user(), $r->validated()), 'Payment recorded', status: 201);
     }
 
+    public function creditInvoice(FinanceRequest $r, Invoice $invoice)
+    {
+        return ApiResponse::success($this->service->credit($r->user(), $invoice, $r->validated()), 'Credit note posted', status: 201);
+    }
+
     public function schedules(Request $r)
     {
         return ApiResponse::success($this->service->schedules($r->user()));

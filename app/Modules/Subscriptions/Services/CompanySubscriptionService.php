@@ -41,6 +41,24 @@ class CompanySubscriptionService
         });
     }
 
+    public function startTrial(Company $company, SubscribeData $data, int $trialDays, array $metadata = []): CompanySubscription
+    {
+        return DB::transaction(function () use ($company, $data, $trialDays, $metadata) {
+            $plan = $this->plans->findActiveBySlug($data->planSlug);
+            $trialEndsAt = now()->addDays($trialDays);
+            $company->update(['plan' => $plan->slug]);
+
+            return $this->subscriptions->replaceActive(
+                $company,
+                $plan,
+                $data->billingCycle,
+                array_replace($metadata, ['trial_days' => $trialDays]),
+                'trialing',
+                $trialEndsAt,
+            );
+        });
+    }
+
     public function cancel(User $actor): CompanySubscription
     {
         $this->policy->ensureCanSubscribe($actor);

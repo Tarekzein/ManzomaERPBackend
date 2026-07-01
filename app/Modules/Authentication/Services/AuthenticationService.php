@@ -42,10 +42,32 @@ class AuthenticationService
     {
         $token = Str::random(48);
         $user = $this->createCompanyAdmin($data, false);
-        $plan = SubscriptionPlan::where('slug', $data->planSlug)->where('is_active', true)->firstOrFail();
+        $plan = SubscriptionPlan::with('promotions')->where('slug', $data->planSlug)->where('is_active', true)->firstOrFail();
+
+        if ($plan->trial_enabled && (int) $plan->trial_days > 0) {
+            $activation = $this->payments->createTrialActivation($user, $plan, $data->billingCycle, $token);
+
+            return [
+                'activation_mode' => 'trial',
+                'checkout' => [
+                    'reference' => $activation['payment']->reference,
+                    'registration_token' => $token,
+                    'checkout_url' => null,
+                    'status' => $activation['payment']->status,
+                ],
+                'company' => $activation['payment']->company,
+                'user' => $this->users->loadProfile($user),
+                'plan' => $activation['payment']->plan,
+                'payment' => $activation['payment'],
+                'subscription' => $activation['subscription'],
+                'auth' => $this->tokenResponse($user, $data->deviceName),
+            ];
+        }
+
         $payment = $this->payments->createRegistrationPayment($user, $plan, $data->billingCycle, $token);
 
         return [
+            'activation_mode' => 'payment',
             'checkout' => [
                 'reference' => $payment->reference,
                 'registration_token' => $token,

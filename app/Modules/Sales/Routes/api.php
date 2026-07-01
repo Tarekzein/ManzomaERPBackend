@@ -21,6 +21,7 @@ Route::middleware('auth:sanctum')->prefix('sales')->name('sales.')->group(functi
     Route::post('orders/{order}/confirm', [SalesController::class, 'confirmOrder'])->name('orders.confirm');
     Route::post('orders/{order}/ship', [SalesController::class, 'shipOrder'])->name('orders.ship');
     Route::post('orders/{order}/invoice', [SalesController::class, 'invoiceOrder'])->name('orders.invoice');
+    Route::post('orders/{order}/credit', [SalesController::class, 'creditOrder'])->name('orders.credit');
     Route::post('orders/{order}/close', [SalesController::class, 'closeOrder'])->name('orders.close');
     Route::get('orders/{order}/invoice-pdf', [SalesController::class, 'invoicePdf'])->name('orders.invoice-pdf');
     Route::get('orders/{order}/delivery-note', [SalesController::class, 'deliveryNotePdf'])->name('orders.delivery-note');

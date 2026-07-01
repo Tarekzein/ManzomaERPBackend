@@ -5,6 +5,7 @@ namespace App\Modules\Finance\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Finance\Exports\FinancialStatementExport;
 use App\Modules\Finance\Models\Budget;
+use App\Modules\Finance\Models\FinanceContact;
 use App\Modules\Finance\Services\FinancialReportService;
 use App\Support\ApiResponse;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -41,5 +42,20 @@ class FinancialReportController extends Controller
     public function aging(Request $r, string $type)
     {
         return ApiResponse::success($this->service->aging($r->user(), $type));
+    }
+
+    public function contactStatement(Request $r, FinanceContact $contact)
+    {
+        return ApiResponse::success($this->service->contactStatement($r->user(), $contact));
+    }
+
+    public function taxSummary(Request $r)
+    {
+        return ApiResponse::success($this->service->taxSummary($r->user(), $r->query('from'), $r->query('to')));
+    }
+
+    public function paymentHistory(Request $r)
+    {
+        return ApiResponse::success($this->service->paymentHistory($r->user(), $r->query('from'), $r->query('to')));
     }
 }

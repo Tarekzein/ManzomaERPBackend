@@ -98,6 +98,111 @@ class HRModuleTest extends TestCase
         $this->putJson("/api/hr/applicants/{$applicant['id']}", ['stage' => 'interview', 'notes' => 'Strong candidate'])->assertOk()->assertJsonPath('data.stage', 'interview');
     }
 
+    public function test_professional_hr_suite_endpoints_work(): void
+    {
+        $admin = $this->admin();
+        $employee = Employee::where('user_id', $admin->id)->firstOrFail();
+        $departmentId = $employee->department_id;
+
+        $this->postJson('/api/hr/positions', [
+            'department_id' => $departmentId,
+            'code' => 'HRM',
+            'title' => 'HR Manager',
+            'description' => 'Owns people operations.',
+            'min_salary' => 10000,
+            'max_salary' => 20000,
+            'is_active' => true,
+        ])->assertCreated()->assertJsonPath('data.title', 'HR Manager');
+
+        $this->postJson('/api/hr/holidays', [
+            'name' => 'Company Day',
+            'holiday_date' => '2026-07-23',
+            'is_paid' => true,
+            'region' => 'EG',
+        ])->assertCreated()->assertJsonPath('data.name', 'Company Day');
+
+        $contract = $this->postJson('/api/hr/contracts', [
+            'employee_id' => $employee->id,
+            'contract_number' => 'CON-001',
+            'type' => 'employment',
+            'starts_on' => '2026-01-01',
+            'salary' => 10000,
+            'currency' => 'EGP',
+            'status' => 'active',
+        ])->assertCreated()->json('data');
+        $this->getJson('/api/hr/contracts?search=CON-001')->assertOk()->assertJsonPath('data.0.id', $contract['id']);
+
+        $benefit = $this->postJson('/api/hr/benefits', [
+            'name' => 'Transport Allowance',
+            'type' => 'allowance',
+            'default_amount' => 500,
+            'taxable' => false,
+            'is_active' => true,
+        ])->assertCreated()->json('data');
+        $this->postJson('/api/hr/employee-benefits', [
+            'employee_id' => $employee->id,
+            'benefit_id' => $benefit['id'],
+            'amount' => 500,
+            'starts_on' => '2026-06-01',
+            'status' => 'active',
+        ])->assertCreated()->assertJsonPath('data.amount', '500.00');
+
+        $leaveType = $this->getJson('/api/hr/leave-types')->assertOk()->json('data.0');
+        $this->getJson("/api/hr/leave-balances?employee_id={$employee->id}&year=2026")
+            ->assertOk()
+            ->assertJsonPath('data.0.year', 2026);
+        $this->postJson('/api/hr/leave-balances/adjustments', [
+            'employee_id' => $employee->id,
+            'leave_type_id' => $leaveType['id'],
+            'year' => 2026,
+            'days' => 2,
+            'reason' => 'Opening balance correction',
+        ])->assertCreated()->assertJsonPath('data.adjusted_days', '2.00');
+
+        $this->postJson('/api/hr/onboarding-tasks', [
+            'employee_id' => $employee->id,
+            'title' => 'Sign handbook',
+            'assigned_to' => $admin->id,
+            'due_on' => '2026-07-01',
+            'status' => 'pending',
+        ])->assertCreated()->assertJsonPath('data.title', 'Sign handbook');
+
+        $this->postJson('/api/hr/performance-reviews', [
+            'employee_id' => $employee->id,
+            'reviewer_id' => $admin->id,
+            'period' => '2026 H1',
+            'score' => 90,
+            'status' => 'completed',
+            'summary' => 'Strong performance.',
+            'reviewed_on' => '2026-06-30',
+        ])->assertCreated()->assertJsonPath('data.score', '90.00');
+
+        $this->postJson('/api/hr/disciplinary-actions', [
+            'employee_id' => $employee->id,
+            'issued_by' => $admin->id,
+            'type' => 'warning',
+            'reason' => 'Policy reminder',
+            'issued_on' => '2026-06-30',
+            'status' => 'open',
+        ])->assertCreated()->assertJsonPath('data.type', 'warning');
+
+        $this->postJson('/api/hr/training-records', [
+            'employee_id' => $employee->id,
+            'title' => 'Safety Training',
+            'provider' => 'Internal',
+            'started_on' => '2026-06-01',
+            'completed_on' => '2026-06-05',
+            'status' => 'completed',
+            'cost' => 250,
+            'currency' => 'EGP',
+        ])->assertCreated()->assertJsonPath('data.title', 'Safety Training');
+
+        $this->getJson('/api/hr/me/leave-balances')->assertOk();
+        $this->getJson('/api/hr/me/attendance-summary')->assertOk()->assertJsonStructure(['data' => ['from', 'to', 'total_hours', 'entries']]);
+        $this->getJson('/api/hr/reports/contracts')->assertOk()->assertJsonPath('data.0.employee', $employee->name);
+        $this->getJson('/api/hr/reports/training')->assertOk()->assertJsonPath('data.0.title', 'Safety Training');
+    }
+
     private function admin(): User
     {
         $this->seed(DatabaseSeeder::class);

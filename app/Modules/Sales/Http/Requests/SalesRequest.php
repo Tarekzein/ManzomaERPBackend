@@ -83,6 +83,12 @@ class SalesRequest extends FormRequest
                 'revenue_account_id' => ['nullable', 'integer', 'exists:accounts,id'],
                 'invoice_number' => ['nullable', 'string', 'max:50'],
             ],
+            'sales.orders.credit' => [
+                'number' => ['nullable', 'string', 'max:50'],
+                'credit_date' => ['required', 'date'],
+                'amount' => ['required', 'numeric', 'gt:0'],
+                'reason' => ['nullable', 'string', 'max:500'],
+            ],
             default => [],
         };
     }

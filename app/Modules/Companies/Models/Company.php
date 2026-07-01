@@ -40,7 +40,9 @@ class Company extends Model
 
     public function subscription(): HasOne
     {
-        return $this->hasOne(CompanySubscription::class)->latestOfMany();
+        return $this->hasOne(CompanySubscription::class)
+            ->whereIn('status', ['active', 'trialing'])
+            ->latestOfMany();
     }
 
     public function subscriptions(): HasMany

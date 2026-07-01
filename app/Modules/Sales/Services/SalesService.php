@@ -5,6 +5,8 @@ namespace App\Modules\Sales\Services;
 use App\Modules\Authentication\Models\User;
 use App\Modules\Finance\Models\Account;
 use App\Modules\Finance\Models\FinanceContact;
+use App\Modules\Finance\Services\AccountingPostingService;
+use App\Modules\Finance\Services\CompanyAccountResolver;
 use App\Modules\Finance\Services\InvoiceService;
 use App\Modules\Inventory\Models\Product;
 use App\Modules\Inventory\Models\Warehouse;
@@ -27,6 +29,9 @@ class SalesService
         private readonly SalesPolicy $policy,
         private readonly StockMovementService $stock,
         private readonly InvoiceService $invoices,
+        private readonly AccountingPostingService $accounting,
+        private readonly CompanyAccountResolver $accounts,
+        private readonly SalesDocumentCalculator $calculator,
     ) {}
 
     public function list(User $user, string $model, array $with = [])
@@ -37,7 +42,7 @@ class SalesService
     public function saveContact(User $user, array $data, ?SalesContact $contact = null): SalesContact
     {
         $companyId = $contact ? $this->policy->ensureOwned($user, $contact) : $this->policy->companyId($user, 'sales.create');
-        $this->ensureFinanceContact($companyId, $data['finance_contact_id'] ?? null);
+        $this->ensureFinanceContact($companyId, $data['finance_contact_id'] ?? null, $data['type'] === 'both' ? ['customer', 'vendor', 'both'] : [$data['type'], 'both']);
 
         return $contact ? tap($contact)->update($data) : SalesContact::create(['company_id' => $companyId] + $data);
     }
@@ -128,19 +133,23 @@ class SalesService
         }
         abort_unless($order->warehouse_id, 422, 'A warehouse is required before confirming the order.');
 
-        $movement = $this->stock->create($user, [
-            'type' => 'issue',
-            'reference' => $order->number,
-            'notes' => "Sales order {$order->number}",
-            'lines' => $order->lines->map(fn ($line) => [
-                'product_id' => $line->product_id,
-                'from_warehouse_id' => $order->warehouse_id,
-                'quantity' => $line->quantity,
-            ])->all(),
-        ]);
-        $order->update(['status' => 'confirmed', 'confirmed_at' => now(), 'stock_movement_id' => $movement->id]);
+        return DB::transaction(function () use ($user, $order) {
+            $movement = $this->stock->create($user, [
+                'type' => 'issue',
+                'reference' => $order->number,
+                'notes' => "Sales order {$order->number}",
+                'lines' => $order->lines->map(fn ($line) => [
+                    'product_id' => $line->product_id,
+                    'from_warehouse_id' => $order->warehouse_id,
+                    'quantity' => $line->quantity,
+                ])->all(),
+            ]);
+            $cogs = (float) $movement->lines->sum('total_cost');
+            $this->accounting->postCogs($order->company_id, $user->id, now()->toDateString(), "COGS for sales order {$order->number}", $cogs, $order->currency, 'sales_order_cogs', $order->id);
+            $order->update(['status' => 'confirmed', 'confirmed_at' => now(), 'stock_movement_id' => $movement->id]);
 
-        return $order->refresh()->load('customer', 'warehouse', 'stockMovement.lines', 'lines.product');
+            return $order->refresh()->load('customer', 'warehouse', 'stockMovement.lines', 'lines.product');
+        });
     }
 
     public function transitionSales(User $user, SalesOrder $order, string $status): SalesOrder
@@ -172,6 +181,8 @@ class SalesService
             $contactId = $data['finance_contact_id'] ?? $order->customer->finance_contact_id;
             $accountId = $data['revenue_account_id'] ?? Account::where('company_id', $order->company_id)->where('code', '4000')->value('id');
             if ($contactId && $accountId) {
+                $this->ensureFinanceContact($order->company_id, $contactId, ['customer', 'both']);
+                $this->accounts->ensure($order->company_id, $accountId, 'revenue', 'Revenue account');
                 $invoice = $this->invoices->createInvoice($user, [
                     'type' => 'receivable',
                     'contact_id' => $contactId,
@@ -180,7 +191,16 @@ class SalesService
                     'due_date' => now()->addDays(30)->toDateString(),
                     'currency' => $order->currency,
                     'exchange_rate' => 1,
-                    'lines' => $order->lines->map(fn ($line) => ['account_id' => $accountId, 'description' => $line->description ?: $line->product?->name, 'quantity' => $line->quantity, 'unit_price' => $line->unit_price])->all(),
+                    'source_type' => 'sales_order',
+                    'source_id' => $order->id,
+                    'lines' => $order->lines->map(fn ($line) => [
+                        'account_id' => $accountId,
+                        'description' => $line->description ?: $line->product?->name,
+                        'quantity' => $line->quantity,
+                        'unit_price' => $line->unit_price,
+                        'discount_percent' => $line->discount_percent,
+                        'tax_percent' => $line->tax_percent,
+                    ])->all(),
                 ]);
                 $invoiceId = $this->invoices->post($user, $invoice)->id;
             }
@@ -278,6 +298,8 @@ class SalesService
             $contactId = $data['finance_contact_id'] ?? $order->vendor->finance_contact_id;
             $accountId = $data['expense_account_id'] ?? Account::where('company_id', $order->company_id)->where('code', '5000')->value('id');
             if ($contactId && $accountId) {
+                $this->ensureFinanceContact($order->company_id, $contactId, ['vendor', 'both']);
+                $this->accounts->ensure($order->company_id, $accountId, null, 'Purchase invoice account');
                 $invoice = $this->invoices->createInvoice($user, [
                     'type' => 'payable',
                     'contact_id' => $contactId,
@@ -286,7 +308,16 @@ class SalesService
                     'due_date' => now()->addDays(30)->toDateString(),
                     'currency' => $order->currency,
                     'exchange_rate' => 1,
-                    'lines' => $order->lines->map(fn ($line) => ['account_id' => $accountId, 'description' => $line->description ?: $line->product?->name, 'quantity' => $line->quantity, 'unit_price' => $line->unit_price])->all(),
+                    'source_type' => 'purchase_order',
+                    'source_id' => $order->id,
+                    'lines' => $order->lines->map(fn ($line) => [
+                        'account_id' => $accountId,
+                        'description' => $line->description ?: $line->product?->name,
+                        'quantity' => $line->quantity,
+                        'unit_price' => $line->unit_price,
+                        'discount_percent' => $line->discount_percent,
+                        'tax_percent' => $line->tax_percent,
+                    ])->all(),
                 ]);
                 $invoiceId = $this->invoices->post($user, $invoice)->id;
             }
@@ -306,6 +337,16 @@ class SalesService
             'top-customers' => SalesOrder::with('customer')->where('company_id', $companyId)->selectRaw('customer_id, sum(total) revenue, count(*) orders')->groupBy('customer_id')->orderByDesc('revenue')->limit(10)->get()->toArray(),
             default => abort(404, 'Unknown sales report.'),
         };
+    }
+
+    public function creditSalesOrder(User $user, SalesOrder $order, array $data)
+    {
+        $this->policy->ensureOwned($user, $order);
+        if (! $order->finance_invoice_id) {
+            throw ValidationException::withMessages(['order' => ['This sales order has no posted finance invoice to credit.']]);
+        }
+
+        return $this->invoices->credit($user, $order->financeInvoice, $data);
     }
 
     public function pdf(User $user, Model $document, string $view)
@@ -331,11 +372,9 @@ class SalesService
         $document->lines()->delete();
         foreach ($lines as $line) {
             $product = Product::where('company_id', $companyId)->findOrFail($line['product_id']);
-            $price = $this->price($companyId, $product, $customerId, $line);
-            $subtotal = round((float) $line['quantity'] * $price['unit_price'], 4);
-            $discount = round($subtotal * $price['discount_percent'] / 100, 4);
-            $tax = round(($subtotal - $discount) * (float) ($line['tax_percent'] ?? 0) / 100, 4);
-            $document->lines()->create($line + $price + ['description' => $line['description'] ?? $product->name, 'subtotal' => $subtotal, 'discount_amount' => $discount, 'tax_amount' => $tax, 'total' => $subtotal - $discount + $tax]);
+            $price = $this->calculator->price($companyId, $product, $customerId, $line);
+            $totals = $this->calculator->totals((float) $line['quantity'], (float) $price['unit_price'], (float) $price['discount_percent'], (float) ($line['tax_percent'] ?? 0));
+            $document->lines()->create($line + $price + ['description' => $line['description'] ?? $product->name] + $totals);
         }
     }
 
@@ -345,26 +384,6 @@ class SalesService
         $document->update(['subtotal' => $lines->sum('subtotal'), 'discount_total' => $lines->sum('discount_amount'), 'tax_total' => $lines->sum('tax_amount'), 'total' => $lines->sum('total')]);
 
         return $document->refresh();
-    }
-
-    private function price(int $companyId, Product $product, ?int $customerId, array $line): array
-    {
-        if (isset($line['unit_price'])) {
-            return ['unit_price' => $line['unit_price'], 'discount_percent' => $line['discount_percent'] ?? 0];
-        }
-        $item = PriceList::query()
-            ->where('company_id', $companyId)
-            ->where('is_active', true)
-            ->where(fn ($q) => $q->whereNull('contact_id')->orWhere('contact_id', $customerId))
-            ->where(fn ($q) => $q->whereNull('starts_on')->orWhereDate('starts_on', '<=', now()))
-            ->where(fn ($q) => $q->whereNull('ends_on')->orWhereDate('ends_on', '>=', now()))
-            ->with('items')
-            ->latest()
-            ->get()
-            ->flatMap->items
-            ->firstWhere('product_id', $product->id);
-
-        return ['unit_price' => $item?->unit_price ?? $product->sale_price, 'discount_percent' => $line['discount_percent'] ?? $item?->discount_percent ?? 0];
     }
 
     private function number(string $prefix): string
@@ -379,10 +398,10 @@ class SalesService
         }
     }
 
-    private function ensureFinanceContact(int $companyId, ?int $id): void
+    private function ensureFinanceContact(int $companyId, ?int $id, array $types = ['customer', 'vendor', 'both']): void
     {
-        if ($id && ! FinanceContact::where('company_id', $companyId)->whereKey($id)->exists()) {
-            throw ValidationException::withMessages(['finance_contact_id' => ['The selected finance contact must belong to the company.']]);
+        if ($id && ! FinanceContact::where('company_id', $companyId)->whereIn('type', $types)->whereKey($id)->exists()) {
+            throw ValidationException::withMessages(['finance_contact_id' => ['The selected finance contact must belong to the company and match the required type.']]);
         }
     }
 

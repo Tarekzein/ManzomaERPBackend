@@ -19,6 +19,8 @@ class SavePlanRequest extends FormRequest
             'max_users' => ['nullable', 'integer', 'min:1'],
             'storage_gb' => ['nullable', 'integer', 'min:1'],
             'api_rate_limit_per_minute' => ['required', 'integer', 'min:1'],
+            'trial_enabled' => ['sometimes', 'boolean'],
+            'trial_days' => ['required_if:trial_enabled,true', 'integer', 'min:0', 'max:365'],
             'is_active' => ['required', 'boolean'],
             'sort_order' => ['required', 'integer', 'min:0'],
         ];

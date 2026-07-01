@@ -13,7 +13,15 @@ class Employee extends Model
 
     protected function casts(): array
     {
-        return ['address' => 'array', 'payroll_formula' => 'array', 'hire_date' => 'date', 'termination_date' => 'date', 'base_salary' => 'decimal:2'];
+        return [
+            'address' => 'array',
+            'payroll_formula' => 'array',
+            'hire_date' => 'date',
+            'probation_ends_on' => 'date',
+            'termination_date' => 'date',
+            'resignation_date' => 'date',
+            'base_salary' => 'decimal:2',
+        ];
     }
 
     public function user()
@@ -59,5 +67,50 @@ class Employee extends Model
     public function documents()
     {
         return $this->hasMany(EmployeeDocument::class);
+    }
+
+    public function personalDetail()
+    {
+        return $this->hasOne(EmployeePersonalDetail::class);
+    }
+
+    public function emergencyContacts()
+    {
+        return $this->hasMany(EmergencyContact::class);
+    }
+
+    public function contracts()
+    {
+        return $this->hasMany(EmployeeContract::class);
+    }
+
+    public function benefits()
+    {
+        return $this->hasMany(EmployeeBenefit::class);
+    }
+
+    public function onboardingTasks()
+    {
+        return $this->hasMany(OnboardingTask::class);
+    }
+
+    public function offboardingTasks()
+    {
+        return $this->hasMany(OffboardingTask::class);
+    }
+
+    public function performanceReviews()
+    {
+        return $this->hasMany(PerformanceReview::class);
+    }
+
+    public function disciplinaryActions()
+    {
+        return $this->hasMany(DisciplinaryAction::class);
+    }
+
+    public function trainingRecords()
+    {
+        return $this->hasMany(TrainingRecord::class);
     }
 }

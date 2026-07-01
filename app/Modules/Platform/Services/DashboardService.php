@@ -328,8 +328,9 @@ class DashboardService
 
     private function monthlyCount($query, string $column)
     {
+        $periodExpression = $this->periodExpression($column);
         $rows = $query->where($column, '>=', now()->subMonths(5)->startOfMonth())
-            ->selectRaw("DATE_FORMAT({$column}, '%Y-%m') period, count(*) value")
+            ->selectRaw("{$periodExpression} period, count(*) value")
             ->groupBy('period')
             ->pluck('value', 'period');
 
@@ -338,10 +339,11 @@ class DashboardService
 
     private function monthlyFinancials(int $companyId)
     {
+        $periodExpression = $this->periodExpression('invoice_date');
         $rows = Invoice::query()
             ->where('company_id', $companyId)
             ->where('invoice_date', '>=', now()->subMonths(5)->startOfMonth())
-            ->selectRaw("DATE_FORMAT(invoice_date, '%Y-%m') period, sum(case when type = 'receivable' then total else 0 end) receivable, sum(case when type = 'payable' then total else 0 end) payable")
+            ->selectRaw("{$periodExpression} period, sum(case when type = 'receivable' then total else 0 end) receivable, sum(case when type = 'payable' then total else 0 end) payable")
             ->groupBy('period')
             ->get()
             ->keyBy('period');
@@ -355,10 +357,11 @@ class DashboardService
 
     private function monthlySales(int $companyId)
     {
+        $periodExpression = $this->periodExpression('order_date');
         $rows = SalesOrder::query()
             ->where('company_id', $companyId)
             ->where('order_date', '>=', now()->subMonths(5)->startOfMonth())
-            ->selectRaw("DATE_FORMAT(order_date, '%Y-%m') period, count(*) orders, sum(total) revenue")
+            ->selectRaw("{$periodExpression} period, count(*) orders, sum(total) revenue")
             ->groupBy('period')
             ->get()
             ->keyBy('period');
@@ -373,5 +376,12 @@ class DashboardService
     private function months()
     {
         return collect(range(5, 0))->map(fn (int $monthsAgo) => now()->subMonths($monthsAgo)->format('Y-m'));
+    }
+
+    private function periodExpression(string $column): string
+    {
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? "strftime('%Y-%m', {$column})"
+            : "DATE_FORMAT({$column}, '%Y-%m')";
     }
 }

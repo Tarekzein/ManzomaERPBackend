@@ -20,11 +20,13 @@ class SubscriptionPaymentService
         private readonly CompanySubscriptionService $subscriptions,
         private readonly FinanceSetupService $financeSetup,
         private readonly InventorySetupService $inventorySetup,
+        private readonly PlanPricingService $pricing,
     ) {}
 
     public function createRegistrationPayment(User $admin, SubscriptionPlan $plan, string $billingCycle, string $plainToken): SubscriptionPayment
     {
-        $amount = $billingCycle === 'annual' ? $plan->annual_price : $plan->monthly_price;
+        $pricing = $this->pricing->forCycle($plan, $billingCycle);
+        $amount = $pricing['final_amount'];
         $currency = config('services.paymob.currency') ?: $plan->currency;
 
         $payment = SubscriptionPayment::create([
@@ -38,7 +40,10 @@ class SubscriptionPaymentService
             'provider' => 'paymob',
             'status' => 'pending',
             'registration_token_hash' => hash('sha256', $plainToken),
-            'metadata' => ['source' => 'registration'],
+            'metadata' => [
+                'source' => 'registration',
+                'pricing' => $pricing,
+            ],
         ]);
 
         $order = $this->gateway->createOrder($payment);
@@ -49,6 +54,59 @@ class SubscriptionPaymentService
         ])->save();
 
         return $payment->load('company', 'user.roles.permissions', 'plan.features');
+    }
+
+    public function createTrialActivation(User $admin, SubscriptionPlan $plan, string $billingCycle, string $plainToken): array
+    {
+        $pricing = $this->pricing->forCycle($plan, $billingCycle);
+        $trialDays = (int) $plan->trial_days;
+
+        return DB::transaction(function () use ($admin, $plan, $billingCycle, $plainToken, $pricing, $trialDays) {
+            $company = $admin->company;
+            $company->forceFill([
+                'is_active' => true,
+                'plan' => $plan->slug,
+            ])->save();
+
+            $subscription = $this->subscriptions->startTrial(
+                $company,
+                new SubscribeData($plan->slug, $billingCycle),
+                $trialDays,
+                [
+                    'source' => 'trial',
+                    'pricing' => $pricing,
+                ],
+            );
+
+            $payment = SubscriptionPayment::create([
+                'reference' => (string) Str::uuid(),
+                'company_id' => $admin->company_id,
+                'user_id' => $admin->id,
+                'subscription_plan_id' => $plan->id,
+                'billing_cycle' => $billingCycle,
+                'amount' => 0,
+                'currency' => config('services.paymob.currency') ?: $plan->currency,
+                'provider' => 'trial',
+                'status' => 'succeeded',
+                'registration_token_hash' => hash('sha256', $plainToken),
+                'paid_at' => now(),
+                'metadata' => [
+                    'source' => 'registration_trial',
+                    'pricing' => $pricing,
+                    'trial_days' => $trialDays,
+                    'trial_ends_at' => $subscription->trial_ends_at?->toISOString(),
+                    'subscription_id' => $subscription->id,
+                ],
+            ]);
+
+            $this->financeSetup->provision($company);
+            $this->inventorySetup->provision($company);
+
+            return [
+                'payment' => $payment->load('company', 'user.roles.permissions', 'plan.features'),
+                'subscription' => $subscription->load('plan.features'),
+            ];
+        });
     }
 
     public function findForRegistration(string $reference, string $token): SubscriptionPayment

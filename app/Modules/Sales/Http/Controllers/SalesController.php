@@ -102,6 +102,11 @@ class SalesController extends Controller
         return ApiResponse::success($this->sales->invoiceSalesOrder($request->user(), $order, $request->validated()), 'Sales order invoiced');
     }
 
+    public function creditOrder(SalesRequest $request, SalesOrder $order)
+    {
+        return ApiResponse::success($this->sales->creditSalesOrder($request->user(), $order, $request->validated()), 'Sales order credit posted', status: 201);
+    }
+
     public function closeOrder(Request $request, SalesOrder $order)
     {
         return ApiResponse::success($this->sales->transitionSales($request->user(), $order, 'closed'), 'Sales order closed');

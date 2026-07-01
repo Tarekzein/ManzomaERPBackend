@@ -15,5 +15,7 @@ interface CompanySubscriptionRepository
         SubscriptionPlan $plan,
         string $billingCycle,
         array $metadata = [],
+        string $status = 'active',
+        mixed $trialEndsAt = null,
     ): CompanySubscription;
 }

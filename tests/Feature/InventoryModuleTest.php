@@ -31,8 +31,8 @@ class InventoryModuleTest extends TestCase
             'lines' => [['product_id' => $product['id'], 'to_warehouse_id' => $warehouse->id, 'to_location_id' => $location->id, 'quantity' => 10, 'unit_cost' => 25]],
         ])->assertCreated()->assertJsonPath('data.type', 'receipt');
 
-        $this->getJson('/api/inventory/reports/stock-on-hand')->assertOk()
-            ->assertJsonPath('data.0.quantity', '10.0000');
+        $stock = $this->getJson('/api/inventory/reports/stock-on-hand')->assertOk()->json('data');
+        $this->assertSame(10.0, (float) $stock[0]['quantity']);
         $this->getJson('/api/inventory/reports/valuation')->assertOk()
             ->assertJsonPath('data.total_value', 250);
     }
@@ -52,7 +52,7 @@ class InventoryModuleTest extends TestCase
         $this->postJson('/api/inventory/movements', ['type' => 'transfer', 'lines' => [['product_id' => $product['id'], 'from_warehouse_id' => $main->id, 'from_location_id' => $mainLocation->id, 'to_warehouse_id' => $second->id, 'to_location_id' => $secondLocation->id, 'quantity' => 2]]])->assertCreated();
         $issue = $this->postJson('/api/inventory/movements', ['type' => 'issue', 'lines' => [['product_id' => $product['id'], 'from_warehouse_id' => $main->id, 'from_location_id' => $mainLocation->id, 'quantity' => 4]]])
             ->assertCreated();
-        $issue->assertJsonPath('data.lines.0.unit_cost', '12.5000');
+        $this->assertSame(12.5, (float) $issue->json('data.lines.0.unit_cost'));
 
         $this->assertSame(6.0, (float) StockBalance::where('product_id', $product['id'])->sum('quantity'));
         $this->getJson('/api/inventory/reports/valuation')->assertOk()->assertJsonPath('data.total_value', 100);
@@ -70,7 +70,8 @@ class InventoryModuleTest extends TestCase
         $payload = ['type' => 'write_off', 'lines' => [['product_id' => $product['id'], 'from_warehouse_id' => $warehouse->id, 'from_location_id' => $location->id, 'quantity' => 3]]];
         $this->postJson('/api/inventory/movements', $payload)->assertUnprocessable();
         $this->postJson('/api/inventory/movements', $payload + ['reason_code' => 'DAMAGED'])->assertCreated();
-        $this->getJson('/api/inventory/reorder-alerts')->assertOk()->assertJsonPath('data.0.quantity', '2.0000');
+        $alerts = $this->getJson('/api/inventory/reorder-alerts')->assertOk()->json('data');
+        $this->assertSame(2.0, (float) $alerts[0]['quantity']);
         $this->assertDatabaseHas('notifications', ['notifiable_id' => $admin->id]);
     }
 
@@ -101,8 +102,9 @@ class InventoryModuleTest extends TestCase
             foreach ([[5, 10], [5, 20]] as [$quantity, $cost]) {
                 $this->postJson('/api/inventory/movements', ['type' => 'receipt', 'lines' => [['product_id' => $product['id'], 'to_warehouse_id' => $warehouse->id, 'to_location_id' => $location->id, 'quantity' => $quantity, 'unit_cost' => $cost]]])->assertCreated();
             }
-            $this->postJson('/api/inventory/movements', ['type' => 'issue', 'lines' => [['product_id' => $product['id'], 'from_warehouse_id' => $warehouse->id, 'from_location_id' => $location->id, 'quantity' => 2]]])
-                ->assertCreated()->assertJsonPath('data.lines.0.unit_cost', number_format($expected, 4, '.', ''));
+            $issue = $this->postJson('/api/inventory/movements', ['type' => 'issue', 'lines' => [['product_id' => $product['id'], 'from_warehouse_id' => $warehouse->id, 'from_location_id' => $location->id, 'quantity' => 2]]])
+                ->assertCreated()->json('data');
+            $this->assertSame($expected, (float) $issue['lines'][0]['unit_cost']);
         }
     }
 

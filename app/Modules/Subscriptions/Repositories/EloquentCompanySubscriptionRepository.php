@@ -11,7 +11,11 @@ class EloquentCompanySubscriptionRepository implements CompanySubscriptionReposi
 {
     public function current(Company $company): ?CompanySubscription
     {
-        return $company->subscription()->with('plan.features')->first();
+        return $company->subscriptions()
+            ->with('plan.features')
+            ->whereIn('status', ['active', 'trialing'])
+            ->latest()
+            ->first();
     }
 
     public function replaceActive(
@@ -19,8 +23,10 @@ class EloquentCompanySubscriptionRepository implements CompanySubscriptionReposi
         SubscriptionPlan $plan,
         string $billingCycle,
         array $metadata = [],
+        string $status = 'active',
+        mixed $trialEndsAt = null,
     ): CompanySubscription {
-        $company->subscriptions()->where('status', 'active')->update([
+        $company->subscriptions()->whereIn('status', ['active', 'trialing'])->update([
             'status' => 'cancelled',
             'cancelled_at' => now(),
             'ends_at' => now(),
@@ -28,9 +34,10 @@ class EloquentCompanySubscriptionRepository implements CompanySubscriptionReposi
 
         return $company->subscriptions()->create([
             'subscription_plan_id' => $plan->id,
-            'status' => 'active',
+            'status' => $status,
             'billing_cycle' => $billingCycle,
             'starts_at' => now(),
+            'trial_ends_at' => $trialEndsAt,
             'provider' => 'internal',
             'metadata' => $metadata,
         ])->load('plan.features');

@@ -5,8 +5,10 @@ namespace App\Modules\Finance\Services;
 use App\Modules\Authentication\Models\User;
 use App\Modules\Finance\Models\Account;
 use App\Modules\Finance\Models\Budget;
+use App\Modules\Finance\Models\FinanceContact;
 use App\Modules\Finance\Models\Invoice;
 use App\Modules\Finance\Models\JournalLine;
+use App\Modules\Finance\Models\Payment;
 use App\Modules\Finance\Policies\FinancePolicy;
 
 class FinancialReportService
@@ -65,5 +67,60 @@ class FinancialReportService
 
                 return ['invoice' => $invoice, 'outstanding' => (float) $invoice->total - (float) $invoice->paid_total, 'days_overdue' => $days, 'bucket' => $bucket];
             })->all();
+    }
+
+    public function contactStatement(User $user, FinanceContact $contact): array
+    {
+        $companyId = $this->policy->companyId($user);
+        if ((int) $contact->company_id !== $companyId) {
+            abort(403, 'This contact belongs to another company.');
+        }
+
+        $invoices = Invoice::with('payments')->where('company_id', $companyId)->where('contact_id', $contact->id)->orderBy('invoice_date')->get();
+
+        return [
+            'contact' => $contact,
+            'opening_balance' => 0,
+            'invoices' => $invoices->map(fn (Invoice $invoice) => [
+                'number' => $invoice->number,
+                'type' => $invoice->type,
+                'date' => $invoice->invoice_date?->toDateString(),
+                'due_date' => $invoice->due_date?->toDateString(),
+                'total' => (float) $invoice->total,
+                'paid_total' => (float) $invoice->paid_total,
+                'credited_total' => (float) ($invoice->credited_total ?? 0),
+                'balance' => (float) $invoice->balance,
+                'status' => $invoice->status,
+            ])->values(),
+            'balance' => (float) $contact->balance,
+        ];
+    }
+
+    public function taxSummary(User $user, ?string $from = null, ?string $to = null): array
+    {
+        $companyId = $this->policy->companyId($user);
+
+        return Invoice::query()
+            ->where('company_id', $companyId)
+            ->whereIn('status', ['posted', 'partially_paid', 'paid'])
+            ->when($from, fn ($query) => $query->whereDate('invoice_date', '>=', $from))
+            ->when($to, fn ($query) => $query->whereDate('invoice_date', '<=', $to))
+            ->selectRaw('type, currency, SUM(tax_total) tax_total, SUM(total) document_total, COUNT(*) invoices')
+            ->groupBy('type', 'currency')
+            ->get()
+            ->toArray();
+    }
+
+    public function paymentHistory(User $user, ?string $from = null, ?string $to = null): array
+    {
+        $companyId = $this->policy->companyId($user);
+
+        return Payment::with('invoice.contact')
+            ->where('company_id', $companyId)
+            ->when($from, fn ($query) => $query->whereDate('payment_date', '>=', $from))
+            ->when($to, fn ($query) => $query->whereDate('payment_date', '<=', $to))
+            ->orderByDesc('payment_date')
+            ->get()
+            ->toArray();
     }
 }

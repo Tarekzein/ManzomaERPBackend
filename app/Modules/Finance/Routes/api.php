@@ -21,6 +21,7 @@ Route::middleware('auth:sanctum')->prefix('finance')->name('finance.')->group(fu
     Route::get('invoices', [PayablesReceivablesController::class, 'invoices'])->name('invoices.index');
     Route::post('invoices', [PayablesReceivablesController::class, 'storeInvoice'])->name('invoices.store');
     Route::post('invoices/{invoice}/post', [PayablesReceivablesController::class, 'postInvoice'])->name('invoices.post');
+    Route::post('invoices/{invoice}/credit', [PayablesReceivablesController::class, 'creditInvoice'])->name('invoices.credit');
     Route::post('payments', [PayablesReceivablesController::class, 'storePayment'])->name('payments.store');
     Route::get('payment-schedules', [PayablesReceivablesController::class, 'schedules'])->name('payment-schedules.index');
     Route::post('payment-schedules', [PayablesReceivablesController::class, 'storeSchedule'])->name('payment-schedules.store');
@@ -37,6 +38,9 @@ Route::middleware('auth:sanctum')->prefix('finance')->name('finance.')->group(fu
     Route::post('budgets', [FinanceOperationsController::class, 'storeBudget'])->name('budgets.store');
     Route::get('budgets/{budget}/variance', [FinancialReportController::class, 'variance'])->name('budgets.variance');
     Route::get('reports/trial-balance', [FinancialReportController::class, 'trialBalance'])->name('reports.trial-balance');
+    Route::get('reports/tax-summary', [FinancialReportController::class, 'taxSummary'])->name('reports.tax-summary');
+    Route::get('reports/payments', [FinancialReportController::class, 'paymentHistory'])->name('reports.payments');
+    Route::get('reports/contacts/{contact}/statement', [FinancialReportController::class, 'contactStatement'])->name('reports.contacts.statement');
     Route::get('reports/aging/{type}', [FinancialReportController::class, 'aging'])->whereIn('type', ['payable', 'receivable'])->name('reports.aging');
     Route::get('reports/{statement}', [FinancialReportController::class, 'statement'])->whereIn('statement', ['balance-sheet', 'profit-loss', 'cash-flow'])->name('reports.statement');
 });

@@ -7,6 +7,7 @@ Route::middleware('auth:sanctum')->get('/companies', [CompanyController::class, 
     ->name('companies.index');
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/companies', [CompanyController::class, 'store'])->name('companies.store');
     Route::get('/company', [CompanyController::class, 'current'])->name('company.current');
     Route::match(['put', 'post'], '/company/setup', [CompanyController::class, 'setup'])->name('company.setup');
     Route::put('/companies/{company}', [CompanyController::class, 'update'])->name('companies.update');

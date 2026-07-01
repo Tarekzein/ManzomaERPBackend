@@ -7,12 +7,22 @@ use App\Modules\Authentication\Enums\UserRole;
 use App\Modules\Companies\Contracts\CompanyRepository;
 use App\Modules\Companies\DTOs\CreateCompanyData;
 use App\Modules\Companies\Models\Company;
+use App\Modules\Finance\Services\FinanceSetupService;
+use App\Modules\Inventory\Services\InventorySetupService;
+use App\Modules\Subscriptions\DTOs\SubscribeData;
+use App\Modules\Subscriptions\Services\CompanySubscriptionService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 class CompanyService
 {
-    public function __construct(private readonly CompanyRepository $companies) {}
+    public function __construct(
+        private readonly CompanyRepository $companies,
+        private readonly CompanySubscriptionService $subscriptions,
+        private readonly FinanceSetupService $financeSetup,
+        private readonly InventorySetupService $inventorySetup,
+    ) {}
 
     public function create(CreateCompanyData $data, string $planSlug, bool $active = true): Company
     {
@@ -24,6 +34,29 @@ class CompanyService
             'currency' => $data->currency,
             'is_active' => $active,
         ]);
+    }
+
+    public function createFromAdmin(
+        User $actor,
+        CreateCompanyData $data,
+        string $planSlug,
+        string $billingCycle,
+        bool $active = true,
+    ): Company {
+        abort_unless($actor->isSuperAdmin(), 403);
+
+        return DB::transaction(function () use ($actor, $data, $planSlug, $billingCycle, $active) {
+            $company = $this->create($data, $planSlug, $active);
+            $this->subscriptions->start(
+                $company,
+                new SubscribeData($planSlug, $billingCycle),
+                ['source' => 'admin_created', 'created_by_user_id' => $actor->id],
+            );
+            $this->financeSetup->provision($company);
+            $this->inventorySetup->provision($company);
+
+            return $company->refresh()->load('subscription.plan.features')->loadCount('users');
+        });
     }
 
     public function list(User $actor, string $search, int $perPage): LengthAwarePaginator

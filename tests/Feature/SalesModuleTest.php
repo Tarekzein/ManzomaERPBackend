@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Modules\Authentication\Models\User;
 use App\Modules\Finance\Models\Account;
 use App\Modules\Finance\Models\FinanceContact;
+use App\Modules\Finance\Models\Invoice;
+use App\Modules\Finance\Models\JournalEntry;
 use App\Modules\Inventory\Models\Product;
 use App\Modules\Inventory\Models\Unit;
 use App\Modules\Inventory\Models\Warehouse;
@@ -29,15 +31,17 @@ class SalesModuleTest extends TestCase
         $customer = $this->postJson('/api/sales/contacts', ['finance_contact_id' => $financeCustomer->id, 'type' => 'customer', 'name' => 'Customer One', 'currency' => 'EGP'])
             ->assertCreated()->json('data');
 
-        $this->postJson('/api/sales/price-lists', [
+        $priceList = $this->postJson('/api/sales/price-lists', [
             'contact_id' => $customer['id'], 'name' => 'Customer pricing', 'is_active' => true,
             'items' => [['product_id' => $product->id, 'unit_price' => 150, 'discount_percent' => 10]],
-        ])->assertCreated()->assertJsonPath('data.items.0.unit_price', '150.0000');
+        ])->assertCreated()->json('data');
+        $this->assertSame(150.0, (float) $priceList['items'][0]['unit_price']);
 
         $quote = $this->postJson('/api/sales/quotations', [
             'customer_id' => $customer['id'], 'quote_date' => '2026-06-14', 'valid_until' => '2026-07-14', 'currency' => 'EGP',
             'lines' => [['product_id' => $product->id, 'quantity' => 2, 'tax_percent' => 14]],
-        ])->assertCreated()->assertJsonPath('data.total', '307.8000')->json('data');
+        ])->assertCreated()->json('data');
+        $this->assertSame(307.8, (float) $quote['total']);
         $this->get("/api/sales/quotations/{$quote['id']}/pdf")->assertOk()->assertHeader('content-type', 'application/pdf');
         $order = $this->postJson("/api/sales/quotations/{$quote['id']}/convert")->assertCreated()->json('data');
         $this->putJson("/api/sales/orders/{$order['id']}", [
@@ -51,6 +55,11 @@ class SalesModuleTest extends TestCase
         $this->postJson("/api/sales/orders/{$order['id']}/invoice", ['revenue_account_id' => $revenue->id])
             ->assertOk()->assertJsonPath('data.status', 'invoiced');
         $this->assertDatabaseHas('invoices', ['company_id' => $admin->company_id, 'type' => 'receivable', 'status' => 'posted']);
+        $financeInvoice = Invoice::where('company_id', $admin->company_id)->where('type', 'receivable')->latest('id')->firstOrFail();
+        $salesOrder = SalesOrder::findOrFail($order['id'])->fresh();
+        $this->assertEquals((float) $salesOrder->total, (float) $financeInvoice->total);
+        $this->assertEquals((float) $salesOrder->discount_total, (float) $financeInvoice->discount_total);
+        $this->assertDatabaseHas('journal_entries', ['source_type' => 'sales_order_cogs', 'source_id' => $order['id'], 'status' => 'posted']);
         $this->get("/api/sales/orders/{$order['id']}/invoice-pdf")->assertOk()->assertHeader('content-type', 'application/pdf');
         $this->get("/api/sales/orders/{$order['id']}/delivery-note")->assertOk()->assertHeader('content-type', 'application/pdf');
         $this->getJson('/api/sales/reports/order-volume')->assertOk()->assertJsonPath('data.sales_orders', $baselineOrders + 1);
@@ -73,8 +82,9 @@ class SalesModuleTest extends TestCase
         $this->get("/api/sales/purchase-orders/{$po['id']}/pdf")->assertOk()->assertHeader('content-type', 'application/pdf');
         $this->postJson("/api/sales/purchase-orders/{$po['id']}/confirm")->assertOk()->assertJsonPath('data.status', 'confirmed');
         $lineId = PurchaseOrder::with('lines')->findOrFail($po['id'])->lines->first()->id;
-        $this->postJson("/api/sales/purchase-orders/{$po['id']}/receive", ['received_on' => '2026-06-15', 'lines' => [['purchase_order_line_id' => $lineId, 'quantity_received' => 5]]])
-            ->assertCreated()->assertJsonPath('data.lines.0.quantity_received', '5.0000');
+        $receipt = $this->postJson("/api/sales/purchase-orders/{$po['id']}/receive", ['received_on' => '2026-06-15', 'lines' => [['purchase_order_line_id' => $lineId, 'quantity_received' => 5]]])
+            ->assertCreated()->json('data');
+        $this->assertSame(5.0, (float) $receipt['lines'][0]['quantity_received']);
         $expense = Account::where('company_id', $admin->company_id)->where('code', '5000')->firstOrFail();
         $this->postJson("/api/sales/purchase-orders/{$po['id']}/match", ['expense_account_id' => $expense->id])
             ->assertOk()->assertJsonPath('data.status', 'matched');

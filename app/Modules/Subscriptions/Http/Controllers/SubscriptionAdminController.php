@@ -9,9 +9,11 @@ use App\Modules\Subscriptions\DTOs\PlanData;
 use App\Modules\Subscriptions\Http\Requests\AssignFeaturesRequest;
 use App\Modules\Subscriptions\Http\Requests\SaveFeatureRequest;
 use App\Modules\Subscriptions\Http\Requests\SavePlanFeatureRequest;
+use App\Modules\Subscriptions\Http\Requests\SavePlanPromotionRequest;
 use App\Modules\Subscriptions\Http\Requests\SavePlanRequest;
 use App\Modules\Subscriptions\Models\SubscriptionFeature;
 use App\Modules\Subscriptions\Models\SubscriptionPlan;
+use App\Modules\Subscriptions\Models\SubscriptionPlanPromotion;
 use App\Modules\Subscriptions\Services\SubscriptionCatalogService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -65,6 +67,49 @@ class SubscriptionAdminController extends Controller
         return ApiResponse::success(
             $this->catalog->removePlanFeature($this->user($request), $plan, $feature),
             'Plan feature removed'
+        );
+    }
+
+    public function promotions(Request $request, SubscriptionPlan $plan): JsonResponse
+    {
+        return ApiResponse::success(
+            $this->catalog->promotions($this->user($request), $plan),
+            'Plan promotions loaded'
+        );
+    }
+
+    public function storePromotion(SavePlanPromotionRequest $request, SubscriptionPlan $plan): JsonResponse
+    {
+        return ApiResponse::success(
+            $this->catalog->createPromotion($this->user($request), $plan, $request->validated()),
+            'Plan promotion created',
+            status: 201
+        );
+    }
+
+    public function updatePromotion(
+        SavePlanPromotionRequest $request,
+        SubscriptionPlan $plan,
+        SubscriptionPlanPromotion $promotion,
+    ): JsonResponse {
+        abort_unless($promotion->subscription_plan_id === $plan->id, 404);
+
+        return ApiResponse::success(
+            $this->catalog->updatePromotion($this->user($request), $plan, $promotion, $request->validated()),
+            'Plan promotion updated'
+        );
+    }
+
+    public function deletePromotion(
+        Request $request,
+        SubscriptionPlan $plan,
+        SubscriptionPlanPromotion $promotion,
+    ): JsonResponse {
+        abort_unless($promotion->subscription_plan_id === $plan->id, 404);
+
+        return ApiResponse::success(
+            $this->catalog->deletePromotion($this->user($request), $plan, $promotion),
+            'Plan promotion deleted'
         );
     }
 

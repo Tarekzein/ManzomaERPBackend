@@ -43,6 +43,14 @@ class RolesAndPermissionsSeeder extends Seeder
                 'audit.view',
                 'subscriptions.manage',
                 'feature_flags.manage',
+                'hr.payroll.view',
+                'hr.payroll.edit',
+                'hr.documents.view',
+                'hr.documents.edit',
+                'hr.leave.approve',
+                'hr.recruitment.manage',
+                'hr.performance.manage',
+                'hr.disciplinary.manage',
             ])
             ->unique()
             ->values();
@@ -69,7 +77,13 @@ class RolesAndPermissionsSeeder extends Seeder
                 || str_ends_with($permission, '.create')
                 || str_ends_with($permission, '.edit')
                 || str_ends_with($permission, '.export')))
-        ));
+        )->merge([
+            'hr.documents.view',
+            'hr.documents.edit',
+            'hr.leave.approve',
+            'hr.recruitment.manage',
+            'hr.performance.manage',
+        ]));
 
         $employee->syncPermissions([
             'hr.view',

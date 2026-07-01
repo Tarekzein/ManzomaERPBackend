@@ -14,21 +14,21 @@ use Illuminate\Validation\ValidationException;
 
 class PayrollService
 {
-    public function __construct(private HRPolicy $policy) {}
+    public function __construct(private HRPolicy $policy, private PayrollCalculationService $calculator) {}
 
     public function list(User $u)
     {
-        return PayrollRun::with('items.employee')->where('company_id', $this->policy->companyId($u))->latest()->get();
+        return PayrollRun::with('items.employee')->where('company_id', $this->policy->companyId($u, 'hr.payroll.view'))->latest()->get();
     }
 
     public function create(User $u, array $d): PayrollRun
     {
-        return PayrollRun::create(['company_id' => $this->policy->companyId($u, 'hr.create'), 'created_by' => $u->id] + $d);
+        return PayrollRun::create(['company_id' => $this->policy->companyId($u, 'hr.payroll.edit'), 'created_by' => $u->id] + $d);
     }
 
     public function process(User $u, PayrollRun $run, array $overrides = []): PayrollRun
     {
-        $company = $this->policy->ensureOwned($u, $run, 'hr.edit');
+        $company = $this->policy->ensureOwned($u, $run, 'hr.payroll.edit');
         if ($run->status !== 'draft') {
             throw ValidationException::withMessages(['status' => ['Only draft payroll runs can be processed.']]);
         }
@@ -43,14 +43,10 @@ class PayrollService
         return DB::transaction(function () use ($run, $company, $overrides) {
             foreach (Employee::where('company_id', $company)->where('status', 'active')->get() as $e) {
                 $o = collect($overrides)->firstWhere('employee_id', $e->id) ?? [];
-                $formula = $e->payroll_formula ?? [];
-                $base = (float) $e->base_salary;
-                $bonuses = (float) ($o['bonuses'] ?? $formula['bonuses'] ?? 0);
-                $deductions = (float) ($o['deductions'] ?? $formula['deductions'] ?? 0);
-                $taxRate = (float) ($o['tax_rate'] ?? $formula['tax_rate'] ?? config('hr.default_tax_rate'));
-                $gross = $base + $bonuses;
-                $tax = round($gross * $taxRate / 100, 2);
-                PayrollItem::updateOrCreate(['payroll_run_id' => $run->id, 'employee_id' => $e->id], ['base_salary' => $base, 'bonuses' => $bonuses, 'deductions' => $deductions, 'tax_withholding' => $tax, 'gross_salary' => $gross, 'net_salary' => $gross - $deductions - $tax, 'currency' => $e->currency, 'breakdown' => ['tax_rate' => $taxRate, 'formula' => $formula]]);
+                PayrollItem::updateOrCreate(
+                    ['payroll_run_id' => $run->id, 'employee_id' => $e->id],
+                    $this->calculator->calculate($e, $run->period_start->toDateString(), $run->period_end->toDateString(), $o)
+                );
             } $run->update(['status' => 'processed', 'processed_at' => now()]);
 
             return $run->load('items.employee');
@@ -64,7 +60,9 @@ class PayrollService
             $this->policy->companyId($u);
 
             return $item;
-        }$this->policy->ensureOwned($u, $item->run);
+        }
+
+        $this->policy->ensureOwned($u, $item->run, 'hr.payroll.view');
 
         return $item;
     }
@@ -82,6 +80,10 @@ class PayrollService
     public function email(User $u, PayrollItem $item): PayrollItem
     {
         $item = $this->item($u, $item);
+        if ($item->employee->user_id !== $u->id && ! $u->can('hr.payroll.edit')) {
+            throw new \Illuminate\Auth\Access\AuthorizationException('You cannot email this payslip.');
+        }
+
         $email = $item->employee->email ?: $item->employee->user?->email;
         abort_unless($email, 422, 'Employee has no email address.');
         $pdf = $this->pdf($u, $item)->output();

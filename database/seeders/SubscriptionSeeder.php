@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Modules\Subscriptions\Models\SubscriptionFeature;
 use App\Modules\Subscriptions\Models\SubscriptionPlan;
+use App\Modules\Subscriptions\Models\SubscriptionPlanPromotion;
 use Illuminate\Database\Seeder;
 
 class SubscriptionSeeder extends Seeder
@@ -63,6 +64,8 @@ class SubscriptionSeeder extends Seeder
                     'max_users' => $plan['max_users'],
                     'storage_gb' => $plan['storage_gb'],
                     'api_rate_limit_per_minute' => $plan['api_rate_limit_per_minute'],
+                    'trial_enabled' => $plan['trial_enabled'] ?? false,
+                    'trial_days' => $plan['trial_days'] ?? 0,
                     'is_active' => true,
                     'sort_order' => array_search($slug, array_keys(config('erp.plans')), true) + 1,
                 ]
@@ -79,5 +82,20 @@ class SubscriptionSeeder extends Seeder
 
             $planModel->features()->sync($sync);
         });
+
+        $professional = SubscriptionPlan::where('slug', 'professional')->first();
+        if ($professional) {
+            SubscriptionPlanPromotion::updateOrCreate(
+                ['subscription_plan_id' => $professional->id, 'name' => 'Launch annual discount'],
+                [
+                    'discount_type' => SubscriptionPlanPromotion::TYPE_PERCENT,
+                    'discount_value' => 20,
+                    'billing_cycle' => SubscriptionPlanPromotion::CYCLE_ANNUAL,
+                    'starts_at' => now()->startOfDay(),
+                    'ends_at' => now()->addDays(30)->endOfDay(),
+                    'is_active' => true,
+                ]
+            );
+        }
     }
 }

@@ -37,6 +37,8 @@ return [
             'max_users' => 25,
             'storage_gb' => 10,
             'api_rate_limit_per_minute' => 60,
+            'trial_enabled' => false,
+            'trial_days' => 0,
         ],
         'professional' => [
             'name' => 'Professional',
@@ -47,6 +49,8 @@ return [
             'max_users' => 100,
             'storage_gb' => 100,
             'api_rate_limit_per_minute' => 120,
+            'trial_enabled' => false,
+            'trial_days' => 0,
         ],
         'enterprise' => [
             'name' => 'Enterprise',
@@ -57,6 +61,8 @@ return [
             'max_users' => null,
             'storage_gb' => 1000,
             'api_rate_limit_per_minute' => 300,
+            'trial_enabled' => false,
+            'trial_days' => 0,
         ],
     ],
 

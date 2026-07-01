@@ -9,6 +9,7 @@ use App\Modules\Subscriptions\DTOs\FeatureData;
 use App\Modules\Subscriptions\DTOs\PlanData;
 use App\Modules\Subscriptions\Models\SubscriptionFeature;
 use App\Modules\Subscriptions\Models\SubscriptionPlan;
+use App\Modules\Subscriptions\Models\SubscriptionPlanPromotion;
 use App\Modules\Subscriptions\Policies\SubscriptionPolicy;
 use Illuminate\Support\Facades\DB;
 
@@ -18,11 +19,12 @@ class SubscriptionCatalogService
         private readonly PlanRepository $plans,
         private readonly FeatureRepository $features,
         private readonly SubscriptionPolicy $policy,
+        private readonly PlanPricingService $pricing,
     ) {}
 
     public function plans()
     {
-        return $this->plans->activeWithFeatures();
+        return $this->pricing->decorateMany($this->plans->activeWithFeatures());
     }
 
     public function features()
@@ -80,6 +82,44 @@ class SubscriptionCatalogService
         $this->policy->ensureCanManageCatalog($actor);
 
         return DB::transaction(fn () => $this->plans->removeFeature($plan, $feature));
+    }
+
+    public function promotions(User $actor, SubscriptionPlan $plan)
+    {
+        $this->policy->ensureCanManageCatalog($actor);
+
+        return $plan->promotions()->orderByDesc('starts_at')->get();
+    }
+
+    public function createPromotion(User $actor, SubscriptionPlan $plan, array $attributes): SubscriptionPlanPromotion
+    {
+        $this->policy->ensureCanManageCatalog($actor);
+
+        return $plan->promotions()->create($attributes);
+    }
+
+    public function updatePromotion(
+        User $actor,
+        SubscriptionPlan $plan,
+        SubscriptionPlanPromotion $promotion,
+        array $attributes,
+    ): SubscriptionPlanPromotion {
+        $this->policy->ensureCanManageCatalog($actor);
+
+        $promotion->update($attributes);
+
+        return $promotion->refresh();
+    }
+
+    public function deletePromotion(
+        User $actor,
+        SubscriptionPlan $plan,
+        SubscriptionPlanPromotion $promotion,
+    ): null {
+        $this->policy->ensureCanManageCatalog($actor);
+        $promotion->delete();
+
+        return null;
     }
 
     public function createFeature(User $actor, FeatureData $data): SubscriptionFeature

@@ -4,21 +4,26 @@ namespace App\Modules\Platform\Services;
 
 use App\Modules\Companies\Models\Company;
 use App\Modules\Platform\Models\UsageMetric;
+use Illuminate\Database\QueryException;
 
 class UsageService
 {
     public function increment(int $companyId, string $metric, int $quantity = 1, array $metadata = []): void
     {
-        $usage = UsageMetric::query()->firstOrCreate([
-            'company_id' => $companyId,
-            'metric' => $metric,
-            'period_date' => today()->toDateString(),
-        ], [
-            'quantity' => 0,
-            'metadata' => json_encode($metadata),
-        ]);
+        $quantity = max($quantity, 0);
+        $periodDate = today()->toDateString();
+        $keys = ['company_id' => $companyId, 'metric' => $metric, 'period_date' => $periodDate];
 
-        $usage->increment('quantity', max($quantity, 0), ['metadata' => $metadata]);
+        $updated = UsageMetric::query()->where($keys)->increment('quantity', $quantity, ['metadata' => $metadata]);
+        if ($updated) {
+            return;
+        }
+
+        try {
+            UsageMetric::query()->create($keys + ['quantity' => $quantity, 'metadata' => $metadata]);
+        } catch (QueryException) {
+            UsageMetric::query()->where($keys)->increment('quantity', $quantity, ['metadata' => $metadata]);
+        }
     }
 
     public function summary(Company $company): array

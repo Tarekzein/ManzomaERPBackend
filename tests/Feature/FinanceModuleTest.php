@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Modules\Authentication\Models\User;
 use App\Modules\Finance\Models\Account;
 use App\Modules\Finance\Models\FinancialPeriod;
+use App\Modules\Finance\Models\Invoice;
+use App\Modules\Finance\Models\PaymentAllocation;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -76,7 +78,35 @@ class FinanceModuleTest extends TestCase
             'amount' => 500, 'currency' => 'EGP', 'reference' => 'RECEIPT-001',
         ])->assertCreated();
         $this->assertDatabaseHas('invoices', ['id' => $invoice['id'], 'status' => 'paid']);
+        $this->assertDatabaseHas('payment_allocations', ['invoice_id' => $invoice['id'], 'amount' => 500]);
         $this->assertDatabaseCount('journal_entries', 2);
+    }
+
+    public function test_credit_notes_and_overpayment_controls_are_enforced(): void
+    {
+        $admin = $this->companyAdmin();
+        $revenue = Account::where('company_id', $admin->company_id)->where('code', '4000')->firstOrFail();
+        $cash = Account::where('company_id', $admin->company_id)->where('code', '1000')->firstOrFail();
+        $contact = $this->postJson('/api/finance/contacts', ['type' => 'customer', 'name' => 'Credit Customer'])
+            ->assertCreated()->json('data');
+        $invoice = $this->postJson('/api/finance/invoices', [
+            'type' => 'receivable', 'contact_id' => $contact['id'], 'number' => 'INV-CREDIT-001',
+            'invoice_date' => now()->toDateString(), 'due_date' => now()->addDays(30)->toDateString(),
+            'currency' => 'EGP', 'lines' => [['account_id' => $revenue->id, 'description' => 'Services', 'quantity' => 1, 'unit_price' => 1000, 'discount_percent' => 10, 'tax_percent' => 14]],
+        ])->assertCreated()->assertJsonPath('data.discount_total', 100)->assertJsonPath('data.total', 1026)->json('data');
+        $this->postJson("/api/finance/invoices/{$invoice['id']}/post")->assertOk();
+
+        $this->postJson('/api/finance/payments', [
+            'invoice_id' => $invoice['id'], 'account_id' => $cash->id, 'payment_date' => now()->toDateString(),
+            'amount' => 1100, 'currency' => 'EGP',
+        ])->assertUnprocessable();
+
+        $credit = $this->postJson("/api/finance/invoices/{$invoice['id']}/credit", [
+            'credit_date' => now()->toDateString(), 'amount' => 126, 'reason' => 'Commercial credit',
+        ])->assertCreated()->json('data');
+        $this->assertSame(126.0, (float) $credit['amount']);
+
+        $this->assertSame(900.0, (float) Invoice::findOrFail($invoice['id'])->fresh()->balance);
     }
 
     public function test_budget_variance_tax_and_exchange_rates_are_available(): void

@@ -12,4 +12,14 @@ class Payment extends Model
     {
         return ['payment_date' => 'date'];
     }
+
+    public function allocations()
+    {
+        return $this->hasMany(PaymentAllocation::class);
+    }
+
+    public function invoice()
+    {
+        return $this->belongsTo(Invoice::class);
+    }
 }

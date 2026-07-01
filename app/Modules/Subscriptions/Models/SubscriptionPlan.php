@@ -13,7 +13,8 @@ class SubscriptionPlan extends Model
 
     protected $fillable = [
         'slug', 'name', 'description', 'monthly_price', 'annual_price', 'currency',
-        'max_users', 'storage_gb', 'api_rate_limit_per_minute', 'is_active', 'sort_order',
+        'max_users', 'storage_gb', 'api_rate_limit_per_minute', 'trial_enabled',
+        'trial_days', 'is_active', 'sort_order',
     ];
 
     protected function casts(): array
@@ -22,6 +23,8 @@ class SubscriptionPlan extends Model
             'monthly_price' => 'decimal:2',
             'annual_price' => 'decimal:2',
             'is_active' => 'boolean',
+            'trial_enabled' => 'boolean',
+            'trial_days' => 'integer',
         ];
     }
 
@@ -35,5 +38,10 @@ class SubscriptionPlan extends Model
     public function companySubscriptions(): HasMany
     {
         return $this->hasMany(CompanySubscription::class);
+    }
+
+    public function promotions(): HasMany
+    {
+        return $this->hasMany(SubscriptionPlanPromotion::class);
     }
 }

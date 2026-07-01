@@ -3,12 +3,14 @@
 namespace App\Modules\Companies\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Companies\DTOs\CreateCompanyData;
 use App\Modules\Companies\Models\Company;
 use App\Modules\Companies\Services\CompanyDataPrivacyService;
 use App\Modules\Companies\Services\CompanyService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class CompanyController extends Controller
 {
@@ -31,6 +33,31 @@ class CompanyController extends Controller
         abort_unless($request->user()->company, 422, 'A company is required.');
 
         return ApiResponse::success($request->user()->company->load('subscription.plan.features'), 'Company loaded');
+    }
+
+    public function store(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:150'],
+            'timezone' => ['required', 'timezone'],
+            'locale' => ['required', 'string', 'max:10'],
+            'currency' => ['required', 'string', 'size:3'],
+            'plan_slug' => ['required', 'string', Rule::exists('subscription_plans', 'slug')->where('is_active', true)],
+            'billing_cycle' => ['required', 'in:monthly,annual'],
+            'is_active' => ['sometimes', 'boolean'],
+        ]);
+
+        return ApiResponse::success(
+            $this->companies->createFromAdmin(
+                $request->user(),
+                new CreateCompanyData($data['name'], $data['timezone'], $data['locale'], $data['currency']),
+                $data['plan_slug'],
+                $data['billing_cycle'],
+                $data['is_active'] ?? true,
+            ),
+            'Company created',
+            status: 201
+        );
     }
 
     public function update(Request $request, Company $company): JsonResponse
@@ -76,9 +103,7 @@ class CompanyController extends Controller
 
     public function export(Request $request, Company $company, CompanyDataPrivacyService $privacy)
     {
-        $path = $privacy->export($request->user(), $company);
-
-        return response()->download($path, "company-{$company->id}-export.zip")->deleteFileAfterSend(true);
+        return $privacy->export($request->user(), $company);
     }
 
     public function erase(Request $request, Company $company, CompanyDataPrivacyService $privacy): JsonResponse
