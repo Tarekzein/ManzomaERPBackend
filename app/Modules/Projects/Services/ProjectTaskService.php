@@ -14,8 +14,10 @@ use App\Modules\Projects\Models\ProjectTask;
 use App\Modules\Projects\Models\ProjectTimeLog;
 use App\Modules\Projects\Policies\ProjectPolicy;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class ProjectTaskService
@@ -129,6 +131,51 @@ class ProjectTaskService
             'user_id' => $actor->id,
             'body' => $body,
         ])->load('user:id,name,email');
+    }
+
+    public function timeLogs(User $actor, ProjectTask $task): Collection
+    {
+        $this->policy->ensureCanWorkOnTask($actor, $task);
+
+        return $task->timeLogs()->with('user:id,name,email')->orderByDesc('work_date')->get();
+    }
+
+    public function deleteTimeLog(User $actor, ProjectTask $task, ProjectTimeLog $log): void
+    {
+        abort_unless($log->task_id === $task->id, 422, 'Time log does not belong to this task.');
+        // Owner of the log or a project manager can delete
+        if ($log->user_id !== $actor->id) {
+            $this->policy->ensureCanManageProject($actor, $task->project);
+        }
+        $log->delete();
+    }
+
+    public function deleteAttachment(User $actor, ProjectTask $task, ProjectFileAttachment $attachment): void
+    {
+        $this->policy->ensureCanWorkOnTask($actor, $task);
+        abort_unless($attachment->task_id === $task->id, 422, 'Attachment does not belong to this task.');
+        Storage::disk($attachment->disk)->delete($attachment->path);
+        $attachment->delete();
+    }
+
+    public function deleteComment(User $actor, ProjectTask $task, ProjectComment $comment): void
+    {
+        $this->policy->ensureCanWorkOnTask($actor, $task);
+        abort_unless($comment->task_id === $task->id, 422, 'Comment does not belong to this task.');
+        $comment->delete();
+    }
+
+    public function reorder(User $actor, Project $project, array $items): void
+    {
+        $this->policy->ensureCanManageProject($actor, $project);
+
+        DB::transaction(function () use ($project, $items) {
+            foreach ($items as $item) {
+                ProjectTask::where('id', (int) $item['id'])
+                    ->where('project_id', $project->id)
+                    ->update(['sort_order' => (int) $item['sort_order']]);
+            }
+        });
     }
 
     private function taskData(Project $project, array $data): array

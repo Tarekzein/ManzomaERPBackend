@@ -13,6 +13,9 @@ use App\Modules\Projects\Http\Resources\ProjectCommentResource;
 use App\Modules\Projects\Http\Resources\ProjectExpenseResource;
 use App\Modules\Projects\Http\Resources\ProjectResource;
 use App\Modules\Projects\Models\Project;
+use App\Modules\Projects\Models\ProjectComment;
+use App\Modules\Projects\Models\ProjectExpense;
+use App\Modules\Projects\Models\ProjectFileAttachment;
 use App\Modules\Projects\Services\ProjectReportingService;
 use App\Modules\Projects\Services\ProjectService;
 use App\Support\ApiResponse;
@@ -111,6 +114,27 @@ class ProjectController extends Controller
             'Project comment added',
             status: 201
         );
+    }
+
+    public function destroyExpense(Request $request, Project $project, ProjectExpense $expense): JsonResponse
+    {
+        $this->projects->deleteExpense($request->user(), $project, $expense);
+
+        return ApiResponse::success(null, 'Project expense deleted');
+    }
+
+    public function destroyAttachment(Request $request, Project $project, ProjectFileAttachment $attachment): JsonResponse
+    {
+        $this->projects->deleteAttachment($request->user(), $project, $attachment);
+
+        return ApiResponse::success(null, 'Project attachment deleted');
+    }
+
+    public function destroyComment(Request $request, Project $project, ProjectComment $comment): JsonResponse
+    {
+        $this->projects->deleteComment($request->user(), $project, $comment);
+
+        return ApiResponse::success(null, 'Project comment deleted');
     }
 
     private function filters(Request $request): array

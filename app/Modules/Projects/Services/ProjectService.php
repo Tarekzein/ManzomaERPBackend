@@ -14,6 +14,7 @@ use App\Modules\Projects\Policies\ProjectPolicy;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class ProjectService
 {
@@ -112,6 +113,28 @@ class ProjectService
             'user_id' => $actor->id,
             'body' => $body,
         ])->load('user:id,name,email');
+    }
+
+    public function deleteExpense(User $actor, Project $project, ProjectExpense $expense): void
+    {
+        $this->policy->ensureCanManageProject($actor, $project);
+        abort_unless($expense->project_id === $project->id, 422, 'Expense does not belong to this project.');
+        $expense->delete();
+    }
+
+    public function deleteAttachment(User $actor, Project $project, ProjectFileAttachment $attachment): void
+    {
+        $this->policy->ensureCanManageProject($actor, $project);
+        abort_unless($attachment->project_id === $project->id, 422, 'Attachment does not belong to this project.');
+        Storage::disk($attachment->disk)->delete($attachment->path);
+        $attachment->delete();
+    }
+
+    public function deleteComment(User $actor, Project $project, ProjectComment $comment): void
+    {
+        $this->policy->ensureCanManageProject($actor, $project);
+        abort_unless($comment->project_id === $project->id && $comment->task_id === null, 422, 'Comment does not belong to this project.');
+        $comment->delete();
     }
 
     private function companyIdFor(User $actor, array $data): int

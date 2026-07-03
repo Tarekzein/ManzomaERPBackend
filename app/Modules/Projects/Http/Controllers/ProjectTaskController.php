@@ -13,7 +13,10 @@ use App\Modules\Projects\Http\Resources\ProjectCommentResource;
 use App\Modules\Projects\Http\Resources\ProjectTaskResource;
 use App\Modules\Projects\Http\Resources\ProjectTimeLogResource;
 use App\Modules\Projects\Models\Project;
+use App\Modules\Projects\Models\ProjectComment;
+use App\Modules\Projects\Models\ProjectFileAttachment;
 use App\Modules\Projects\Models\ProjectTask;
+use App\Modules\Projects\Models\ProjectTimeLog;
 use App\Modules\Projects\Services\ProjectTaskService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -99,6 +102,48 @@ class ProjectTaskController extends Controller
             'Task comment added',
             status: 201
         );
+    }
+
+    public function timeLogs(Request $request, ProjectTask $task): JsonResponse
+    {
+        return ApiResponse::success(
+            ProjectTimeLogResource::collection($this->tasks->timeLogs($request->user(), $task)),
+            'Task time logs loaded'
+        );
+    }
+
+    public function destroyTimeLog(Request $request, ProjectTask $task, ProjectTimeLog $timeLog): JsonResponse
+    {
+        $this->tasks->deleteTimeLog($request->user(), $task, $timeLog);
+
+        return ApiResponse::success(null, 'Time log deleted');
+    }
+
+    public function destroyAttachment(Request $request, ProjectTask $task, ProjectFileAttachment $attachment): JsonResponse
+    {
+        $this->tasks->deleteAttachment($request->user(), $task, $attachment);
+
+        return ApiResponse::success(null, 'Task attachment deleted');
+    }
+
+    public function destroyComment(Request $request, ProjectTask $task, ProjectComment $comment): JsonResponse
+    {
+        $this->tasks->deleteComment($request->user(), $task, $comment);
+
+        return ApiResponse::success(null, 'Task comment deleted');
+    }
+
+    public function reorder(Request $request, Project $project): JsonResponse
+    {
+        $request->validate([
+            'tasks' => ['required', 'array'],
+            'tasks.*.id' => ['required', 'integer'],
+            'tasks.*.sort_order' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $this->tasks->reorder($request->user(), $project, $request->input('tasks'));
+
+        return ApiResponse::success(null, 'Tasks reordered');
     }
 
     private function filters(Request $request): array
