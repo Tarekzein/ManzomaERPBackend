@@ -134,6 +134,10 @@ class InvoiceService
             $paid = (float) $invoice->paid_total + (float) $data['amount'];
             $invoice->update(['paid_total' => $paid, 'status' => $paid >= ((float) $invoice->total - (float) ($invoice->credited_total ?? 0)) ? 'paid' : 'partially_paid']);
 
+            if ($invoice->status === 'paid') {
+                event(new \App\Modules\MetaIntegration\Events\InvoicePaid($invoice));
+            }
+
             return $payment->refresh()->load('allocations');
         });
     }

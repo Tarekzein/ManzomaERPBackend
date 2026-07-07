@@ -7,6 +7,7 @@ use App\Modules\CustomModules\Providers\CustomModulesServiceProvider;
 use App\Modules\Finance\Providers\FinanceServiceProvider;
 use App\Modules\HR\Providers\HRServiceProvider;
 use App\Modules\Inventory\Providers\InventoryServiceProvider;
+use App\Modules\MetaIntegration\Providers\MetaIntegrationServiceProvider;
 use App\Modules\Notifications\Providers\NotificationsServiceProvider;
 use App\Modules\Platform\Providers\PlatformServiceProvider;
 use App\Modules\Projects\Providers\ProjectsServiceProvider;
@@ -32,4 +33,5 @@ return [
     SalesServiceProvider::class,
     PlatformServiceProvider::class,
     HorizonServiceProvider::class,
+    MetaIntegrationServiceProvider::class,
 ];

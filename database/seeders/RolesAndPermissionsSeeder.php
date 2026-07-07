@@ -27,6 +27,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'notifications',
             'custom_modules',
             'subscriptions',
+            'meta',
         ];
 
         $actions = ['view', 'create', 'edit', 'delete', 'export'];
@@ -69,7 +70,7 @@ class RolesAndPermissionsSeeder extends Seeder
             fn (string $permission) => str_starts_with($permission, 'platform.')
         ));
 
-        $managerModules = ['hr', 'finance', 'inventory', 'sales', 'crm', 'projects', 'reporting', 'notifications'];
+        $managerModules = ['hr', 'finance', 'inventory', 'sales', 'crm', 'projects', 'reporting', 'notifications', 'meta'];
         $manager->syncPermissions($permissions->filter(
             fn (string $permission) => in_array($permission, ['users.view', 'users.create', 'users.edit', 'roles.assign', 'auth.force_password_reset'], true)
                 || (in_array(explode('.', $permission)[0] ?? '', $managerModules, true)

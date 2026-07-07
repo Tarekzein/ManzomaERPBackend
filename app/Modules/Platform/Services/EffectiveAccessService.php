@@ -17,6 +17,7 @@ class EffectiveAccessService
         'projects' => 'core.projects',
         'reporting' => 'reporting.prebuilt',
         'custom-modules' => 'custom_modules.marketplace',
+        'meta' => 'integrations.meta',
     ];
 
     public const MODULE_PERMISSION_PREFIXES = [

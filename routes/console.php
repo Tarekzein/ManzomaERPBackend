@@ -18,3 +18,13 @@ Schedule::command('notifications:send-due')
     ->everyMinute()
     ->withoutOverlapping()
     ->after(fn () => Cache::put('system_health:scheduler:notifications', now()->toISOString(), now()->addMinutes(10)));
+
+Schedule::command('meta:retry-events')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->after(fn () => Cache::put('system_health:scheduler:meta-events', now()->toISOString(), now()->addMinutes(10)));
+
+Schedule::command('meta:sync-audiences')
+    ->hourly()
+    ->withoutOverlapping()
+    ->after(fn () => Cache::put('system_health:scheduler:meta-audiences', now()->toISOString(), now()->addMinutes(10)));

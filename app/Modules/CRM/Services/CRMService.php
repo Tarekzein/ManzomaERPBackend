@@ -61,10 +61,16 @@ class CRMService
         $data['status'] ??= 'new';
         $data['currency'] ??= 'EGP';
 
-        return DB::transaction(function () use ($companyId, $data, $contact, $tagIds) {
+        $isNew = $contact === null;
+
+        return DB::transaction(function () use ($companyId, $data, $contact, $tagIds, $isNew) {
             $record = $contact ?: new CRMContact(['company_id' => $companyId]);
             $record->fill($data)->save();
             $record->tags()->sync($tagIds);
+
+            if ($isNew) {
+                event(new \App\Modules\MetaIntegration\Events\CrmLeadCreated($record));
+            }
 
             return $record->load('owner', 'salesContact', 'tags');
         });
@@ -146,7 +152,12 @@ class CRMService
         $data = $this->applyStageStatus($data, $stage);
 
         $record = $opportunity ?: new CRMOpportunity(['company_id' => $companyId]);
+        $wasWon = $opportunity?->status === 'won';
         $record->fill($data)->save();
+
+        if ($record->status === 'won' && ! $wasWon) {
+            event(new \App\Modules\MetaIntegration\Events\CrmOpportunityWon($record));
+        }
 
         return $record->load('contact.tags', 'stage', 'owner');
     }
@@ -155,7 +166,12 @@ class CRMService
     {
         $companyId = $this->policy->ensureOwned($user, $opportunity);
         $stage = $this->ensureStage($companyId, $stageId);
+        $wasWon = $opportunity->status === 'won';
         $opportunity->update($this->applyStageStatus(['stage_id' => $stage->id, 'probability' => $stage->probability], $stage));
+
+        if ($opportunity->status === 'won' && ! $wasWon) {
+            event(new \App\Modules\MetaIntegration\Events\CrmOpportunityWon($opportunity));
+        }
 
         return $opportunity->refresh()->load('contact.tags', 'stage', 'owner');
     }
@@ -271,6 +287,10 @@ class CRMService
         }
 
         $record->delete();
+
+        if ($record instanceof CRMContact) {
+            event(new \App\Modules\MetaIntegration\Events\CrmContactDeleted($record));
+        }
     }
 
     public function listNotes(User $user, Request $request): \Illuminate\Support\Collection

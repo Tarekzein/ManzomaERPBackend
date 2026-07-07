@@ -24,6 +24,7 @@ class SubscriptionSeeder extends Seeder
             ['slug' => 'notifications.email', 'name' => 'Email Notifications', 'module' => 'notifications', 'description' => 'Configurable transactional email notifications.'],
             ['slug' => 'notifications.sms', 'name' => 'SMS Notifications', 'module' => 'notifications', 'description' => 'Critical alerts through SMS providers.'],
             ['slug' => 'integrations.api', 'name' => 'REST API Access', 'module' => 'platform', 'description' => 'External integration access through protected REST API.'],
+            ['slug' => 'integrations.meta', 'name' => 'Meta (Facebook) Integration', 'module' => 'meta', 'description' => 'Conversions API, Lead Ads sync, and Custom Audiences sync with Meta Business.'],
             ['slug' => 'custom_modules.marketplace', 'name' => 'Custom Module Marketplace', 'module' => 'custom_modules', 'description' => 'Enable approved custom modules and feature flags per company.'],
             ['slug' => 'support.priority', 'name' => 'Priority Support', 'module' => 'platform', 'description' => 'Higher support priority for larger plans.'],
         ];
@@ -47,7 +48,7 @@ class SubscriptionSeeder extends Seeder
             'professional' => [
                 'core.hr', 'core.finance', 'core.inventory', 'core.sales', 'core.crm', 'core.projects',
                 'reporting.prebuilt', 'reporting.custom', 'exports.pdf_excel_csv', 'notifications.email',
-                'notifications.sms', 'integrations.api',
+                'notifications.sms', 'integrations.api', 'integrations.meta',
             ],
             'enterprise' => $featureModels->keys()->all(),
         ];
