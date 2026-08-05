@@ -22,6 +22,13 @@ class NotificationService
             'crm.followup.due' => ['name' => 'CRM follow-up due date', 'category' => 'Due dates', 'critical' => false],
             'finance.invoice.overdue' => ['name' => 'Finance invoice overdue', 'category' => 'Alerts', 'critical' => true],
             'system.announcement' => ['name' => 'System announcement', 'category' => 'System', 'critical' => false],
+            'subscription.renewal.upcoming' => ['name' => 'Subscription renewal upcoming', 'category' => 'Billing', 'critical' => false],
+            'subscription.trial.ending' => ['name' => 'Trial ending', 'category' => 'Billing', 'critical' => false],
+            'subscription.payment.succeeded' => ['name' => 'Subscription payment received', 'category' => 'Billing', 'critical' => false],
+            'subscription.payment.failed' => ['name' => 'Subscription payment failed', 'category' => 'Billing', 'critical' => true],
+            'subscription.past_due' => ['name' => 'Subscription overdue', 'category' => 'Billing', 'critical' => true],
+            'subscription.cancelled' => ['name' => 'Subscription cancelled', 'category' => 'Billing', 'critical' => false],
+            'subscription.expired' => ['name' => 'Subscription expired', 'category' => 'Billing', 'critical' => true],
         ];
     }
 

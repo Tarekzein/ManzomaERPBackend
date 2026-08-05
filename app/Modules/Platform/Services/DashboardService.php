@@ -23,6 +23,7 @@ use App\Modules\Projects\Models\ProjectTask;
 use App\Modules\Projects\Models\ProjectTimeLog;
 use App\Modules\Sales\Models\PurchaseOrder;
 use App\Modules\Sales\Models\SalesOrder;
+use App\Modules\Subscriptions\Enums\SubscriptionStatus;
 use App\Modules\Subscriptions\Models\CompanySubscription;
 use App\Modules\Subscriptions\Models\SubscriptionPlan;
 use Illuminate\Support\Facades\DB;
@@ -45,7 +46,7 @@ class DashboardService
                 'active_companies' => Company::where('is_active', true)->count(),
                 'users' => User::count(),
                 'plans' => SubscriptionPlan::where('is_active', true)->count(),
-                'active_subscriptions' => CompanySubscription::whereIn('status', ['active', 'trialing'])->count(),
+                'active_subscriptions' => CompanySubscription::whereIn('status', SubscriptionStatus::servingValues())->count(),
             ],
             'recent_companies' => Company::query()
                 ->with('subscription.plan')
@@ -57,7 +58,7 @@ class DashboardService
                 'company_growth' => $this->monthlyCount(Company::query(), 'created_at'),
                 'user_growth' => $this->monthlyCount(User::query(), 'created_at'),
                 'subscriptions_by_plan' => SubscriptionPlan::query()
-                    ->withCount(['companySubscriptions as subscriptions' => fn ($query) => $query->whereIn('status', ['active', 'trialing'])])
+                    ->withCount(['companySubscriptions as subscriptions' => fn ($query) => $query->whereIn('status', SubscriptionStatus::servingValues())])
                     ->orderBy('sort_order')
                     ->get(['id', 'name'])
                     ->map(fn (SubscriptionPlan $plan) => ['name' => $plan->name, 'value' => $plan->subscriptions])

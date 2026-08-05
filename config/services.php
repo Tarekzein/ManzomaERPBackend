@@ -18,13 +18,22 @@ return [
         ],
     ],
     'paymob' => [
+        // "mock" keeps the in-app fake checkout; anything else talks to Paymob.
         'mode' => env('PAYMOB_MODE', 'mock'),
+        // Unified Checkout (intention API) credentials.
+        'public_key' => env('PAYMOB_PUBLIC_KEY'),
+        'secret_key' => env('PAYMOB_SECRET_KEY'),
+        // Legacy Accept credentials, also required for saved-card (MOTO) charges.
         'api_key' => env('PAYMOB_API_KEY'),
         'integration_id' => env('PAYMOB_INTEGRATION_ID'),
+        'moto_integration_id' => env('PAYMOB_MOTO_INTEGRATION_ID'),
         'iframe_id' => env('PAYMOB_IFRAME_ID'),
         'hmac_secret' => env('PAYMOB_HMAC_SECRET'),
         'base_url' => env('PAYMOB_BASE_URL', 'https://accept.paymob.com/api'),
+        'intention_url' => env('PAYMOB_INTENTION_URL', 'https://accept.paymob.com/v1/intention/'),
+        'checkout_url' => env('PAYMOB_CHECKOUT_URL', 'https://accept.paymob.com/unifiedcheckout/'),
         'currency' => env('PAYMOB_CURRENCY', 'EGP'),
+        'timeout' => (int) env('PAYMOB_TIMEOUT', 30),
     ],
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),

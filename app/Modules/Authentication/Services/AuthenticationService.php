@@ -54,6 +54,11 @@ class AuthenticationService
                     'registration_token' => $token,
                     'checkout_url' => null,
                     'status' => $activation['payment']->status,
+                    'mode' => config('services.paymob.mode'),
+                ],
+                'trial' => [
+                    'days' => (int) $plan->trial_days,
+                    'ends_at' => $activation['subscription']->trial_ends_at?->toISOString(),
                 ],
                 'company' => $activation['payment']->company,
                 'user' => $this->users->loadProfile($user),
@@ -72,7 +77,13 @@ class AuthenticationService
                 'reference' => $payment->reference,
                 'registration_token' => $token,
                 'checkout_url' => $payment->checkout_url,
+                'expires_at' => $payment->checkout_expires_at?->toISOString(),
                 'status' => $payment->status,
+                // "mock" tells the client the sandbox controls are available.
+                'mode' => config('services.paymob.mode'),
+                // Set when the gateway was unreachable; the client can retry
+                // through POST /api/payments/{reference}/checkout.
+                'error' => $payment->failure_reason,
             ],
             'company' => $payment->company,
             'user' => $this->users->loadProfile($user),
@@ -121,9 +132,13 @@ class AuthenticationService
     {
         $user = $this->users->findByEmail($data->email);
         $credentialsAreValid = $user !== null && Hash::check($data->password, $user->password);
+        // A company suspended for an unpaid subscription can still sign in;
+        // EnforceCompanyAccess narrows it down to the billing endpoints.
         $accountIsActive = $user !== null
             && $user->is_active === true
-            && ($user->isSuperAdmin() || $user->company?->is_active === true);
+            && ($user->isSuperAdmin()
+                || $user->company?->is_active === true
+                || $user->company?->isBillingSuspended() === true);
         $success = $credentialsAreValid && $accountIsActive;
 
         $this->loginAttempts->record([

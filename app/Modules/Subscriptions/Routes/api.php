@@ -12,8 +12,18 @@ Route::prefix('subscriptions')->name('subscriptions.')->group(function () {
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/current', [CompanySubscriptionController::class, 'current'])->name('current');
+        Route::get('/payments', [CompanySubscriptionController::class, 'payments'])->name('payments');
+        Route::get('/payments/{reference}', [CompanySubscriptionController::class, 'payment'])->name('payments.show');
         Route::post('/subscribe', [CompanySubscriptionController::class, 'subscribe'])->name('subscribe');
+        Route::post('/checkout', [CompanySubscriptionController::class, 'checkout'])->name('checkout');
+        Route::post('/renew', [CompanySubscriptionController::class, 'renew'])->name('renew');
         Route::post('/cancel', [CompanySubscriptionController::class, 'cancel'])->name('cancel');
+        Route::post('/resume', [CompanySubscriptionController::class, 'resume'])->name('resume');
+        Route::post('/auto-renew', [CompanySubscriptionController::class, 'autoRenew'])->name('auto-renew');
+        Route::delete('/payment-method', [CompanySubscriptionController::class, 'forgetPaymentMethod'])->name('payment-method.forget');
+
+        Route::get('/admin/billing', [SubscriptionAdminController::class, 'billingOverview'])->name('admin.billing');
+        Route::post('/admin/companies/{company}/renew-without-payment', [SubscriptionAdminController::class, 'renewCompanyWithoutPayment'])->name('admin.companies.renew-without-payment');
 
         Route::post('/plans', [SubscriptionAdminController::class, 'storePlan'])->name('plans.store');
         Route::put('/plans/{plan}', [SubscriptionAdminController::class, 'updatePlan'])->name('plans.update');
@@ -31,6 +41,13 @@ Route::prefix('subscriptions')->name('subscriptions.')->group(function () {
 
 Route::prefix('payments')->name('payments.')->group(function () {
     Route::get('/{reference}/status', [SubscriptionPaymentController::class, 'status'])->name('status');
+    Route::post('/{reference}/checkout', [SubscriptionPaymentController::class, 'retryCheckout'])->name('checkout.retry');
+    Route::post('/{reference}/session', [SubscriptionPaymentController::class, 'session'])->name('session');
     Route::post('/{reference}/mock-result', [SubscriptionPaymentController::class, 'mockResult'])->name('mock-result');
+
+    // Paymob transaction/token webhook. Unauthenticated by design: the payload
+    // is trusted only after its HMAC signature is verified.
     Route::post('/paymob/callback', [SubscriptionPaymentController::class, 'callback'])->name('paymob.callback');
+    // Where the customer's browser is sent back to after paying.
+    Route::get('/paymob/callback', [SubscriptionPaymentController::class, 'redirectResult'])->name('paymob.redirect');
 });

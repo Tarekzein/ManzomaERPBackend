@@ -4,6 +4,7 @@ namespace App\Modules\Subscriptions\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Authentication\Models\User;
+use App\Modules\Companies\Models\Company;
 use App\Modules\Subscriptions\DTOs\FeatureData;
 use App\Modules\Subscriptions\DTOs\PlanData;
 use App\Modules\Subscriptions\Http\Requests\AssignFeaturesRequest;
@@ -14,14 +15,45 @@ use App\Modules\Subscriptions\Http\Requests\SavePlanRequest;
 use App\Modules\Subscriptions\Models\SubscriptionFeature;
 use App\Modules\Subscriptions\Models\SubscriptionPlan;
 use App\Modules\Subscriptions\Models\SubscriptionPlanPromotion;
+use App\Modules\Subscriptions\Services\SubscriptionAdminService;
 use App\Modules\Subscriptions\Services\SubscriptionCatalogService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class SubscriptionAdminController extends Controller
 {
-    public function __construct(private readonly SubscriptionCatalogService $catalog) {}
+    public function __construct(
+        private readonly SubscriptionCatalogService $catalog,
+        private readonly SubscriptionAdminService $admin,
+    ) {}
+
+    public function billingOverview(Request $request): JsonResponse
+    {
+        return ApiResponse::success(
+            $this->admin->overview($this->user($request)),
+            'Company subscriptions and payment transactions loaded'
+        );
+    }
+
+    public function renewCompanyWithoutPayment(Request $request, Company $company): JsonResponse
+    {
+        $data = $request->validate([
+            'through_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        return ApiResponse::success(
+            $this->admin->renewWithoutPayment(
+                $this->user($request),
+                $company,
+                Carbon::createFromFormat('Y-m-d', $data['through_date'], config('app.timezone')),
+                $data['reason'] ?? null,
+            ),
+            'Company subscription renewed without payment'
+        );
+    }
 
     public function storePlan(SavePlanRequest $request): JsonResponse
     {

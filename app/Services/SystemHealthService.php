@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Carbon;
 use Spatie\Health\Checks\Checks\DatabaseCheck;
 
 class SystemHealthService
@@ -109,7 +109,7 @@ class SystemHealthService
 
     private function database(): array
     {
-        $spatieResult = (new DatabaseCheck())->run();
+        $spatieResult = (new DatabaseCheck)->run();
         $connected = (string) $spatieResult->status->value === 'ok';
         $hasMigrations = $connected && Schema::hasTable('migrations');
 
@@ -332,14 +332,24 @@ class SystemHealthService
             return ['status' => 'ok', 'message' => 'Paymob is running in mock mode.', 'metadata' => $metadata];
         }
 
-        $ready = config('services.paymob.api_key')
+        $unified = config('services.paymob.secret_key')
+            && config('services.paymob.public_key')
+            && config('services.paymob.integration_id');
+        $legacy = config('services.paymob.api_key')
             && config('services.paymob.integration_id')
-            && config('services.paymob.iframe_id')
-            && config('services.paymob.hmac_secret');
+            && config('services.paymob.iframe_id');
+        $ready = ($unified || $legacy) && config('services.paymob.hmac_secret');
+
+        $metadata += [
+            'checkout' => $unified ? 'unified' : ($legacy ? 'legacy_iframe' : 'unavailable'),
+            'saved_card_renewals' => (bool) (config('services.paymob.api_key') && config('services.paymob.moto_integration_id')),
+        ];
 
         return [
             'status' => $ready ? 'ok' : 'warning',
-            'message' => $ready ? 'Paymob credentials are configured.' : 'Paymob credentials are incomplete.',
+            'message' => $ready
+                ? 'Paymob credentials are configured.'
+                : 'Paymob credentials are incomplete: a checkout integration and PAYMOB_HMAC_SECRET are required.',
             'metadata' => $metadata,
         ];
     }

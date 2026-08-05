@@ -2,8 +2,8 @@
 
 namespace App\Modules\Platform\Http\Middleware;
 
-use App\Support\ApiResponse;
 use App\Modules\Platform\Services\EffectiveAccessService;
+use App\Support\ApiResponse;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -18,7 +18,13 @@ class EnforceCompanyAccess
         $user = $request->user();
 
         if ($user && ! $user->isSuperAdmin() && $user->company?->is_active !== true) {
-            return ApiResponse::error('Your company account is suspended.', status: 403);
+            // A company suspended for an unpaid subscription keeps access to
+            // the billing endpoints so its admins can settle and come back.
+            if (! ($user->company?->isBillingSuspended() && $this->isBillingRequest($request))) {
+                return ApiResponse::error('Your company account is suspended.', status: 403);
+            }
+
+            return $next($request);
         }
 
         if ($user?->must_change_password && ! $request->is('api/auth/change-password', 'api/auth/logout*', 'api/auth/me')) {
@@ -52,6 +58,23 @@ class EnforceCompanyAccess
         }
 
         return $next($request);
+    }
+
+    private function isBillingRequest(Request $request): bool
+    {
+        return $request->is(
+            'api/subscriptions/current',
+            'api/subscriptions/plans',
+            'api/subscriptions/features',
+            'api/subscriptions/checkout',
+            'api/subscriptions/renew',
+            'api/subscriptions/subscribe',
+            'api/subscriptions/payments',
+            'api/subscriptions/payments/*',
+            'api/payments/*',
+            'api/auth/me',
+            'api/auth/logout*',
+        );
     }
 
     private function permissionForRequest(Request $request, string $module): string

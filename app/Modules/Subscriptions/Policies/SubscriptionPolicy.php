@@ -15,6 +15,13 @@ class SubscriptionPolicy
         }
     }
 
+    public function ensureCanManageCompanySubscriptions(User $user): void
+    {
+        if (! $user->isSuperAdmin()) {
+            throw new AuthorizationException('Only a super admin can manage company subscriptions.');
+        }
+    }
+
     public function ensureCanSubscribe(User $user): void
     {
         if ($user->company_id === null || ! $user->hasRole(UserRole::CompanyAdmin->value)) {

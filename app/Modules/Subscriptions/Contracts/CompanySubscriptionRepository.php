@@ -10,6 +10,9 @@ interface CompanySubscriptionRepository
 {
     public function current(Company $company): ?CompanySubscription;
 
+    /**
+     * @param  array  $attributes  extra columns (billing period, payment method, …) for the new record
+     */
     public function replaceActive(
         Company $company,
         SubscriptionPlan $plan,
@@ -17,5 +20,6 @@ interface CompanySubscriptionRepository
         array $metadata = [],
         string $status = 'active',
         mixed $trialEndsAt = null,
+        array $attributes = [],
     ): CompanySubscription;
 }
