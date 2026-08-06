@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Str;
 
 class Company extends Model
 {
@@ -19,6 +20,7 @@ class Company extends Model
 
     protected $fillable = [
         'name',
+        'slug',
         'plan',
         'timezone',
         'locale',
@@ -33,6 +35,41 @@ class Company extends Model
             'is_active' => 'boolean',
             'settings' => 'array',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // Every company gets a workspace slug; it is what the app URLs are
+        // built from (/app/{slug}/…).
+        static::creating(function (Company $company) {
+            $company->slug = $company->slug ?: self::uniqueSlug($company->name);
+        });
+    }
+
+    public static function uniqueSlug(?string $name, ?int $ignoreId = null): string
+    {
+        $base = Str::slug((string) $name) ?: 'workspace';
+        $slug = $base;
+        $suffix = 2;
+
+        while (self::query()
+            ->where('slug', $slug)
+            ->when($ignoreId, fn ($query) => $query->whereKeyNot($ignoreId))
+            ->exists()
+        ) {
+            $slug = $base.'-'.$suffix++;
+        }
+
+        return $slug;
+    }
+
+    /**
+     * Slug for the app URLs, falling back to the id for rows created before
+     * slugs existed. API routes still bind companies by id.
+     */
+    public function workspaceKey(): string
+    {
+        return $this->slug ?: (string) $this->getKey();
     }
 
     public function users(): HasMany
