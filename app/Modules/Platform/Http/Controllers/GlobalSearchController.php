@@ -12,8 +12,13 @@ class GlobalSearchController extends Controller
 {
     public function __invoke(Request $request, GlobalSearchService $search): JsonResponse
     {
+        $query = $request->query('q');
+        if (is_string($query)) {
+            $request->merge(['q' => $search->normalizeTerm($query)]);
+        }
+
         $data = $request->validate([
-            'q' => ['required', 'string', 'min:2', 'max:100'],
+            'q' => ['bail', 'required', 'string', 'min:2', 'max:100'],
             'limit' => ['sometimes', 'integer', 'min:1', 'max:25'],
         ]);
 
