@@ -294,6 +294,6 @@ class CRMController extends Controller
 
     public function refreshScore(Request $request, CRMContact $contact)
     {
-        return ApiResponse::success($this->crm->recomputeLeadScore($contact), 'Lead score refreshed');
+        return ApiResponse::success($this->crm->recomputeLeadScore($request->user(), $contact), 'Lead score refreshed');
     }
 }

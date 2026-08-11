@@ -12,6 +12,7 @@ use App\Modules\Reporting\Models\ReportSchedule;
 use App\Modules\Reporting\Policies\ReportingPolicy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
@@ -26,14 +27,18 @@ class ReportingService
 
         $query = $model::query()->where('company_id', $companyId)->latest();
 
+        if ($model === ReportDashboardWidget::class) {
+            $query->where('user_id', $user->id);
+        }
+
         if ($model === ReportDefinition::class) {
             $query->leftJoin('report_favorites as fav', function ($join) use ($user) {
                 $join->on('fav.report_definition_id', '=', 'report_definitions.id')
                     ->where('fav.user_id', '=', $user->id);
             })
-            ->select('report_definitions.*', DB::raw('CASE WHEN fav.user_id IS NOT NULL THEN 1 ELSE 0 END as is_favorited'))
-            ->orderByDesc('is_favorited')
-            ->orderByDesc('report_definitions.created_at');
+                ->select('report_definitions.*', DB::raw('CASE WHEN fav.user_id IS NOT NULL THEN 1 ELSE 0 END as is_favorited'))
+                ->orderByDesc('is_favorited')
+                ->orderByDesc('report_definitions.created_at');
         }
 
         return $query->get();
@@ -45,8 +50,9 @@ class ReportingService
             ? $this->policy->ensureOwned($user, $report)
             : $this->policy->companyId($user, 'reporting.create', $data['company_id'] ?? null);
         $this->engine->execute($companyId, $data);
+        unset($data['company_id']);
         $report ??= new ReportDefinition;
-        $report->fill($data + ['company_id' => $companyId, 'created_by' => $user->id])->save();
+        $report->fill(array_merge($data, ['company_id' => $companyId, 'created_by' => $report->created_by ?: $user->id]))->save();
         event(new ReportDataUpdated($companyId, $report->source));
 
         return $report->fresh();
@@ -73,6 +79,7 @@ class ReportingService
         return [
             'widgets' => $widgets->map(function (ReportDashboardWidget $widget) use ($companyId) {
                 $definition = $widget->configuration + ['source' => $widget->source, 'chart_type' => $widget->chart_type];
+
                 return $widget->toArray() + ['result' => $this->engine->execute($companyId, $definition)];
             })->values(),
             'live' => ['channel' => "private-companies.{$companyId}.reporting", 'event' => 'report.data.updated'],
@@ -84,20 +91,30 @@ class ReportingService
         $companyId = $widget
             ? $this->policy->ensureOwned($user, $widget)
             : $this->policy->companyId($user, 'reporting.create', $data['company_id'] ?? null);
+        abort_if($widget && (int) $widget->user_id !== (int) $user->id, 403, 'This dashboard widget belongs to another user.');
+
+        if (! empty($data['report_definition_id'])) {
+            ReportDefinition::where('company_id', $companyId)->findOrFail($data['report_definition_id']);
+        }
+
         $this->engine->execute($companyId, $data['configuration'] + ['source' => $data['source'], 'chart_type' => $data['chart_type']]);
+        unset($data['company_id']);
         $widget ??= new ReportDashboardWidget;
-        $widget->fill($data + ['company_id' => $companyId, 'user_id' => $user->id])->save();
+        $widget->fill(array_merge($data, ['company_id' => $companyId, 'user_id' => $user->id]))->save();
 
         return $widget->fresh();
     }
 
     public function reorderWidgets(User $user, array $widgets): void
     {
-        foreach ($widgets as $item) {
-            $widget = ReportDashboardWidget::findOrFail($item['id']);
-            $this->policy->ensureOwned($user, $widget);
-            $widget->update(['position' => $item['position']]);
-        }
+        DB::transaction(function () use ($user, $widgets) {
+            foreach ($widgets as $item) {
+                $widget = ReportDashboardWidget::findOrFail($item['id']);
+                $this->policy->ensureOwned($user, $widget);
+                abort_unless((int) $widget->user_id === (int) $user->id, 403, 'This dashboard widget belongs to another user.');
+                $widget->update(['position' => $item['position']]);
+            }
+        });
     }
 
     public function saveSchedule(User $user, array $data, ?ReportSchedule $schedule = null): ReportSchedule
@@ -105,9 +122,14 @@ class ReportingService
         $companyId = $schedule
             ? $this->policy->ensureOwned($user, $schedule)
             : $this->policy->companyId($user, 'reporting.create', $data['company_id'] ?? null);
-        $report = ReportDefinition::where('company_id', $companyId)->findOrFail($data['report_definition_id']);
+        ReportDefinition::where('company_id', $companyId)->findOrFail($data['report_definition_id']);
+        unset($data['company_id']);
         $schedule ??= new ReportSchedule;
-        $schedule->fill($data + ['company_id' => $companyId, 'created_by' => $user->id, 'next_run_at' => now()])->save();
+        $schedule->fill(array_merge($data, [
+            'company_id' => $companyId,
+            'created_by' => $schedule->created_by ?: $user->id,
+            'next_run_at' => $data['next_run_at'] ?? $schedule->next_run_at ?? now(),
+        ]))->save();
 
         return $schedule->fresh('report');
     }
@@ -115,10 +137,15 @@ class ReportingService
     public function delete(User $user, Model $model): void
     {
         $this->policy->ensureOwned($user, $model, 'reporting.delete');
+        abort_if(
+            $model instanceof ReportDashboardWidget && (int) $model->user_id !== (int) $user->id,
+            403,
+            'This dashboard widget belongs to another user.'
+        );
         $model->delete();
     }
 
-    public function toggleFavorite(\App\Modules\Authentication\Models\User $user, ReportDefinition $report): array
+    public function toggleFavorite(User $user, ReportDefinition $report): array
     {
         $this->policy->ensureOwned($user, $report, 'reporting.view');
         $exists = DB::table('report_favorites')
@@ -144,7 +171,7 @@ class ReportingService
         return ['favorited' => true];
     }
 
-    public function toggleShare(\App\Modules\Authentication\Models\User $user, ReportDefinition $report): ReportDefinition
+    public function toggleShare(User $user, ReportDefinition $report): ReportDefinition
     {
         $this->policy->ensureOwned($user, $report, 'reporting.edit');
         $report->update([
@@ -165,7 +192,7 @@ class ReportingService
         ];
     }
 
-    public function saveAlert(\App\Modules\Authentication\Models\User $user, array $data, ?ReportAlert $alert = null): ReportAlert
+    public function saveAlert(User $user, array $data, ?ReportAlert $alert = null): ReportAlert
     {
         $companyId = $alert
             ? $this->policy->ensureOwned($user, $alert)
@@ -180,14 +207,14 @@ class ReportingService
         return $record->fresh()->load('report');
     }
 
-    public function listAlerts(\App\Modules\Authentication\Models\User $user, \Illuminate\Http\Request $request): \Illuminate\Support\Collection
+    public function listAlerts(User $user, Request $request): Collection
     {
         $companyId = $this->policy->companyId($user, 'reporting.view', $request->integer('company_id') ?: null);
 
         return ReportAlert::with('report')->where('company_id', $companyId)->latest()->get();
     }
 
-    public function deleteAlert(\App\Modules\Authentication\Models\User $user, ReportAlert $alert): void
+    public function deleteAlert(User $user, ReportAlert $alert): void
     {
         $this->policy->ensureOwned($user, $alert, 'reporting.delete');
         $alert->delete();

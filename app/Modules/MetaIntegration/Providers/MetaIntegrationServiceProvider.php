@@ -2,6 +2,7 @@
 
 namespace App\Modules\MetaIntegration\Providers;
 
+use App\Modules\MetaIntegration\Console\MaintainMetaConnections;
 use App\Modules\MetaIntegration\Console\RetryMetaEvents;
 use App\Modules\MetaIntegration\Console\SyncMetaAudiences;
 use App\Modules\MetaIntegration\Events\CrmContactDeleted;
@@ -22,7 +23,7 @@ class MetaIntegrationServiceProvider extends ServiceProvider
         Route::middleware('api')->prefix('api')->group(__DIR__.'/../Routes/webhooks.php');
 
         if ($this->app->runningInConsole()) {
-            $this->commands([RetryMetaEvents::class, SyncMetaAudiences::class]);
+            $this->commands([MaintainMetaConnections::class, RetryMetaEvents::class, SyncMetaAudiences::class]);
         }
 
         Event::listen(CrmLeadCreated::class, function (CrmLeadCreated $event) {

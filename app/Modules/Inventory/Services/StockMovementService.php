@@ -11,12 +11,13 @@ use App\Modules\Inventory\Models\Warehouse;
 use App\Modules\Inventory\Models\WarehouseLocation;
 use App\Modules\Inventory\Policies\InventoryPolicy;
 use App\Modules\Inventory\Services\Valuation\ValuationStrategyFactory;
+use App\Modules\Platform\Services\DocumentNumberService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class StockMovementService
 {
-    public function __construct(private readonly InventoryPolicy $policy, private readonly ValuationStrategyFactory $valuations, private readonly ReorderAlertService $alerts) {}
+    public function __construct(private readonly InventoryPolicy $policy, private readonly ValuationStrategyFactory $valuations, private readonly ReorderAlertService $alerts, private readonly DocumentNumberService $numbers) {}
 
     public function list(User $user)
     {
@@ -29,7 +30,7 @@ class StockMovementService
 
         return DB::transaction(function () use ($user, $data, $companyId) {
             $movement = StockMovement::create([
-                'company_id' => $companyId, 'number' => 'SM-'.now()->format('YmdHis').'-'.random_int(100, 999),
+                'company_id' => $companyId, 'number' => $this->numbers->next($companyId, 'SM'),
                 'type' => $data['type'], 'reason_code' => $data['reason_code'] ?? null, 'reference' => $data['reference'] ?? null,
                 'notes' => $data['notes'] ?? null, 'occurred_at' => $data['occurred_at'] ?? now(), 'created_by' => $user->id,
             ]);
@@ -64,7 +65,15 @@ class StockMovementService
 
     private function balance(int $companyId, int $productId, int $warehouseId, ?int $locationId): StockBalance
     {
-        return StockBalance::firstOrCreate(['company_id' => $companyId, 'product_id' => $productId, 'warehouse_id' => $warehouseId, 'location_id' => $locationId], ['quantity' => 0, 'average_cost' => 0, 'reorder_point' => 0, 'reorder_quantity' => 0]);
+        $balance = StockBalance::firstOrCreate(
+            ['company_id' => $companyId, 'product_id' => $productId, 'warehouse_id' => $warehouseId, 'location_id' => $locationId],
+            ['quantity' => 0, 'average_cost' => 0, 'reorder_point' => 0, 'reorder_quantity' => 0]
+        );
+
+        // Stock validation and the following decrement/update must see one
+        // serialized balance. Without this lock, two simultaneous issues can
+        // both pass the availability check and drive inventory negative.
+        return StockBalance::whereKey($balance->id)->lockForUpdate()->firstOrFail();
     }
 
     private function validateEndpoints(int $companyId, string $type, array $line): void

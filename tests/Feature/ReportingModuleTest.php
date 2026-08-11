@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Modules\Authentication\Models\User;
+use App\Modules\Companies\Models\Company;
+use App\Modules\Reporting\Models\ReportDashboardWidget;
+use App\Modules\Reporting\Models\ReportDefinition;
 use App\Modules\Reporting\Models\ReportSchedule;
 use App\Modules\Reporting\Services\ScheduledReportService;
 use Database\Seeders\DatabaseSeeder;
@@ -89,8 +92,8 @@ class ReportingModuleTest extends TestCase
     {
         $this->seed(DatabaseSeeder::class);
         $admin = User::where('email', 'company.admin@example.com')->firstOrFail();
-        $other = \App\Modules\Companies\Models\Company::factory()->create();
-        $report = \App\Modules\Reporting\Models\ReportDefinition::create([
+        $other = Company::factory()->create();
+        $report = ReportDefinition::create([
             'company_id' => $other->id, 'name' => 'Other report', 'source' => 'projects',
             'fields' => ['status'], 'filters' => [], 'groupings' => ['status'],
             'metrics' => [['field' => 'id', 'aggregate' => 'count']], 'chart_type' => 'bar',
@@ -98,5 +101,68 @@ class ReportingModuleTest extends TestCase
         Sanctum::actingAs($admin);
 
         $this->postJson("/api/reporting/reports/{$report->id}/run")->assertForbidden();
+    }
+
+    public function test_reports_cannot_be_moved_between_companies_and_platform_admins_must_choose_a_company(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $admin = User::where('email', 'company.admin@example.com')->firstOrFail();
+        Sanctum::actingAs($admin);
+
+        $definition = [
+            'name' => 'Tenant report',
+            'source' => 'sales_orders',
+            'fields' => ['status'],
+            'filters' => [],
+            'groupings' => ['status'],
+            'metrics' => [['field' => 'id', 'aggregate' => 'count']],
+            'chart_type' => 'bar',
+        ];
+        $report = $this->postJson('/api/reporting/reports', $definition)->assertCreated()->json('data');
+        $other = Company::factory()->create();
+
+        $this->putJson("/api/reporting/reports/{$report['id']}", $definition + ['company_id' => $other->id])
+            ->assertOk()
+            ->assertJsonPath('data.company_id', $admin->company_id);
+        $this->assertSame($admin->company_id, ReportDefinition::findOrFail($report['id'])->company_id);
+
+        $platformAdmin = User::where('email', env('ERP_SUPER_ADMIN_EMAIL', 'admin@manzomatech.com'))->firstOrFail();
+        Sanctum::actingAs($platformAdmin);
+        $this->getJson('/api/reporting/catalog')->assertForbidden();
+        $this->getJson("/api/reporting/catalog?company_id={$admin->company_id}")->assertOk();
+    }
+
+    public function test_dashboard_widgets_are_private_to_the_user_who_created_them(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $admin = User::where('email', 'company.admin@example.com')->firstOrFail();
+        $colleague = User::factory()->create(['company_id' => $admin->company_id]);
+        $widget = ReportDashboardWidget::create([
+            'company_id' => $admin->company_id,
+            'user_id' => $colleague->id,
+            'title' => 'Private colleague widget',
+            'source' => 'sales_orders',
+            'chart_type' => 'number',
+            'configuration' => ['fields' => ['id'], 'metrics' => [['field' => 'id', 'aggregate' => 'count']]],
+            'position' => 7,
+            'width' => 1,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $ids = collect($this->getJson('/api/reporting/widgets')->assertOk()->json('data'))->pluck('id');
+        $this->assertNotContains($widget->id, $ids);
+
+        $payload = [
+            'title' => 'Stolen widget',
+            'source' => 'sales_orders',
+            'chart_type' => 'number',
+            'configuration' => ['fields' => ['id'], 'metrics' => [['field' => 'id', 'aggregate' => 'count']]],
+        ];
+        $this->putJson("/api/reporting/widgets/{$widget->id}", $payload)->assertForbidden();
+        $this->deleteJson("/api/reporting/widgets/{$widget->id}")->assertForbidden();
+        $this->postJson('/api/reporting/widgets/reorder', [
+            'widgets' => [['id' => $widget->id, 'position' => 0]],
+        ])->assertForbidden();
+        $this->assertSame(7, $widget->fresh()->position);
     }
 }

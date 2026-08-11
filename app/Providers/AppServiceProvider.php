@@ -33,6 +33,10 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute($rate)->by($user?->id ? "user:{$user->id}" : "ip:{$request->ip()}");
         });
 
+        // Meta delivers webhooks in bursts and drops events that get a 429, so
+        // this ceiling only exists to stop abuse of the public endpoint.
+        RateLimiter::for('meta-webhooks', fn (Request $request) => Limit::perMinute(600)->by($request->ip()));
+
         foreach (['created', 'updated', 'deleted'] as $event) {
             Event::listen("eloquent.{$event}: *", function (string $name, array $models) use ($event) {
                 $model = $models[0] ?? null;

@@ -29,6 +29,15 @@ class NotificationService
             'subscription.past_due' => ['name' => 'Subscription overdue', 'category' => 'Billing', 'critical' => true],
             'subscription.cancelled' => ['name' => 'Subscription cancelled', 'category' => 'Billing', 'critical' => false],
             'subscription.expired' => ['name' => 'Subscription expired', 'category' => 'Billing', 'critical' => true],
+            'integration.meta.token_expiring' => ['name' => 'Meta connection expiring', 'category' => 'Integrations', 'critical' => false],
+            'integration.meta.disconnected' => ['name' => 'Meta connection lost', 'category' => 'Integrations', 'critical' => true],
+            'integration.meta.permissions' => ['name' => 'Meta permissions incomplete', 'category' => 'Integrations', 'critical' => false],
+            'integration.meta.sync_failed' => ['name' => 'Meta synchronisation failed', 'category' => 'Integrations', 'critical' => false],
+            'integration.meta.lead_received' => ['name' => 'New lead from Meta', 'category' => 'Integrations', 'critical' => false],
+            'integration.tiktok.token_expiring' => ['name' => 'TikTok connection expiring', 'category' => 'Integrations', 'critical' => false],
+            'integration.tiktok.disconnected' => ['name' => 'TikTok connection lost', 'category' => 'Integrations', 'critical' => true],
+            'integration.tiktok.permissions' => ['name' => 'TikTok permissions incomplete', 'category' => 'Integrations', 'critical' => false],
+            'integration.tiktok.sync_failed' => ['name' => 'TikTok synchronisation failed', 'category' => 'Integrations', 'critical' => false],
         ];
     }
 

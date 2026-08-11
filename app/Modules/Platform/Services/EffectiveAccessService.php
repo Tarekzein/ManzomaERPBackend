@@ -18,6 +18,7 @@ class EffectiveAccessService
         'reporting' => 'reporting.prebuilt',
         'custom-modules' => 'custom_modules.marketplace',
         'meta' => 'integrations.meta',
+        'tiktok' => 'integrations.tiktok',
     ];
 
     public const MODULE_PERMISSION_PREFIXES = [

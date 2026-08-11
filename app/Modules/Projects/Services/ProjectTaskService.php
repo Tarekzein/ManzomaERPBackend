@@ -13,6 +13,7 @@ use App\Modules\Projects\Models\ProjectFileAttachment;
 use App\Modules\Projects\Models\ProjectTask;
 use App\Modules\Projects\Models\ProjectTimeLog;
 use App\Modules\Projects\Policies\ProjectPolicy;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
@@ -32,6 +33,7 @@ class ProjectTaskService
     public function list(User $actor, Project $project, int $perPage, array $filters = [], ?string $sort = null): LengthAwarePaginator
     {
         $this->policy->ensureCanViewProject($actor, $project);
+        $perPage = min(max($perPage, 1), 100);
 
         return $this->tasks->paginate(
             $project,
@@ -60,7 +62,7 @@ class ProjectTaskService
         $this->policy->ensureCanViewProject($actor, $task->project);
 
         if (! $this->scope->isCompanyWide($actor) && ! in_array($task->assignee_id, $this->scope->scopedUserIds($actor), true)) {
-            throw new \Illuminate\Auth\Access\AuthorizationException('You cannot view this task.');
+            throw new AuthorizationException('You cannot view this task.');
         }
 
         return $this->tasks->withDetails($task);

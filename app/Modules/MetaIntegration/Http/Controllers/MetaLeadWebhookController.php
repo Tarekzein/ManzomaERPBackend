@@ -3,10 +3,13 @@
 namespace App\Modules\MetaIntegration\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\MetaIntegration\Jobs\ProcessMetaCommentWebhookEvent;
 use App\Modules\MetaIntegration\Jobs\ProcessMetaLeadWebhookEvent;
+use App\Modules\MetaIntegration\Jobs\ProcessMetaMessageWebhookEvent;
 use App\Modules\MetaIntegration\Jobs\ProcessMetaWhatsAppWebhookEvent;
 use App\Modules\MetaIntegration\Models\MetaConnection;
 use App\Modules\MetaIntegration\Models\MetaLeadFormMapping;
+use App\Modules\MetaIntegration\Models\MetaPage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
@@ -26,9 +29,9 @@ class MetaLeadWebhookController extends Controller
     }
 
     /**
-     * Each tenant may run their own Meta App with its own webhook subscription,
-     * so the verify token can be either the shared platform token or the
-     * per-company token generated when they saved their App ID/Secret.
+     * Each tenant runs their own Meta App with its own webhook subscription, so
+     * the verify token is the per-company one generated when they saved their
+     * App ID and secret.
      */
     private function isKnownVerifyToken(string $providedToken): bool
     {
@@ -36,13 +39,10 @@ class MetaLeadWebhookController extends Controller
             return false;
         }
 
-        if (config('meta.webhook_verify_token') && hash_equals((string) config('meta.webhook_verify_token'), $providedToken)) {
-            return true;
-        }
-
-        return MetaConnection::whereNotNull('webhook_verify_token')
-            ->get()
-            ->contains(fn (MetaConnection $connection) => hash_equals((string) $connection->webhook_verify_token, $providedToken));
+        // One indexed lookup against the per-company tokens. This endpoint is
+        // unauthenticated, so it must not decrypt every connection per call,
+        // and there is no platform-wide token to accept.
+        return MetaConnection::where('webhook_verify_token_hash', hash('sha256', $providedToken))->exists();
     }
 
     public function receive(Request $request)
@@ -58,8 +58,14 @@ class MetaLeadWebhookController extends Controller
                 match ($change['field'] ?? null) {
                     'leadgen' => $this->dispatchLeadgen($change['value'] ?? []),
                     'messages' => $this->dispatchWhatsAppMessages($change['value'] ?? []),
+                    'feed' => $this->dispatchFeedComment($change['value'] ?? [], $entry['id'] ?? null),
+                    'comments' => $this->dispatchInstagramComment($change['value'] ?? [], $entry['id'] ?? null),
                     default => null,
                 };
+            }
+
+            foreach ($entry['messaging'] ?? [] as $messageEvent) {
+                $this->dispatchAccountMessage($entry['id'] ?? null, $messageEvent);
             }
         }
 
@@ -77,6 +83,43 @@ class MetaLeadWebhookController extends Controller
             $value['form_id'],
             $value['leadgen_id'],
         )->onQueue('meta-events');
+    }
+
+    /**
+     * Page feed events cover posts, likes and comments; only comments from
+     * someone else are worth a human's attention.
+     */
+    private function dispatchFeedComment(array $value, ?string $entryId): void
+    {
+        $isComment = ($value['item'] ?? null) === 'comment' && ($value['verb'] ?? null) === 'add';
+        $pageId = $entryId ?: ($value['page_id'] ?? null);
+
+        if (! $isComment || ! $pageId || empty($value['comment_id'])) {
+            return;
+        }
+
+        ProcessMetaCommentWebhookEvent::dispatch((string) $pageId, $value)->onQueue('meta-events');
+    }
+
+    private function dispatchInstagramComment(array $value, ?string $entryId): void
+    {
+        if (! $entryId || empty($value['id'])) {
+            return;
+        }
+
+        ProcessMetaCommentWebhookEvent::dispatch((string) $entryId, $value, 'instagram')
+            ->onQueue('meta-events');
+    }
+
+    private function dispatchAccountMessage(?string $accountId, array $event): void
+    {
+        $message = $event['message'] ?? [];
+
+        if (! $accountId || empty($message['mid']) || ! empty($message['is_echo']) || empty($event['sender']['id'])) {
+            return;
+        }
+
+        ProcessMetaMessageWebhookEvent::dispatch((string) $accountId, $event)->onQueue('meta-events');
     }
 
     private function dispatchWhatsAppMessages(array $value): void
@@ -104,31 +147,39 @@ class MetaLeadWebhookController extends Controller
     }
 
     /**
-     * Each tenant may use their own Meta App, so the signing secret for a given
-     * payload depends on which company's page fired it — resolve via the first
-     * page_id in the payload before falling back to the shared platform secret.
+     * Every tenant runs their own Meta App, so the payload is verified against
+     * that company's secret and nothing else: an unresolvable payload is
+     * rejected rather than checked against a shared key.
      */
     private function hasValidSignature(string $rawBody, string $signature): bool
     {
-        $secrets = array_filter(array_unique([
-            $this->appSecretForPayload($rawBody),
-            config('meta.app_secret'),
-        ]));
+        $secret = $this->appSecretForPayload($rawBody);
 
-        foreach ($secrets as $secret) {
-            $expected = 'sha256='.hash_hmac('sha256', $rawBody, (string) $secret);
-            if (hash_equals($expected, $signature)) {
-                return true;
-            }
+        if (! $secret || $signature === '') {
+            return false;
         }
 
-        return false;
+        return hash_equals('sha256='.hash_hmac('sha256', $rawBody, $secret), $signature);
     }
 
     private function appSecretForPayload(string $rawBody): ?string
     {
         $payload = json_decode($rawBody, true) ?? [];
         foreach ($payload['entry'] ?? [] as $entry) {
+            // Feed events identify the page through the entry id rather than
+            // a page_id inside the change value.
+            if (! empty($entry['id'])) {
+                $page = MetaPage::with('connection')
+                    ->where(function ($query) use ($entry) {
+                        $query->where('page_id', $entry['id'])
+                            ->orWhere('instagram_account_id', $entry['id']);
+                    })
+                    ->first();
+                if ($page?->connection?->app_secret) {
+                    return $page->connection->app_secret;
+                }
+            }
+
             foreach ($entry['changes'] ?? [] as $change) {
                 if ($pageId = $change['value']['page_id'] ?? null) {
                     $mapping = MetaLeadFormMapping::with('connection')->where('page_id', $pageId)->first();

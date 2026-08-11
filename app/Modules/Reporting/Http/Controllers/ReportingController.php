@@ -168,7 +168,7 @@ class ReportingController extends Controller
 
     public function bustCache(Request $request, ReportDefinition $report)
     {
-        $companyId = $this->policy->companyId($request->user(), 'reporting.view', $request->integer('company_id') ?: null);
+        $companyId = $this->policy->ensureOwned($request->user(), $report, 'reporting.view');
         $definition = $report->only(['source', 'fields', 'filters', 'groupings', 'metrics', 'chart_type']);
         $this->engine->bustCache($companyId, $definition);
         $result = $this->reporting->run($request->user(), $report);

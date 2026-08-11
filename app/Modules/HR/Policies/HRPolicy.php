@@ -55,6 +55,11 @@ class HRPolicy
         return $this->scope->scopedEmployeeIds($user);
     }
 
+    public function hasCompanyWideScope(User $user): bool
+    {
+        return $this->scope->isCompanyWide($user);
+    }
+
     public function canViewEmployee(User $user, Employee $employee): bool
     {
         if ($user->isSuperAdmin() || $user->hasRole(UserRole::CompanyAdmin->value)) {

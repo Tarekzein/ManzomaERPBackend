@@ -14,6 +14,7 @@ use App\Modules\Projects\Providers\ProjectsServiceProvider;
 use App\Modules\Reporting\Providers\ReportingServiceProvider;
 use App\Modules\Sales\Providers\SalesServiceProvider;
 use App\Modules\Subscriptions\Providers\SubscriptionsServiceProvider;
+use App\Modules\TikTokIntegration\Providers\TikTokIntegrationServiceProvider;
 use App\Providers\AppServiceProvider;
 use App\Providers\HorizonServiceProvider;
 
@@ -34,4 +35,5 @@ return [
     PlatformServiceProvider::class,
     HorizonServiceProvider::class,
     MetaIntegrationServiceProvider::class,
+    TikTokIntegrationServiceProvider::class,
 ];

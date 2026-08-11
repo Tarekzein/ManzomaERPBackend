@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Modules\Authentication\Models\User;
+use App\Modules\CRM\Models\CRMActivity;
 use App\Modules\CRM\Models\CRMContact;
 use App\Modules\CRM\Models\CRMSegment;
 use App\Modules\MetaIntegration\Jobs\ProcessMetaLeadWebhookEvent;
@@ -14,10 +15,14 @@ use App\Modules\MetaIntegration\Models\MetaConnection;
 use App\Modules\MetaIntegration\Models\MetaEventLog;
 use App\Modules\MetaIntegration\Models\MetaEventMapping;
 use App\Modules\MetaIntegration\Models\MetaLeadFormMapping;
+use App\Modules\MetaIntegration\Services\MetaAudienceService;
+use App\Modules\MetaIntegration\Services\MetaLeadAdsService;
+use App\Modules\MetaIntegration\Services\MetaWhatsAppService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -28,7 +33,11 @@ class MetaIntegrationModuleTest extends TestCase
     public function test_oauth_callback_creates_encrypted_connection(): void
     {
         $admin = $this->admin();
-        config(['meta.app_id' => 'app-id', 'meta.app_secret' => 'app-secret']);
+        // No platform app exists: the company saves its own credentials first.
+        $this->postJson('/api/meta/connection/app-credentials', [
+            'app_id' => 'app-id',
+            'app_secret' => 'app-secret',
+        ])->assertOk();
 
         $linkUrl = $this->getJson('/api/meta/oauth/url')->assertOk()->json('data.url');
         parse_str(parse_url($linkUrl, PHP_URL_QUERY), $query);
@@ -123,7 +132,7 @@ class MetaIntegrationModuleTest extends TestCase
         $this->assertSame('system-user-token', $connection->access_token);
     }
 
-    public function test_disconnect_resets_connection_and_related_configuration(): void
+    public function test_disconnect_revokes_at_meta_and_keeps_the_history(): void
     {
         $admin = $this->admin();
         $connection = $this->connectedAccount($admin);
@@ -141,13 +150,40 @@ class MetaIntegrationModuleTest extends TestCase
             'field_mapping' => ['email' => 'email'],
         ]);
 
+        Http::fake(['*' => Http::response(['success' => true])]);
+
         $this->deleteJson('/api/meta/connection')->assertOk();
+
+        // The token is revoked at Meta, not just forgotten here.
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'me/permissions') && $request->method() === 'DELETE');
+
+        // The connection is retained so event logs and mappings keep their
+        // foreign keys; it simply can no longer call Meta.
+        $connection->refresh();
+        $this->assertSame('disconnected', $connection->status);
+        $this->assertNull($connection->access_token);
+        $this->assertNotNull($connection->disconnected_at);
+        $this->assertDatabaseHas('meta_event_mappings', ['company_id' => $admin->company_id]);
+        $this->assertDatabaseHas('meta_lead_form_mappings', ['company_id' => $admin->company_id]);
+    }
+
+    public function test_disconnect_with_purge_removes_everything(): void
+    {
+        $admin = $this->admin();
+        $connection = $this->connectedAccount($admin);
+        MetaEventMapping::create([
+            'company_id' => $admin->company_id,
+            'meta_connection_id' => $connection->id,
+            'trigger_source' => 'crm_lead_created',
+            'meta_event_name' => 'Lead',
+        ]);
+
+        Http::fake(['*' => Http::response(['success' => true])]);
+
+        $this->deleteJson('/api/meta/connection?purge=1')->assertOk();
 
         $this->assertDatabaseMissing('meta_connections', ['company_id' => $admin->company_id]);
         $this->assertDatabaseMissing('meta_event_mappings', ['company_id' => $admin->company_id]);
-        $this->assertDatabaseMissing('meta_lead_form_mappings', ['company_id' => $admin->company_id]);
-
-        $this->getJson('/api/meta/connection')->assertOk()->assertJsonPath('data', null);
     }
 
     public function test_user_without_meta_permission_is_forbidden(): void
@@ -198,7 +234,7 @@ class MetaIntegrationModuleTest extends TestCase
         $log = MetaEventLog::create([
             'company_id' => $admin->company_id,
             'meta_connection_id' => $connection->id,
-            'event_id' => (string) \Illuminate\Support\Str::uuid(),
+            'event_id' => (string) Str::uuid(),
             'event_name' => 'Lead',
             'trigger_source' => 'crm_lead_created',
             'payload' => ['event_name' => 'Lead', 'event_id' => 'evt-1'],
@@ -220,7 +256,7 @@ class MetaIntegrationModuleTest extends TestCase
         $log = MetaEventLog::create([
             'company_id' => $admin->company_id,
             'meta_connection_id' => $connection->id,
-            'event_id' => (string) \Illuminate\Support\Str::uuid(),
+            'event_id' => (string) Str::uuid(),
             'event_name' => 'Lead',
             'trigger_source' => 'crm_lead_created',
             'payload' => ['event_name' => 'Lead', 'event_id' => 'evt-2'],
@@ -237,7 +273,9 @@ class MetaIntegrationModuleTest extends TestCase
 
     public function test_webhook_hub_challenge_verification(): void
     {
-        config(['meta.webhook_verify_token' => 'verify-me']);
+        // The verify token belongs to one company's connection.
+        $admin = $this->admin();
+        $this->connectedAccount($admin, ['webhook_verify_token' => 'verify-me']);
 
         $this->get('/api/meta/webhooks/leadgen?hub.mode=subscribe&hub.verify_token=verify-me&hub.challenge=123456')
             ->assertOk()
@@ -259,8 +297,6 @@ class MetaIntegrationModuleTest extends TestCase
             'field_mapping' => ['email' => 'email', 'full_name' => 'name', 'phone_number' => 'phone'],
             'default_owner_id' => $admin->id,
         ]);
-
-        config(['meta.app_secret' => 'app-secret']);
 
         $payload = [
             'entry' => [[
@@ -290,7 +326,7 @@ class MetaIntegrationModuleTest extends TestCase
 
         Queue::assertPushed(ProcessMetaLeadWebhookEvent::class);
 
-        (new \App\Modules\MetaIntegration\Services\MetaLeadAdsService)->ingest('page-1', 'form-1', 'lead-123');
+        (new MetaLeadAdsService)->ingest('page-1', 'form-1', 'lead-123');
 
         $this->assertDatabaseHas('crm_contacts', [
             'company_id' => $admin->company_id,
@@ -392,7 +428,7 @@ class MetaIntegrationModuleTest extends TestCase
 
         Queue::assertPushed(ProcessMetaWhatsAppWebhookEvent::class);
 
-        app(\App\Modules\MetaIntegration\Services\MetaWhatsAppService::class)
+        app(MetaWhatsAppService::class)
             ->handleInboundMessage('phone-9', '201000000006', 'Wa Sender', 'Hello, I need a quote', 'wamid.inbound-1');
 
         $this->assertDatabaseHas('crm_contacts', [
@@ -408,10 +444,10 @@ class MetaIntegrationModuleTest extends TestCase
         ]);
 
         // Redelivery of the same message id is a no-op.
-        $result = app(\App\Modules\MetaIntegration\Services\MetaWhatsAppService::class)
+        $result = app(MetaWhatsAppService::class)
             ->handleInboundMessage('phone-9', '201000000006', 'Wa Sender', 'Hello, I need a quote', 'wamid.inbound-1');
         $this->assertNull($result);
-        $this->assertSame(1, \App\Modules\CRM\Models\CRMActivity::where('type', 'whatsapp')->count());
+        $this->assertSame(1, CRMActivity::where('type', 'whatsapp')->count());
     }
 
     public function test_audience_sync_batches_hashed_identifiers(): void
@@ -441,8 +477,8 @@ class MetaIntegrationModuleTest extends TestCase
             'audience_name' => 'Prospects',
         ]);
 
-        app(\App\Modules\MetaIntegration\Services\MetaAudienceService::class)->createAudience($sync);
-        (new SyncMetaAudienceJob($sync->id))->handle(app(\App\Modules\MetaIntegration\Services\MetaAudienceService::class));
+        app(MetaAudienceService::class)->createAudience($sync);
+        (new SyncMetaAudienceJob($sync->id))->handle(app(MetaAudienceService::class));
 
         $this->assertSame('synced', $sync->fresh()->status);
         Http::assertSent(fn ($request) => str_contains($request->url(), 'aud-1/users'));
@@ -478,6 +514,9 @@ class MetaIntegrationModuleTest extends TestCase
             'status' => 'connected',
             'access_token' => 'test-token',
             'pixel_id' => 'pixel-1',
+            // Per-tenant app credentials: webhooks are signed with these.
+            'app_id' => 'app-id',
+            'app_secret' => 'app-secret',
         ], $overrides));
     }
 

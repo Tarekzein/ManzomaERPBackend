@@ -26,7 +26,9 @@ services:
 
   worker:
     build: .
-    command: php artisan queue:work --sleep=3 --tries=3
+    # meta-events carries lead/WhatsApp webhooks and conversion events; it is
+    # listed first so those are drained ahead of default work.
+    command: php artisan queue:work --queue=meta-events,tiktok-events,default --sleep=3 --tries=3 --max-time=3600
     env_file: .env
     volumes:
       - .:/var/www/html

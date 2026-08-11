@@ -8,10 +8,18 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
 class ProcessMetaWhatsAppWebhookEvent implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    /** Meta retries webhooks for ~36h; give the job a comparable window. */
+    public int $tries = 5;
+
+    public array $backoff = [30, 120, 600, 1800];
+
+    public int $timeout = 60;
 
     public function __construct(
         private readonly string $phoneNumberId,
@@ -30,5 +38,23 @@ class ProcessMetaWhatsAppWebhookEvent implements ShouldQueue
             $this->text,
             $this->messageId,
         );
+    }
+
+    public function failed(\Throwable $exception): void
+    {
+        Log::error('[meta] WhatsApp message webhook job failed', [
+            'job' => static::class,
+            'payload' => $this->logContext(),
+            'message' => $exception->getMessage(),
+        ]);
+    }
+
+    /** Identifiers only: the message body and sender number are personal information. */
+    private function logContext(): array
+    {
+        return [
+            'phone_number_id' => $this->phoneNumberId,
+            'message_id' => $this->messageId,
+        ];
     }
 }

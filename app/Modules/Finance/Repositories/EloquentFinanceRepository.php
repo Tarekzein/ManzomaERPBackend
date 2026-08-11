@@ -4,13 +4,15 @@ namespace App\Modules\Finance\Repositories;
 
 use App\Modules\Finance\Contracts\FinanceRepository;
 use App\Modules\Finance\Models\FinancialPeriod;
-use App\Modules\Finance\Models\JournalEntry;
+use App\Modules\Platform\Services\DocumentNumberService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 class EloquentFinanceRepository implements FinanceRepository
 {
+    public function __construct(private readonly DocumentNumberService $numbers) {}
+
     public function list(string $model, int $companyId, array $with = []): Collection
     {
         return $model::query()->with($with)->where('company_id', $companyId)->latest('id')->get();
@@ -35,6 +37,8 @@ class EloquentFinanceRepository implements FinanceRepository
 
     public function nextNumber(int $companyId, string $prefix): string
     {
-        return $prefix.'-'.now()->format('Y').'-'.str_pad((string) (JournalEntry::where('company_id', $companyId)->count() + 1), 6, '0', STR_PAD_LEFT);
+        // Counting rows repeated a number after any delete and raced under
+        // concurrency, both of which the unique index turned into a 500.
+        return $this->numbers->next($companyId, $prefix);
     }
 }

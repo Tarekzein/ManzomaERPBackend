@@ -4,6 +4,7 @@
     "description": "ManzomaTech SaaS ERP backend API.",
     "keywords": ["laravel", "erp", "saas", "company-scoped"],
     "license": "MIT",
+
     "require": {
         "php": "^8.2",
         "barryvdh/laravel-dompdf": "^3.1",

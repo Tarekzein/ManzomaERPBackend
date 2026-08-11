@@ -9,13 +9,13 @@ use App\Modules\HR\Models\AttendanceEntry;
 use App\Modules\HR\Models\Benefit;
 use App\Modules\HR\Models\Department;
 use App\Modules\HR\Models\DisciplinaryAction;
+use App\Modules\HR\Models\EmergencyContact;
 use App\Modules\HR\Models\Employee;
 use App\Modules\HR\Models\EmployeeBenefit;
 use App\Modules\HR\Models\EmployeeContract;
 use App\Modules\HR\Models\EmployeeDocument;
 use App\Modules\HR\Models\EmployeeDocumentVersion;
 use App\Modules\HR\Models\EmployeePersonalDetail;
-use App\Modules\HR\Models\EmergencyContact;
 use App\Modules\HR\Models\Holiday;
 use App\Modules\HR\Models\JobPosting;
 use App\Modules\HR\Models\LeaveAdjustment;
@@ -28,6 +28,8 @@ use App\Modules\HR\Models\Position;
 use App\Modules\HR\Models\Team;
 use App\Modules\HR\Models\TrainingRecord;
 use App\Modules\HR\Policies\HRPolicy;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -44,11 +46,15 @@ class HRService
         $query = $model::query()->where('company_id', $companyId)->with($with);
         $scopedEmployeeIds = $this->policy->scopedEmployeeIds($u);
 
-        if ($scopedEmployeeIds !== []) {
+        if (! $this->policy->hasCompanyWideScope($u)) {
             if ($model === Employee::class) {
-                $query->whereIn('id', $scopedEmployeeIds);
+                $scopedEmployeeIds === []
+                    ? $query->whereRaw('1 = 0')
+                    : $query->whereIn('id', $scopedEmployeeIds);
             } elseif (in_array($model, $this->employeeScopedModels(), true)) {
-                $query->whereIn('employee_id', $scopedEmployeeIds);
+                $scopedEmployeeIds === []
+                    ? $query->whereRaw('1 = 0')
+                    : $query->whereIn('employee_id', $scopedEmployeeIds);
             }
         }
 
@@ -56,7 +62,7 @@ class HRService
 
         $sort = $filters['sort'] ?? 'id';
         $direction = strtolower($filters['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
-        $query->orderBy($this->safeSortColumn($sort), $direction);
+        $query->orderBy($this->safeSortColumn($model, $sort), $direction);
 
         $result = ! empty($filters['per_page'])
             ? $query->paginate(min(max((int) $filters['per_page'], 1), 100))
@@ -78,24 +84,24 @@ class HRService
     {
         if ($employee) {
             if (! $this->policy->canViewEmployee($u, $employee)) {
-                throw new \Illuminate\Auth\Access\AuthorizationException('You cannot view this employee profile.');
+                throw new AuthorizationException('You cannot view this employee profile.');
             }
 
-        return $this->protectEmployee($u, $employee->load(
-            'department',
-            'team',
-            'manager',
-            'reports',
-            'personalDetail',
-            'emergencyContacts',
-            'contracts',
-            'benefits.benefit',
-            'onboardingTasks.assignee',
-            'offboardingTasks.assignee',
-            'performanceReviews.reviewer',
-            'trainingRecords',
-            'documents.versions'
-        ));
+            return $this->protectEmployee($u, $employee->load(
+                'department',
+                'team',
+                'manager',
+                'reports',
+                'personalDetail',
+                'emergencyContacts',
+                'contracts',
+                'benefits.benefit',
+                'onboardingTasks.assignee',
+                'offboardingTasks.assignee',
+                'performanceReviews.reviewer',
+                'trainingRecords',
+                'documents.versions'
+            ));
         }
 
         return $this->protectEmployee($u, $this->policy->employee($u)->load(
@@ -286,9 +292,31 @@ class HRService
         });
     }
 
-    private function safeSortColumn(string $sort): string
+    private function safeSortColumn(string $model, string $sort): string
     {
-        return preg_match('/^[a-zA-Z0-9_]+$/', $sort) ? $sort : 'id';
+        $allowed = match ($model) {
+            Employee::class => ['id', 'employee_number', 'name', 'email', 'status', 'hire_date', 'base_salary', 'created_at'],
+            Department::class, Team::class => ['id', 'code', 'name', 'created_at'],
+            Position::class => ['id', 'code', 'title', 'is_active', 'created_at'],
+            LeaveType::class => ['id', 'code', 'name', 'annual_allowance', 'created_at'],
+            AttendanceEntry::class => ['id', 'work_date', 'hours', 'created_at'],
+            Holiday::class => ['id', 'name', 'holiday_date', 'created_at'],
+            JobPosting::class => ['id', 'title', 'status', 'closes_on', 'created_at'],
+            Applicant::class => ['id', 'name', 'email', 'stage', 'created_at'],
+            EmployeeContract::class => ['id', 'contract_number', 'starts_on', 'ends_on', 'status', 'created_at'],
+            Benefit::class => ['id', 'name', 'type', 'default_amount', 'created_at'],
+            EmployeeBenefit::class => ['id', 'starts_on', 'ends_on', 'status', 'amount', 'created_at'],
+            OnboardingTask::class, OffboardingTask::class => ['id', 'title', 'due_on', 'status', 'created_at'],
+            PerformanceReview::class => ['id', 'period', 'score', 'status', 'reviewed_on', 'created_at'],
+            DisciplinaryAction::class => ['id', 'type', 'issued_on', 'status', 'created_at'],
+            TrainingRecord::class => ['id', 'title', 'started_on', 'completed_on', 'status', 'cost', 'created_at'],
+            LeaveBalance::class => ['id', 'year', 'remaining_days', 'created_at'],
+            LeaveAdjustment::class => ['id', 'year', 'days', 'created_at'],
+            EmergencyContact::class => ['id', 'name', 'created_at'],
+            default => ['id', 'created_at'],
+        };
+
+        return in_array($sort, $allowed, true) ? $sort : 'id';
     }
 
     private function protectPayrollFields(User $user, $result)
@@ -299,7 +327,7 @@ class HRService
 
         $hide = fn (Employee $employee) => $employee->makeHidden(['base_salary', 'currency', 'payroll_formula']);
 
-        if ($result instanceof \Illuminate\Contracts\Pagination\Paginator) {
+        if ($result instanceof Paginator) {
             $result->getCollection()->transform($hide);
 
             return $result;

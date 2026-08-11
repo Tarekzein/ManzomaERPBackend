@@ -11,6 +11,7 @@ use App\Modules\Finance\Services\InvoiceService;
 use App\Modules\Inventory\Models\Product;
 use App\Modules\Inventory\Models\Warehouse;
 use App\Modules\Inventory\Services\StockMovementService;
+use App\Modules\Platform\Services\DocumentNumberService;
 use App\Modules\Sales\Models\GoodsReceipt;
 use App\Modules\Sales\Models\PriceList;
 use App\Modules\Sales\Models\PurchaseOrder;
@@ -32,6 +33,7 @@ class SalesService
         private readonly AccountingPostingService $accounting,
         private readonly CompanyAccountResolver $accounts,
         private readonly SalesDocumentCalculator $calculator,
+        private readonly DocumentNumberService $numbers,
     ) {}
 
     public function list(User $user, string $model, array $with = [])
@@ -72,7 +74,7 @@ class SalesService
 
         return DB::transaction(function () use ($companyId, $user, $data, $quote) {
             $quote ??= new SalesQuotation(['company_id' => $companyId, 'created_by' => $user->id, 'status' => 'draft']);
-            $quote->fill(collect($data)->except('lines')->all() + ['number' => $data['number'] ?? $this->number('SQ')])->save();
+            $quote->fill(collect($data)->except('lines')->all() + ['number' => $data['number'] ?? $this->number($companyId, 'SQ')])->save();
             $this->replaceLines($companyId, $quote, $data['lines'], $data['customer_id']);
 
             return $this->recalculate($quote)->load('customer', 'lines.product');
@@ -91,7 +93,7 @@ class SalesService
                 'company_id' => $companyId,
                 'quotation_id' => $quote->id,
                 'customer_id' => $quote->customer_id,
-                'number' => $this->number('SO'),
+                'number' => $this->number($companyId, 'SO'),
                 'order_date' => now()->toDateString(),
                 'status' => 'draft',
                 'currency' => $quote->currency,
@@ -118,7 +120,7 @@ class SalesService
 
         return DB::transaction(function () use ($companyId, $user, $data, $order) {
             $order ??= new SalesOrder(['company_id' => $companyId, 'created_by' => $user->id, 'status' => 'draft']);
-            $order->fill(collect($data)->except('lines')->all() + ['number' => $data['number'] ?? $this->number('SO')])->save();
+            $order->fill(collect($data)->except('lines')->all() + ['number' => $data['number'] ?? $this->number($companyId, 'SO')])->save();
             $this->replaceLines($companyId, $order, $data['lines'], $data['customer_id']);
 
             return $this->recalculate($order)->load('customer', 'warehouse', 'lines.product');
@@ -128,12 +130,18 @@ class SalesService
     public function confirmSalesOrder(User $user, SalesOrder $order): SalesOrder
     {
         $this->policy->ensureOwned($user, $order);
-        if ($order->status !== 'draft') {
-            throw ValidationException::withMessages(['status' => ['Only draft sales orders can be confirmed.']]);
-        }
-        abort_unless($order->warehouse_id, 422, 'A warehouse is required before confirming the order.');
 
         return DB::transaction(function () use ($user, $order) {
+            $order = SalesOrder::where('company_id', $order->company_id)
+                ->whereKey($order->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($order->status !== 'draft') {
+                throw ValidationException::withMessages(['status' => ['Only draft sales orders can be confirmed.']]);
+            }
+            abort_unless($order->warehouse_id, 422, 'A warehouse is required before confirming the order.');
+
             $movement = $this->stock->create($user, [
                 'type' => 'issue',
                 'reference' => $order->number,
@@ -221,7 +229,7 @@ class SalesService
 
         return DB::transaction(function () use ($companyId, $user, $data, $order) {
             $order ??= new PurchaseOrder(['company_id' => $companyId, 'created_by' => $user->id, 'status' => 'draft']);
-            $order->fill(collect($data)->except('lines')->all() + ['number' => $data['number'] ?? $this->number('PO')])->save();
+            $order->fill(collect($data)->except('lines')->all() + ['number' => $data['number'] ?? $this->number($companyId, 'PO')])->save();
             $this->replaceLines($companyId, $order, $data['lines']);
 
             return $this->recalculate($order)->load('vendor', 'warehouse', 'lines.product');
@@ -260,7 +268,7 @@ class SalesService
                     return ['product_id' => $line->product_id, 'to_warehouse_id' => $order->warehouse_id, 'quantity' => $receiptLine['quantity_received'], 'unit_cost' => $line->unit_price];
                 })->all(),
             ]);
-            $receipt = GoodsReceipt::create(['company_id' => $order->company_id, 'purchase_order_id' => $order->id, 'stock_movement_id' => $movement->id, 'number' => $this->number('GR'), 'received_on' => $data['received_on'], 'notes' => $data['notes'] ?? null, 'received_by' => $user->id]);
+            $receipt = GoodsReceipt::create(['company_id' => $order->company_id, 'purchase_order_id' => $order->id, 'stock_movement_id' => $movement->id, 'number' => $this->number((int) $order->company_id, 'GR'), 'received_on' => $data['received_on'], 'notes' => $data['notes'] ?? null, 'received_by' => $user->id]);
             foreach ($lines as $receiptLine) {
                 $line = $order->lines->firstWhere('id', (int) $receiptLine['purchase_order_line_id']);
                 $receipt->lines()->create(['purchase_order_line_id' => $line->id, 'product_id' => $line->product_id, 'quantity_received' => $receiptLine['quantity_received']]);
@@ -386,9 +394,13 @@ class SalesService
         return $document->refresh();
     }
 
-    private function number(string $prefix): string
+    /**
+     * Sales documents are numbered per company, so the prefix alone is not
+     * enough — the sequence needs to know whose books it is counting.
+     */
+    private function number(int $companyId, string $prefix): string
     {
-        return $prefix.'-'.now()->format('YmdHis').'-'.random_int(100, 999);
+        return $this->numbers->next($companyId, $prefix);
     }
 
     private function ensureContact(int $companyId, ?int $id, array $types = ['customer', 'vendor', 'both']): void

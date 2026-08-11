@@ -25,6 +25,7 @@ class SubscriptionSeeder extends Seeder
             ['slug' => 'notifications.sms', 'name' => 'SMS Notifications', 'module' => 'notifications', 'description' => 'Critical alerts through SMS providers.'],
             ['slug' => 'integrations.api', 'name' => 'REST API Access', 'module' => 'platform', 'description' => 'External integration access through protected REST API.'],
             ['slug' => 'integrations.meta', 'name' => 'Meta (Facebook) Integration', 'module' => 'meta', 'description' => 'Conversions API, Lead Ads sync, and Custom Audiences sync with Meta Business.'],
+            ['slug' => 'integrations.tiktok', 'name' => 'TikTok Integration', 'module' => 'tiktok', 'description' => 'TikTok Marketing API: advertiser sync, campaign reporting, and server-side conversion events.'],
             ['slug' => 'custom_modules.marketplace', 'name' => 'Custom Module Marketplace', 'module' => 'custom_modules', 'description' => 'Enable approved custom modules and feature flags per company.'],
             ['slug' => 'support.priority', 'name' => 'Priority Support', 'module' => 'platform', 'description' => 'Higher support priority for larger plans.'],
         ];
@@ -48,7 +49,7 @@ class SubscriptionSeeder extends Seeder
             'professional' => [
                 'core.hr', 'core.finance', 'core.inventory', 'core.sales', 'core.crm', 'core.projects',
                 'reporting.prebuilt', 'reporting.custom', 'exports.pdf_excel_csv', 'notifications.email',
-                'notifications.sms', 'integrations.api', 'integrations.meta',
+                'notifications.sms', 'integrations.api', 'integrations.meta', 'integrations.tiktok',
             ],
             'enterprise' => $featureModels->keys()->all(),
         ];

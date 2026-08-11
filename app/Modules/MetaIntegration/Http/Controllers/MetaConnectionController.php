@@ -10,6 +10,7 @@ use App\Modules\MetaIntegration\Services\MetaAssetService;
 use App\Modules\MetaIntegration\Services\MetaConversionService;
 use App\Modules\MetaIntegration\Services\MetaGraphClient;
 use App\Modules\MetaIntegration\Services\MetaOAuthService;
+use App\Modules\MetaIntegration\Services\MetaSetupService;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -78,9 +79,14 @@ class MetaConnectionController extends Controller
     public function destroy(Request $request)
     {
         $companyId = $this->policy->companyId($request->user(), 'meta.delete');
-        $this->oauth->disconnect($companyId);
+        // Default keeps the connection row (and its event history) so reports
+        // stay intact; purge=1 is the "erase everything" path.
+        $purge = $request->boolean('purge');
+        $this->oauth->disconnect($companyId, $purge);
 
-        return ApiResponse::success(null, 'Meta account disconnected');
+        return ApiResponse::success(null, $purge
+            ? 'Meta account disconnected and history erased'
+            : 'Meta account disconnected');
     }
 
     public function businesses(Request $request)
@@ -132,6 +138,28 @@ class MetaConnectionController extends Controller
         ]);
 
         return ApiResponse::success($response, 'Test event sent to Meta');
+    }
+
+    /**
+     * Everything the company needs to configure their own Meta App, plus a
+     * checklist of what is still outstanding.
+     */
+    public function setup(Request $request, MetaSetupService $setup)
+    {
+        $companyId = $this->policy->companyId($request->user());
+
+        return ApiResponse::success($setup->instructions($companyId), 'Meta setup details loaded');
+    }
+
+    public function rotateVerifyToken(Request $request, MetaSetupService $setup)
+    {
+        $companyId = $this->policy->companyId($request->user(), 'meta.edit');
+        $connection = MetaConnection::where('company_id', $companyId)->firstOrFail();
+
+        return ApiResponse::success(
+            ['verify_token' => $setup->rotateVerifyToken($connection)],
+            'A new verify token was issued. Update it in your Meta App webhook settings.'
+        );
     }
 
     public function health(Request $request)

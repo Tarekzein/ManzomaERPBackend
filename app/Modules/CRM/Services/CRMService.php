@@ -14,11 +14,14 @@ use App\Modules\CRM\Models\CRMSegment;
 use App\Modules\CRM\Models\CRMTag;
 use App\Modules\CRM\Models\CRMTask;
 use App\Modules\CRM\Policies\CRMPolicy;
+use App\Modules\MetaIntegration\Events\CrmContactDeleted;
+use App\Modules\MetaIntegration\Events\CrmLeadCreated;
+use App\Modules\MetaIntegration\Events\CrmOpportunityWon;
 use App\Modules\Sales\Models\SalesContact;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -69,7 +72,7 @@ class CRMService
             $record->tags()->sync($tagIds);
 
             if ($isNew) {
-                event(new \App\Modules\MetaIntegration\Events\CrmLeadCreated($record));
+                event(new CrmLeadCreated($record));
             }
 
             return $record->load('owner', 'salesContact', 'tags');
@@ -156,7 +159,7 @@ class CRMService
         $record->fill($data)->save();
 
         if ($record->status === 'won' && ! $wasWon) {
-            event(new \App\Modules\MetaIntegration\Events\CrmOpportunityWon($record));
+            event(new CrmOpportunityWon($record));
         }
 
         return $record->load('contact.tags', 'stage', 'owner');
@@ -170,7 +173,7 @@ class CRMService
         $opportunity->update($this->applyStageStatus(['stage_id' => $stage->id, 'probability' => $stage->probability], $stage));
 
         if ($opportunity->status === 'won' && ! $wasWon) {
-            event(new \App\Modules\MetaIntegration\Events\CrmOpportunityWon($opportunity));
+            event(new CrmOpportunityWon($opportunity));
         }
 
         return $opportunity->refresh()->load('contact.tags', 'stage', 'owner');
@@ -186,7 +189,7 @@ class CRMService
 
         $activity = CRMActivity::create(['company_id' => $companyId, 'user_id' => $user->id, 'occurred_at' => $data['occurred_at'] ?? now()] + $data);
         if (! empty($data['contact_id'])) {
-            $this->recomputeLeadScore(CRMContact::find($data['contact_id']));
+            $this->scoreContact(CRMContact::find($data['contact_id']));
         }
 
         return $activity->load('contact', 'opportunity', 'user');
@@ -289,11 +292,11 @@ class CRMService
         $record->delete();
 
         if ($record instanceof CRMContact) {
-            event(new \App\Modules\MetaIntegration\Events\CrmContactDeleted($record));
+            event(new CrmContactDeleted($record));
         }
     }
 
-    public function listNotes(User $user, Request $request): \Illuminate\Support\Collection
+    public function listNotes(User $user, Request $request): Collection
     {
         $companyId = $this->companyId($user, $request);
         $query = CRMNote::with('user', 'contact', 'opportunity')
@@ -336,7 +339,7 @@ class CRMService
         $note->delete();
     }
 
-    public function trashedContacts(User $user, Request $request): \Illuminate\Support\Collection
+    public function trashedContacts(User $user, Request $request): Collection
     {
         $companyId = $this->companyId($user, $request);
 
@@ -352,7 +355,7 @@ class CRMService
         return $contact->refresh()->load('owner', 'salesContact', 'tags');
     }
 
-    public function trashedOpportunities(User $user, Request $request): \Illuminate\Support\Collection
+    public function trashedOpportunities(User $user, Request $request): Collection
     {
         $companyId = $this->companyId($user, $request);
 
@@ -379,7 +382,7 @@ class CRMService
             'untag' => $contacts->each(fn ($c) => $c->tags()->detach($payload['tag_ids'] ?? [])),
             'assign' => $this->bulkAssign($companyId, $ids, $payload),
             'status' => CRMContact::where('company_id', $companyId)->whereIn('id', $ids)->update(['status' => $payload['status']]),
-            default => throw \Illuminate\Validation\ValidationException::withMessages(['action' => ['Unknown bulk action.']]),
+            default => throw ValidationException::withMessages(['action' => ['Unknown bulk action.']]),
         };
 
         return ['affected' => $contacts->count()];
@@ -391,7 +394,7 @@ class CRMService
         $this->policy->ensureOwned($user, $secondary, 'crm.edit');
 
         if ((int) $primary->company_id !== (int) $secondary->company_id) {
-            throw \Illuminate\Validation\ValidationException::withMessages(['secondary_id' => ['Both contacts must belong to the same company.']]);
+            throw ValidationException::withMessages(['secondary_id' => ['Both contacts must belong to the same company.']]);
         }
 
         return DB::transaction(function () use ($primary, $secondary) {
@@ -410,13 +413,25 @@ class CRMService
             $primary->save();
 
             $secondary->forceDelete();
-            $this->recomputeLeadScore($primary->fresh());
+            $this->scoreContact($primary->fresh());
 
             return $primary->refresh()->load('owner', 'salesContact', 'tags');
         });
     }
 
-    public function recomputeLeadScore(CRMContact $contact): CRMContact
+    public function recomputeLeadScore(User $user, CRMContact $contact): CRMContact
+    {
+        $this->policy->ensureOwned($user, $contact, 'crm.edit');
+
+        return $this->scoreContact($contact);
+    }
+
+    /**
+     * The scoring itself. Callers inside this service have already established
+     * ownership of the contact; the public entry point above has not, so it
+     * checks first.
+     */
+    private function scoreContact(CRMContact $contact): CRMContact
     {
         $activitiesCount = CRMActivity::where('contact_id', $contact->id)->count();
         $opportunities = CRMOpportunity::where('contact_id', $contact->id)->get();

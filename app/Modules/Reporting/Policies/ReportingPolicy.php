@@ -16,9 +16,9 @@ class ReportingPolicy
         }
 
         if ($user->isSuperAdmin()) {
-            $companyId = $requestedCompanyId ?: Company::query()->value('id');
+            $companyId = $requestedCompanyId;
             if (! $companyId || ! Company::whereKey($companyId)->exists()) {
-                throw new AuthorizationException('A valid company is required for reporting.');
+                throw new AuthorizationException('Specify a valid company_id for reporting.');
             }
 
             return (int) $companyId;

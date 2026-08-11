@@ -29,6 +29,34 @@ Schedule::command('meta:sync-audiences')
     ->withoutOverlapping()
     ->after(fn () => Cache::put('system_health:scheduler:meta-audiences', now()->toISOString(), now()->addMinutes(10)));
 
+// Meta long-lived tokens last ~60 days and cannot be refreshed once expired,
+// so this has to run well ahead of the deadline.
+Schedule::command('meta:maintain-connections')
+    ->dailyAt('04:30')
+    ->withoutOverlapping()
+    ->after(fn () => Cache::put('system_health:scheduler:meta-connections', now()->toISOString(), now()->addHours(25)));
+
+Schedule::command('tiktok:maintain-connections')
+    ->dailyAt('04:45')
+    ->withoutOverlapping()
+    ->after(fn () => Cache::put('system_health:scheduler:tiktok-connections', now()->toISOString(), now()->addHours(25)));
+
+// TikTok builds lead exports asynchronously: one pass requests, the next collects.
+Schedule::command('tiktok:sync-leads')
+    ->everyTenMinutes()
+    ->withoutOverlapping()
+    ->after(fn () => Cache::put('system_health:scheduler:tiktok-leads', now()->toISOString(), now()->addMinutes(30)));
+
+Schedule::command('tiktok:sync-audiences')
+    ->hourly()
+    ->withoutOverlapping()
+    ->after(fn () => Cache::put('system_health:scheduler:tiktok-audiences', now()->toISOString(), now()->addMinutes(90)));
+
+Schedule::command('tiktok:retry-events')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->after(fn () => Cache::put('system_health:scheduler:tiktok-events', now()->toISOString(), now()->addMinutes(10)));
+
 // Renewals run hourly so a failed charge is retried and grace windows close on
 // time; reminders only need one pass a day.
 Schedule::command('subscriptions:process-renewals')

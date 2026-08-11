@@ -4,6 +4,7 @@ use App\Modules\MetaIntegration\Http\Controllers\MetaAudienceController;
 use App\Modules\MetaIntegration\Http\Controllers\MetaConnectionController;
 use App\Modules\MetaIntegration\Http\Controllers\MetaEventMappingController;
 use App\Modules\MetaIntegration\Http\Controllers\MetaLeadFormController;
+use App\Modules\MetaIntegration\Http\Controllers\MetaPageController;
 use App\Modules\MetaIntegration\Http\Controllers\MetaWhatsAppController;
 use Illuminate\Support\Facades\Route;
 
@@ -19,11 +20,28 @@ Route::middleware('auth:sanctum')->prefix('meta')->name('meta.')->group(function
     Route::post('test-event', [MetaConnectionController::class, 'sendTestEvent'])->name('test-event');
     Route::get('health', [MetaConnectionController::class, 'health'])->name('health');
 
+    // Per-company Meta App setup: the values each tenant pastes into their app.
+    Route::get('setup', [MetaConnectionController::class, 'setup'])->name('setup');
+    Route::post('setup/verify-token', [MetaConnectionController::class, 'rotateVerifyToken'])->name('setup.verify-token');
+
     Route::get('assets/businesses', [MetaConnectionController::class, 'businesses'])->name('assets.businesses');
     Route::get('assets/ad-accounts', [MetaConnectionController::class, 'adAccounts'])->name('assets.ad-accounts');
     Route::get('assets/pixels', [MetaConnectionController::class, 'pixels'])->name('assets.pixels');
     Route::get('assets/pages', [MetaConnectionController::class, 'pages'])->name('assets.pages');
     Route::get('assets/lead-forms', [MetaConnectionController::class, 'leadForms'])->name('assets.lead-forms');
+
+    // Connected Pages, their Instagram accounts, and webhook subscriptions.
+    Route::get('pages', [MetaPageController::class, 'index'])->name('pages.index');
+    Route::post('pages/sync', [MetaPageController::class, 'sync'])->name('pages.sync');
+    Route::post('pages/{page}/subscribe', [MetaPageController::class, 'subscribe'])->name('pages.subscribe');
+    Route::delete('pages/{page}/subscribe', [MetaPageController::class, 'unsubscribe'])->name('pages.unsubscribe');
+    Route::get('pages/{page}/subscription', [MetaPageController::class, 'verify'])->name('pages.subscription');
+    Route::get('instagram/accounts', [MetaPageController::class, 'instagramAccounts'])->name('instagram.accounts');
+    Route::get('instagram/{instagramAccountId}/profile', [MetaPageController::class, 'instagramProfile'])->name('instagram.profile');
+
+    // Token lifecycle.
+    Route::get('token', [MetaPageController::class, 'tokenStatus'])->name('token.status');
+    Route::post('token/refresh', [MetaPageController::class, 'refreshToken'])->name('token.refresh');
 
     Route::get('event-mappings', [MetaEventMappingController::class, 'index'])->name('event-mappings.index');
     Route::post('event-mappings', [MetaEventMappingController::class, 'store'])->name('event-mappings.store');

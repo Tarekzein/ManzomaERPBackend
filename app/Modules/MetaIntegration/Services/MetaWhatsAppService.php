@@ -6,12 +6,16 @@ use App\Modules\CRM\Models\CRMActivity;
 use App\Modules\CRM\Models\CRMContact;
 use App\Modules\MetaIntegration\Events\CrmLeadCreated;
 use App\Modules\MetaIntegration\Models\MetaConnection;
+use App\Modules\Platform\Services\SocialInboxService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
 
 class MetaWhatsAppService
 {
-    public function __construct(private readonly MetaHashingService $hashing) {}
+    public function __construct(
+        private readonly MetaHashingService $hashing,
+        private readonly SocialInboxService $inbox,
+    ) {}
 
     public function businessAccounts(MetaConnection $connection): array
     {
@@ -121,7 +125,7 @@ class MetaWhatsAppService
             event(new CrmLeadCreated($contact));
         }
 
-        return CRMActivity::create([
+        $activity = CRMActivity::create([
             'company_id' => $connection->company_id,
             'contact_id' => $contact->id,
             'type' => 'whatsapp',
@@ -129,6 +133,20 @@ class MetaWhatsAppService
             'body' => $text,
             'occurred_at' => now(),
         ]);
+
+        $this->inbox->record((int) $connection->company_id, [
+            'platform' => 'whatsapp',
+            'type' => 'message',
+            'external_id' => $messageId,
+            'page_id' => $phoneNumberId,
+            'author_external_id' => $from,
+            'author_name' => $profileName ?: $contact->name,
+            'message' => $text,
+            'crm_contact_id' => $contact->id,
+            'posted_at' => now(),
+        ]);
+
+        return $activity;
     }
 
     private function matchContactByPhone(int $companyId, string $phone): ?CRMContact

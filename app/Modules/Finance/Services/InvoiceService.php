@@ -3,7 +3,6 @@
 namespace App\Modules\Finance\Services;
 
 use App\Modules\Authentication\Models\User;
-use App\Modules\Finance\Models\Account;
 use App\Modules\Finance\Models\CreditNote;
 use App\Modules\Finance\Models\FinanceContact;
 use App\Modules\Finance\Models\Invoice;
@@ -11,6 +10,8 @@ use App\Modules\Finance\Models\Payment;
 use App\Modules\Finance\Models\PaymentSchedule;
 use App\Modules\Finance\Models\TaxRate;
 use App\Modules\Finance\Policies\FinancePolicy;
+use App\Modules\MetaIntegration\Events\InvoicePaid;
+use App\Modules\Platform\Services\DocumentNumberService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -20,6 +21,7 @@ class InvoiceService
         private readonly FinancePolicy $policy,
         private readonly LedgerService $ledger,
         private readonly CompanyAccountResolver $accounts,
+        private readonly DocumentNumberService $numbers,
     ) {}
 
     public function contacts(User $actor)
@@ -135,7 +137,7 @@ class InvoiceService
             $invoice->update(['paid_total' => $paid, 'status' => $paid >= ((float) $invoice->total - (float) ($invoice->credited_total ?? 0)) ? 'paid' : 'partially_paid']);
 
             if ($invoice->status === 'paid') {
-                event(new \App\Modules\MetaIntegration\Events\InvoicePaid($invoice));
+                event(new InvoicePaid($invoice));
             }
 
             return $payment->refresh()->load('allocations');
@@ -170,7 +172,7 @@ class InvoiceService
             $credit = CreditNote::create([
                 'company_id' => $invoice->company_id,
                 'invoice_id' => $invoice->id,
-                'number' => $data['number'] ?? 'CN-'.$invoice->number.'-'.now()->format('His'),
+                'number' => $data['number'] ?? $this->numbers->next((int) $invoice->company_id, 'CN'),
                 'credit_date' => $data['credit_date'],
                 'amount' => $amount,
                 'reason' => $data['reason'] ?? null,
@@ -189,12 +191,11 @@ class InvoiceService
     {
         $companyId = $this->policy->companyId($actor, 'finance.create');
         $invoice = Invoice::where('company_id', $companyId)->where('type', 'payable')->findOrFail($data['invoice_id']);
-        $outstanding = (float) $invoice->total - (float) $invoice->paid_total;
+        $outstanding = (float) $invoice->total - (float) $invoice->paid_total - (float) ($invoice->credited_total ?? 0);
         if ((float) $data['amount'] > $outstanding || $invoice->status === 'paid') {
             throw ValidationException::withMessages(['amount' => ['Scheduled payment exceeds the payable outstanding balance.']]);
         }
 
         return PaymentSchedule::create(['company_id' => $companyId] + $data);
     }
-
 }

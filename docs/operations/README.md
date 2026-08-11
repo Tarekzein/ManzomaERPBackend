@@ -5,6 +5,9 @@
 1. Provision MySQL 8+, Redis, object storage, SMTP/SES, and the application encryption key.
 2. Configure production environment variables from `.env.example`.
 3. Build the application image, run `php artisan migrate --force`, and deploy web, queue worker, and scheduler processes.
+   The worker must consume every queue in use: `php artisan queue:work --queue=meta-events,tiktok-events,default`.
+   Jobs dispatched to `meta-events` (Meta lead webhooks, WhatsApp messages, conversion
+   events, audience syncs) are silently never processed by a default-only worker.
 4. Run `php artisan config:cache`, `route:cache`, and `event:cache` during release.
 5. Verify `/api/health`, queue processing, scheduled report delivery, notification delivery, and external webhooks.
 

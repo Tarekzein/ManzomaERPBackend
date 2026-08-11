@@ -16,12 +16,22 @@ class MetaIntegrationPolicy
         }
 
         if ($user->isSuperAdmin()) {
-            $companyId = $requestedCompanyId ?: Company::query()->value('id');
-            if (! $companyId || ! Company::whereKey($companyId)->exists()) {
+            // A super admin acts on the company they name, either through the
+            // argument or a `company_id` on the request.
+            $requestedCompanyId = $requestedCompanyId ?: (request()->integer('company_id') ?: null);
+
+            // Never fall back to "the first company": a super admin would then
+            // read — or disconnect — an arbitrary tenant's Meta account without
+            // ever naming it.
+            if (! $requestedCompanyId) {
+                throw new AuthorizationException('Specify company_id to manage a company\'s Meta integration.');
+            }
+
+            if (! Company::whereKey($requestedCompanyId)->exists()) {
                 throw new AuthorizationException('A valid company is required for this Meta integration operation.');
             }
 
-            return (int) $companyId;
+            return (int) $requestedCompanyId;
         }
 
         if ($user->company_id === null) {

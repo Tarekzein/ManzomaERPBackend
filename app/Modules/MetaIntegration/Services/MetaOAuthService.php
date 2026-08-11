@@ -4,7 +4,9 @@ namespace App\Modules\MetaIntegration\Services;
 
 use App\Modules\Authentication\Models\User;
 use App\Modules\MetaIntegration\Models\MetaConnection;
+use App\Modules\MetaIntegration\Models\MetaPage;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -12,6 +14,11 @@ use Throwable;
 class MetaOAuthService
 {
     private const STATE_PREFIX = 'oauth.meta.';
+
+    public function __construct(
+        private readonly MetaPageService $pages,
+        private readonly MetaTokenService $tokens,
+    ) {}
 
     public function saveAppCredentials(int $companyId, User $user, string $appId, string $appSecret, ?string $configId = null): MetaConnection
     {
@@ -34,13 +41,15 @@ class MetaOAuthService
     public function authorizationUrl(int $companyId, User $user): array
     {
         $connection = MetaConnection::where('company_id', $companyId)->first();
-        $appId = $connection?->app_id ?: config('meta.app_id');
 
-        if (! $appId) {
+        // Every company connects their own Meta App; nothing is shared.
+        if (! $connection?->hasAppCredentials()) {
             throw ValidationException::withMessages([
                 'app_id' => ['Save your Meta App ID and App Secret before connecting.'],
             ]);
         }
+
+        $appId = $connection->appId();
 
         $state = Str::random(48);
         Cache::put(self::STATE_PREFIX.$state, [
@@ -81,25 +90,52 @@ class MetaOAuthService
         }
 
         $connection = MetaConnection::where('company_id', $payload['company_id'])->first();
-        $appId = $connection?->app_id ?: config('meta.app_id');
-        $appSecret = $connection?->app_secret ?: config('meta.app_secret');
+
+        if (! $connection?->hasAppCredentials()) {
+            throw ValidationException::withMessages([
+                'app_id' => ['Save your Meta App ID and App Secret before connecting.'],
+            ]);
+        }
+
+        $appId = $connection->appId();
+        $appSecret = $connection->appSecret();
 
         $shortLivedToken = $this->exchangeCode($code, $appId, $appSecret);
         [$longLivedToken, $expiresIn] = $this->exchangeForLongLivedToken($shortLivedToken, $appId, $appSecret);
 
-        return MetaConnection::updateOrCreate(
+        $connection = MetaConnection::updateOrCreate(
             ['company_id' => $payload['company_id']],
             [
                 'connection_method' => 'oauth',
                 'status' => 'connected',
                 'access_token' => $longLivedToken,
                 'access_token_expires_at' => $expiresIn ? now()->addSeconds($expiresIn) : null,
+                'token_type' => $expiresIn ? 'user' : 'system_user',
+                'token_refreshed_at' => now(),
+                'token_expiry_notified_at' => null,
                 'scopes' => config('meta.scopes'),
                 'connected_by' => $payload['user_id'],
                 'last_error' => null,
+                'disconnected_at' => null,
                 'last_health_check_at' => now(),
             ],
         );
+
+        // Record what Meta actually granted and pull in the Pages/IG accounts
+        // so the connection is usable straight away. Neither is fatal: a
+        // connected account with a sync problem beats no account at all.
+        foreach ([fn () => $this->tokens->syncPermissions($connection), fn () => $this->pages->sync($connection)] as $step) {
+            try {
+                $step();
+            } catch (Throwable $exception) {
+                Log::warning('[meta] post-connect step failed', [
+                    'company_id' => $connection->company_id,
+                    'message' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        return $connection->refresh();
     }
 
     public function storeManualCredentials(int $companyId, User $user, array $data): MetaConnection
@@ -123,13 +159,73 @@ class MetaOAuthService
     }
 
     /**
-     * Disconnect is a full reset: deleting the connection cascades to event
-     * mappings, event logs, lead form mappings, and audience syncs, so the
-     * company starts from a clean slate when reconnecting.
+     * Disconnecting revokes the app's access at Meta — otherwise the token
+     * stays live there — and unsubscribes the Pages so Meta stops delivering.
+     *
+     * The connection row is kept and marked `disconnected` so event logs and
+     * audience history survive; `purge: true` restores the old destructive
+     * behaviour for a customer who wants everything gone.
      */
-    public function disconnect(int $companyId): void
+    public function disconnect(int $companyId, bool $purge = false): void
     {
-        MetaConnection::where('company_id', $companyId)->delete();
+        $connection = MetaConnection::where('company_id', $companyId)->first();
+
+        if (! $connection) {
+            return;
+        }
+
+        foreach (MetaPage::where('meta_connection_id', $connection->id)->get() as $page) {
+            try {
+                $this->pages->unsubscribe($page);
+            } catch (Throwable $exception) {
+                Log::warning('[meta] could not unsubscribe page during disconnect', [
+                    'company_id' => $companyId,
+                    'page_id' => $page->page_id,
+                    'message' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        $this->revokeAtMeta($connection);
+
+        if ($purge) {
+            $connection->delete();
+
+            return;
+        }
+
+        $connection->forceFill([
+            'status' => 'disconnected',
+            'disconnected_at' => now(),
+            'access_token' => null,
+            'access_token_expires_at' => null,
+            'granted_scopes' => null,
+            'declined_scopes' => null,
+            'last_error' => null,
+        ])->save();
+
+        MetaPage::where('meta_connection_id', $connection->id)->update([
+            'is_active' => false,
+            'access_token' => null,
+            'webhook_subscribed_at' => null,
+        ]);
+    }
+
+    /** Best-effort: a failure here must not block the local disconnect. */
+    private function revokeAtMeta(MetaConnection $connection): void
+    {
+        if (! $connection->access_token) {
+            return;
+        }
+
+        try {
+            (new MetaGraphClient($connection))->delete('me/permissions');
+        } catch (Throwable $exception) {
+            Log::warning('[meta] token revocation at Meta failed', [
+                'company_id' => $connection->company_id,
+                'message' => $exception->getMessage(),
+            ]);
+        }
     }
 
     private function exchangeCode(string $code, ?string $appId, ?string $appSecret): string

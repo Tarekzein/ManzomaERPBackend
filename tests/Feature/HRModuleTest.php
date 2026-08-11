@@ -98,6 +98,18 @@ class HRModuleTest extends TestCase
         $this->putJson("/api/hr/applicants/{$applicant['id']}", ['stage' => 'interview', 'notes' => 'Strong candidate'])->assertOk()->assertJsonPath('data.stage', 'interview');
     }
 
+    public function test_an_unlinked_employee_user_cannot_list_every_employee_record(): void
+    {
+        $admin = $this->admin();
+        $unlinked = User::factory()->create(['company_id' => $admin->company_id]);
+        $unlinked->assignRole('Employee');
+        Sanctum::actingAs($unlinked);
+
+        $this->getJson('/api/hr/employees')->assertOk()->assertJsonCount(0, 'data');
+        $this->getJson('/api/hr/attendance')->assertOk()->assertJsonCount(0, 'data');
+        $this->getJson('/api/hr/departments?sort=definitely_missing')->assertOk();
+    }
+
     public function test_professional_hr_suite_endpoints_work(): void
     {
         $admin = $this->admin();

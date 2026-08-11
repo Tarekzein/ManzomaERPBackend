@@ -27,6 +27,7 @@ class ProjectService
     public function list(User $actor, int $perPage, array $filters = [], ?string $sort = null): LengthAwarePaginator
     {
         $this->policy->ensureCanList($actor);
+        $perPage = min(max($perPage, 1), 100);
 
         return $this->projects->paginate(
             $actor->isSuperAdmin() ? null : $actor->company_id,

@@ -3,6 +3,7 @@
 namespace App\Modules\MetaIntegration\Services;
 
 use App\Modules\MetaIntegration\Models\MetaConnection;
+use Illuminate\Support\Arr;
 
 class MetaAssetService
 {
@@ -25,11 +26,34 @@ class MetaAssetService
         ])['data'] ?? [];
     }
 
+    /**
+     * Pages the connected user administers.
+     *
+     * Page access tokens are deliberately not returned: they can post as the
+     * Page and read its leads, so they never leave the server. Use
+     * {@see pageAccessToken()} where one is needed.
+     */
     public function pages(MetaConnection $connection): array
     {
-        return (new MetaGraphClient($connection))->get('me/accounts', [
-            'fields' => 'id,name,access_token',
+        $pages = (new MetaGraphClient($connection))->get('me/accounts', [
+            'fields' => 'id,name,instagram_business_account{id,username},tasks',
         ])['data'] ?? [];
+
+        return array_map(
+            fn (array $page) => Arr::except($page, ['access_token']),
+            $pages,
+        );
+    }
+
+    /**
+     * Server-side only: a page-scoped token, needed to subscribe a Page to
+     * webhooks and to read its lead data.
+     */
+    public function pageAccessToken(MetaConnection $connection, string $pageId): ?string
+    {
+        $page = (new MetaGraphClient($connection))->get($pageId, ['fields' => 'access_token']);
+
+        return $page['access_token'] ?? null;
     }
 
     public function leadForms(MetaConnection $connection, string $pageId): array
@@ -41,13 +65,16 @@ class MetaAssetService
 
     public function selectAssets(MetaConnection $connection, array $data): MetaConnection
     {
-        $connection->update(array_filter([
-            'business_id' => $data['business_id'] ?? $connection->business_id,
-            'ad_account_id' => $data['ad_account_id'] ?? $connection->ad_account_id,
-            'pixel_id' => $data['pixel_id'] ?? $connection->pixel_id,
-            'page_ids' => $data['page_ids'] ?? $connection->page_ids,
-            'default_page_id' => $data['default_page_id'] ?? $connection->default_page_id,
-        ], fn ($value) => $value !== null));
+        // Only mutate keys the client sent. Explicit nulls and an empty page
+        // array are meaningful: they let a company clear a stale selection.
+        // Using `??` or array_filter here would silently restore the old value.
+        $connection->update(Arr::only($data, [
+            'business_id',
+            'ad_account_id',
+            'pixel_id',
+            'page_ids',
+            'default_page_id',
+        ]));
 
         return $connection->fresh();
     }

@@ -30,7 +30,11 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardService
 {
-    public function __construct(private readonly EffectiveAccessService $access, private readonly WorkScopeService $scope) {}
+    public function __construct(
+        private readonly EffectiveAccessService $access,
+        private readonly WorkScopeService $scope,
+        private readonly SocialInsightsService $social,
+    ) {}
 
     public function summary(User $user): array
     {
@@ -167,6 +171,12 @@ class DashboardService
                 'active_employees' => Employee::where('company_id', $companyId)->where('status', 'active')->count(),
                 'payroll_total' => (float) PayrollItem::whereHas('employee', fn ($query) => $query->where('company_id', $companyId))->sum('net_salary'),
             ];
+        }
+
+        // Social KPIs are cached and read only local data, so a down or
+        // unconfigured integration never slows the dashboard.
+        if ($this->access->canAccessModule($user, 'crm')) {
+            $analytics['social'] = $this->social->summary($companyId);
         }
 
         return [

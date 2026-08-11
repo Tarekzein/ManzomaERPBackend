@@ -47,8 +47,10 @@ class MetaAudienceController extends Controller
 
     public function update(MetaRequest $request, MetaAudienceSync $sync)
     {
-        $this->policy->ensureOwned($request->user(), $sync, 'meta.edit');
-        $sync->update($request->validated());
+        $companyId = $this->policy->ensureOwned($request->user(), $sync, 'meta.edit');
+        $data = $request->validated();
+        $this->ensureSegmentOwned($companyId, (int) $data['crm_segment_id']);
+        $sync->update($data);
 
         return ApiResponse::success($sync->fresh(), 'Audience sync updated');
     }
@@ -74,5 +76,14 @@ class MetaAudienceController extends Controller
         $this->policy->ensureOwned($request->user(), $sync, 'meta.view');
 
         return ApiResponse::success($sync->fresh());
+    }
+
+    private function ensureSegmentOwned(int $companyId, int $segmentId): void
+    {
+        if (! CRMSegment::where('company_id', $companyId)->whereKey($segmentId)->exists()) {
+            throw ValidationException::withMessages([
+                'crm_segment_id' => ['Choose a CRM segment that belongs to this company.'],
+            ]);
+        }
     }
 }

@@ -6,7 +6,7 @@ use App\Modules\Authentication\Models\User;
 use App\Modules\Finance\Models\Account;
 use App\Modules\Finance\Models\FinancialPeriod;
 use App\Modules\Finance\Models\Invoice;
-use App\Modules\Finance\Models\PaymentAllocation;
+use App\Modules\Finance\Models\JournalEntry;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -21,6 +21,9 @@ class FinanceModuleTest extends TestCase
         $admin = $this->companyAdmin();
         $cash = Account::where('company_id', $admin->company_id)->where('code', '1000')->firstOrFail();
         $equity = Account::where('company_id', $admin->company_id)->where('code', '3000')->firstOrFail();
+        $openingCashBalance = (float) collect(
+            $this->getJson('/api/finance/reports/trial-balance')->assertOk()->json('data')
+        )->firstWhere('code', '1000')['balance'];
 
         $journal = $this->postJson('/api/finance/journals', [
             'entry_date' => now()->toDateString(),
@@ -34,8 +37,10 @@ class FinanceModuleTest extends TestCase
         $this->postJson("/api/finance/journals/{$journal['id']}/post")
             ->assertOk()->assertJsonPath('data.status', 'posted');
 
-        $this->getJson('/api/finance/reports/trial-balance')
-            ->assertOk()->assertJsonFragment(['code' => '1000', 'balance' => 1000]);
+        $cashBalance = collect(
+            $this->getJson('/api/finance/reports/trial-balance')->assertOk()->json('data')
+        )->firstWhere('code', '1000')['balance'];
+        $this->assertSame($openingCashBalance + 1000, (float) $cashBalance);
     }
 
     public function test_unbalanced_journal_and_locked_period_posting_are_rejected(): void
@@ -63,6 +68,7 @@ class FinanceModuleTest extends TestCase
         $admin = $this->companyAdmin();
         $revenue = Account::where('company_id', $admin->company_id)->where('code', '4000')->firstOrFail();
         $cash = Account::where('company_id', $admin->company_id)->where('code', '1000')->firstOrFail();
+        $journalCount = JournalEntry::where('company_id', $admin->company_id)->count();
 
         $contact = $this->postJson('/api/finance/contacts', ['type' => 'customer', 'name' => 'Customer One'])
             ->assertCreated()->json('data');
@@ -79,7 +85,10 @@ class FinanceModuleTest extends TestCase
         ])->assertCreated();
         $this->assertDatabaseHas('invoices', ['id' => $invoice['id'], 'status' => 'paid']);
         $this->assertDatabaseHas('payment_allocations', ['invoice_id' => $invoice['id'], 'amount' => 500]);
-        $this->assertDatabaseCount('journal_entries', 2);
+        $this->assertSame(
+            $journalCount + 2,
+            JournalEntry::where('company_id', $admin->company_id)->count()
+        );
     }
 
     public function test_credit_notes_and_overpayment_controls_are_enforced(): void
@@ -105,6 +114,7 @@ class FinanceModuleTest extends TestCase
             'credit_date' => now()->toDateString(), 'amount' => 126, 'reason' => 'Commercial credit',
         ])->assertCreated()->json('data');
         $this->assertSame(126.0, (float) $credit['amount']);
+        $this->assertMatchesRegularExpression('/^CN-\d{4}-\d{6}$/', $credit['number']);
 
         $this->assertSame(900.0, (float) Invoice::findOrFail($invoice['id'])->fresh()->balance);
     }
@@ -135,12 +145,21 @@ class FinanceModuleTest extends TestCase
         ])->assertCreated()->json('data');
         $this->postJson("/api/finance/invoices/{$invoice['id']}/post")->assertOk();
 
-        $this->postJson('/api/finance/payment-schedules', [
-            'invoice_id' => $invoice['id'], 'scheduled_for' => now()->addDays(3)->toDateString(), 'amount' => 1000,
+        $this->postJson("/api/finance/invoices/{$invoice['id']}/credit", [
+            'credit_date' => now()->toDateString(), 'amount' => 200, 'reason' => 'Vendor adjustment',
         ])->assertCreated();
-        $this->getJson('/api/finance/reports/aging/payable')->assertOk()
-            ->assertJsonPath('data.0.invoice.number', 'BILL-001')
-            ->assertJsonPath('data.0.bucket', '1-30');
+
+        $this->postJson('/api/finance/payment-schedules', [
+            'invoice_id' => $invoice['id'], 'scheduled_for' => now()->addDays(3)->toDateString(), 'amount' => 900,
+        ])->assertUnprocessable();
+
+        $this->postJson('/api/finance/payment-schedules', [
+            'invoice_id' => $invoice['id'], 'scheduled_for' => now()->addDays(3)->toDateString(), 'amount' => 800,
+        ])->assertCreated();
+        $aging = collect($this->getJson('/api/finance/reports/aging/payable')->assertOk()->json('data'))
+            ->first(fn (array $row) => ($row['invoice']['number'] ?? null) === 'BILL-001');
+        $this->assertNotNull($aging);
+        $this->assertSame('1-30', $aging['bucket']);
         $this->get('/api/finance/reports/profit-loss?format=pdf')->assertOk()->assertHeader('content-type', 'application/pdf');
     }
 
