@@ -14,9 +14,15 @@ enum UserRole: string
         return array_column(self::cases(), 'value');
     }
 
+    /**
+     * Roles that live inside a company workspace, most privileged first.
+     *
+     * Company Admin is the workspace administrator: it never implies any
+     * organization-level access, which belongs to OrganizationMembership.
+     */
     public static function companyManagedValues(): array
     {
-        return [self::Manager->value, self::Employee->value];
+        return [self::CompanyAdmin->value, self::Manager->value, self::Employee->value];
     }
 
     public function requiresCompany(): bool

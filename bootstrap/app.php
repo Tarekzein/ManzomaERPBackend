@@ -1,10 +1,12 @@
 <?php
 
 use App\Modules\Platform\Http\Middleware\EnforceCompanyAccess;
+use App\Modules\Platform\Http\Middleware\ResolveCompanyContext;
 use App\Modules\Platform\Http\Middleware\TrackApiUsage;
 use App\Support\ApiResponse;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
@@ -30,10 +32,12 @@ return Application::configure(basePath: dirname(__DIR__))
             fn (Request $request) => $request->is('api/*') ? null : '/'
         );
         $middleware->appendToGroup('api', [
+            ResolveCompanyContext::class,
             EnforceCompanyAccess::class,
             TrackApiUsage::class,
             'throttle:erp-api',
         ]);
+        $middleware->appendToPriorityList(Authenticate::class, ResolveCompanyContext::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->shouldRenderJsonWhen(

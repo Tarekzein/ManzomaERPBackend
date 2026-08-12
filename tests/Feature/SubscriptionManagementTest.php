@@ -225,11 +225,20 @@ class SubscriptionManagementTest extends TestCase
             'current_period_ends_at' => now()->subDay(),
             'ends_at' => now()->subDay(),
         ])->save();
-        $company->forceFill(['is_active' => false])->save();
+        if ($company->organization_id !== null) {
+            $company->organization()->update(['billing_suspended_at' => now()]);
+        } else {
+            $company->forceFill(['is_active' => false])->save();
+        }
         $paymentsBefore = SubscriptionPayment::count();
         $through = now()->addMonths(3)->toDateString();
 
         Sanctum::actingAs($superAdmin);
+
+        $overview = $this->getJson('/api/subscriptions/admin/billing')->assertOk();
+        $companyOverview = collect($overview->json('data.companies'))->firstWhere('id', $company->id);
+        $this->assertSame($subscription->id, data_get($companyOverview, 'subscription.id'));
+        $this->assertSame('expired', data_get($companyOverview, 'subscription.status'));
 
         $this->postJson("/api/subscriptions/admin/companies/{$company->id}/renew-without-payment", [
             'through_date' => $through,
@@ -241,7 +250,17 @@ class SubscriptionManagementTest extends TestCase
 
         $subscription->refresh();
         $this->assertSame($through, $subscription->current_period_ends_at->toDateString());
-        $this->assertTrue($company->refresh()->is_active);
+        if ($company->organization_id !== null) {
+            $this->assertNull($company->organization()->firstOrFail()->billing_suspended_at);
+            $this->assertSame(1, $company->organization()->firstOrFail()->subscriptions()
+                ->whereIn('status', ['active', 'trialing', 'past_due'])
+                ->count());
+        } else {
+            $this->assertTrue($company->refresh()->is_active);
+            $this->assertSame(1, $company->subscriptions()
+                ->whereIn('status', ['active', 'trialing', 'past_due'])
+                ->count());
+        }
         $this->assertSame($paymentsBefore, SubscriptionPayment::count());
         $this->assertDatabaseHas('audit_logs', [
             'event' => 'subscription.admin_renewed_without_payment',

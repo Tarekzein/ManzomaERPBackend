@@ -64,6 +64,9 @@ class SubscriptionSeeder extends Seeder
                     'annual_price' => $plan['annual_price'],
                     'currency' => $plan['currency'],
                     'max_users' => $plan['max_users'],
+                    'max_companies' => array_key_exists('max_companies', $plan)
+                        ? $plan['max_companies']
+                        : 1,
                     'storage_gb' => $plan['storage_gb'],
                     'api_rate_limit_per_minute' => $plan['api_rate_limit_per_minute'],
                     'trial_enabled' => $plan['trial_enabled'] ?? false,

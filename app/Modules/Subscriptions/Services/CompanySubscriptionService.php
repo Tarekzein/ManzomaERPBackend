@@ -4,6 +4,8 @@ namespace App\Modules\Subscriptions\Services;
 
 use App\Modules\Authentication\Models\User;
 use App\Modules\Companies\Models\Company;
+use App\Modules\Organizations\Models\Organization;
+use App\Modules\Platform\Services\CompanyContext;
 use App\Modules\Subscriptions\Contracts\CompanySubscriptionRepository;
 use App\Modules\Subscriptions\Contracts\PlanRepository;
 use App\Modules\Subscriptions\DTOs\SubscribeData;
@@ -20,11 +22,23 @@ class CompanySubscriptionService
         private readonly CompanySubscriptionRepository $subscriptions,
         private readonly SubscriptionPolicy $policy,
         private readonly SubscriptionLifecycleService $lifecycle,
+        private readonly OrganizationQuotaService $quotas,
+        private readonly CompanyContext $context,
     ) {}
 
     public function current(User $user): ?CompanySubscription
     {
-        return $user->company ? $this->subscriptions->current($user->company) : null;
+        $company = $this->context->companyFor($user);
+
+        return $company ? $this->subscriptions->current($company) : null;
+    }
+
+    public function companyFor(User $user): Company
+    {
+        $company = $this->context->companyFor($user);
+        abort_unless($company, 422, 'An active company workspace is required.');
+
+        return $company;
     }
 
     public function currentForCompany(Company $company): ?CompanySubscription
@@ -37,6 +51,18 @@ class CompanySubscriptionService
         $this->policy->ensureCanSubscribe($actor);
     }
 
+    public function ensurePlanFits(Company $company, SubscriptionPlan $plan): void
+    {
+        if ($company->organization) {
+            $this->quotas->ensurePlanFits($company->organization, $plan);
+        }
+    }
+
+    public function quotaUsage(Company $company): ?array
+    {
+        return $company->organization ? $this->quotas->usage($company->organization) : null;
+    }
+
     /**
      * Direct activation without a payment. Only free plans and super-admin
      * assignments take this path; paid plans go through Paymob checkout.
@@ -45,16 +71,18 @@ class CompanySubscriptionService
     {
         $this->policy->ensureCanSubscribe($actor);
 
-        return $this->start($actor->company, $data, ['subscribed_by_user_id' => $actor->id]);
+        return $this->start($this->companyFor($actor), $data, ['subscribed_by_user_id' => $actor->id]);
     }
 
     public function start(Company $company, SubscribeData $data, array $metadata = [], array $attributes = []): CompanySubscription
     {
         return DB::transaction(function () use ($company, $data, $metadata, $attributes) {
+            $this->lockOrganization($company);
             $plan = $this->plans->findActiveBySlug($data->planSlug);
-            $company->update(['plan' => $plan->slug]);
+            $this->ensurePlanFits($company, $plan);
+            $this->projectPlanToCompanies($company, $plan);
 
-            return $this->subscriptions->replaceActive(
+            $subscription = $this->subscriptions->replaceActive(
                 $company,
                 $plan,
                 $data->billingCycle,
@@ -63,11 +91,19 @@ class CompanySubscriptionService
                 null,
                 $attributes,
             );
+
+            // Starting a new serving subscription is also the recovery path
+            // after an organization (or legacy company) settles an overdue
+            // bill. Keep administrative company suspension independent: the
+            // lifecycle service only clears the billing-owned suspension.
+            $this->lifecycle->restoreAccess($subscription);
+
+            return $subscription->refresh()->load('plan.features');
         });
     }
 
     /**
-     * A plan's trial is offered once per company, so switching plans cannot be
+     * A plan's trial is offered once per organization, so switching plans cannot be
      * used to stack free periods.
      */
     public function trialEligible(?Company $company, SubscriptionPlan $plan): bool
@@ -80,6 +116,13 @@ class CompanySubscriptionService
 
     public function hasUsedTrial(Company $company): bool
     {
+        if ($company->organization_id !== null) {
+            return CompanySubscription::query()
+                ->where('organization_id', $company->organization_id)
+                ->whereNotNull('trial_ends_at')
+                ->exists();
+        }
+
         return $company->subscriptions()->whereNotNull('trial_ends_at')->exists();
     }
 
@@ -87,35 +130,37 @@ class CompanySubscriptionService
     public function startTrialFor(User $actor, SubscriptionPlan $plan, string $billingCycle): CompanySubscription
     {
         $this->policy->ensureCanSubscribe($actor);
-        $company = $actor->company;
+        $company = $this->companyFor($actor);
 
         abort_unless(
             $this->trialEligible($company, $plan),
             422,
-            'This company has already used its free trial.'
+            'This organization has already used its free trial.'
         );
 
-        $subscription = $this->startTrial(
+        return $this->startTrial(
             $company,
             new SubscribeData($plan->slug, $billingCycle),
             (int) $plan->trial_days,
             ['source' => 'in_app_trial', 'subscribed_by_user_id' => $actor->id],
         );
-
-        // A company suspended for non-payment comes back with the trial.
-        $this->lifecycle->restoreAccess($subscription);
-
-        return $subscription->refresh()->load('plan.features');
     }
 
     public function startTrial(Company $company, SubscribeData $data, int $trialDays, array $metadata = []): CompanySubscription
     {
         return DB::transaction(function () use ($company, $data, $trialDays, $metadata) {
+            $this->lockOrganization($company);
+            abort_if(
+                $this->hasUsedTrial($company),
+                422,
+                'This organization has already used its free trial.'
+            );
             $plan = $this->plans->findActiveBySlug($data->planSlug);
+            $this->ensurePlanFits($company, $plan);
             $trialEndsAt = now()->addDays($trialDays);
-            $company->update(['plan' => $plan->slug]);
+            $this->projectPlanToCompanies($company, $plan);
 
-            return $this->subscriptions->replaceActive(
+            $subscription = $this->subscriptions->replaceActive(
                 $company,
                 $plan,
                 $data->billingCycle,
@@ -123,6 +168,10 @@ class CompanySubscriptionService
                 SubscriptionStatus::Trialing->value,
                 $trialEndsAt,
             );
+
+            $this->lifecycle->restoreAccess($subscription);
+
+            return $subscription->refresh()->load('plan.features');
         });
     }
 
@@ -178,9 +227,33 @@ class CompanySubscriptionService
     private function requireCurrent(User $actor): CompanySubscription
     {
         $this->policy->ensureCanSubscribe($actor);
-        $subscription = $this->subscriptions->current($actor->company);
+        $subscription = $this->subscriptions->current($this->companyFor($actor));
         abort_unless($subscription, 404, 'No active subscription was found.');
 
         return $subscription;
+    }
+
+    private function lockOrganization(Company $company): ?Organization
+    {
+        if ($company->organization_id === null) {
+            Company::query()->whereKey($company->getKey())->lockForUpdate()->firstOrFail();
+
+            return null;
+        }
+
+        return Organization::query()->whereKey($company->organization_id)->lockForUpdate()->firstOrFail();
+    }
+
+    private function projectPlanToCompanies(Company $company, SubscriptionPlan $plan): void
+    {
+        if ($company->organization_id === null) {
+            $company->update(['plan' => $plan->slug]);
+
+            return;
+        }
+
+        Company::query()
+            ->where('organization_id', $company->organization_id)
+            ->update(['plan' => $plan->slug]);
     }
 }

@@ -13,7 +13,7 @@ class SubscriptionPlan extends Model
 
     protected $fillable = [
         'slug', 'name', 'description', 'monthly_price', 'annual_price', 'currency',
-        'max_users', 'storage_gb', 'api_rate_limit_per_minute', 'trial_enabled',
+        'max_users', 'max_companies', 'storage_gb', 'api_rate_limit_per_minute', 'trial_enabled',
         'trial_days', 'is_active', 'sort_order',
     ];
 
@@ -22,6 +22,10 @@ class SubscriptionPlan extends Model
         return [
             'monthly_price' => 'decimal:2',
             'annual_price' => 'decimal:2',
+            'max_users' => 'integer',
+            'max_companies' => 'integer',
+            'storage_gb' => 'integer',
+            'api_rate_limit_per_minute' => 'integer',
             'is_active' => 'boolean',
             'trial_enabled' => 'boolean',
             'trial_days' => 'integer',

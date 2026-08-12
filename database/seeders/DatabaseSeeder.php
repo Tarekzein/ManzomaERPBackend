@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
             ReportingSeeder::class,
             NotificationSeeder::class,
             CustomModuleSeeder::class,
+            OrganizationStructureSeeder::class,
         ]);
     }
 }

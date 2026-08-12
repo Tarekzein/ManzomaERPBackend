@@ -16,4 +16,6 @@ interface UserRepository
     public function paginate(?int $companyId, int $perPage): LengthAwarePaginator;
 
     public function loadProfile(User $user): User;
+
+    public function loadSessionProfile(User $user): User;
 }

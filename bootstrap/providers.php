@@ -9,6 +9,7 @@ use App\Modules\HR\Providers\HRServiceProvider;
 use App\Modules\Inventory\Providers\InventoryServiceProvider;
 use App\Modules\MetaIntegration\Providers\MetaIntegrationServiceProvider;
 use App\Modules\Notifications\Providers\NotificationsServiceProvider;
+use App\Modules\Organizations\Providers\OrganizationsServiceProvider;
 use App\Modules\Platform\Providers\PlatformServiceProvider;
 use App\Modules\Projects\Providers\ProjectsServiceProvider;
 use App\Modules\Reporting\Providers\ReportingServiceProvider;
@@ -26,6 +27,7 @@ return [
     FinanceServiceProvider::class,
     InventoryServiceProvider::class,
     NotificationsServiceProvider::class,
+    OrganizationsServiceProvider::class,
     HRServiceProvider::class,
     SubscriptionsServiceProvider::class,
     AuthenticationServiceProvider::class,

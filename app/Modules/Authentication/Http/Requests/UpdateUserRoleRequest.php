@@ -2,6 +2,7 @@
 
 namespace App\Modules\Authentication\Http\Requests;
 
+use App\Modules\Authentication\Enums\UserRole;
 use App\Modules\Authentication\Services\UserManagementService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -16,7 +17,15 @@ class UpdateUserRoleRequest extends FormRequest
 
         return [
             'role' => ['required', Rule::in($roles)],
-            'company_id' => ['nullable', 'required_if:role,Company Admin', 'integer', 'exists:companies,id'],
+            // Only a super admin picks the company: everyone else edits the
+            // user inside their own resolved workspace.
+            'company_id' => [
+                'nullable',
+                Rule::requiredIf(fn () => $this->user()?->isSuperAdmin()
+                    && $this->input('role') === UserRole::CompanyAdmin->value),
+                'integer',
+                'exists:companies,id',
+            ],
             'permissions' => ['sometimes', 'array'],
             'permissions.*' => ['required', 'string', Rule::in($permissions)],
             'allowed_permissions' => ['sometimes', 'array'],

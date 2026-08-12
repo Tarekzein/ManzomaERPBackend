@@ -601,7 +601,18 @@ class CRMService
 
     private function ensureCompanyUser(int $companyId, ?int $id): void
     {
-        if ($id && ! User::where('company_id', $companyId)->whereKey($id)->exists()) {
+        if ($id && ! User::query()
+            ->whereKey($id)
+            ->where(function ($query) use ($companyId) {
+                $query->whereHas('companyMemberships', fn ($memberships) => $memberships
+                    ->where('company_id', $companyId)
+                    ->where('status', 'active'))
+                    ->orWhere(function ($legacy) use ($companyId) {
+                        $legacy->where('company_id', $companyId)
+                            ->whereDoesntHave('companyMemberships');
+                    });
+            })
+            ->exists()) {
             throw ValidationException::withMessages(['owner_id' => ['The selected user belongs to another company.']]);
         }
     }

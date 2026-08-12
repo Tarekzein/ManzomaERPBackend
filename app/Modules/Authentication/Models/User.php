@@ -5,11 +5,15 @@ namespace App\Modules\Authentication\Models;
 use App\Modules\Authentication\Enums\UserRole;
 use App\Modules\Companies\Models\Company;
 use App\Modules\HR\Models\Employee;
+use App\Modules\Organizations\Models\CompanyMembership;
+use App\Modules\Organizations\Models\Organization;
+use App\Modules\Organizations\Models\OrganizationMembership;
 use App\Modules\Platform\Services\EffectiveAccessService;
-use Database\Factories\UserFactory;
 use BackedEnum;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -26,6 +30,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'company_id',
+        'default_company_id',
         'custom_role_id',
         'name',
         'email',
@@ -61,6 +66,43 @@ class User extends Authenticatable
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function defaultCompany(): BelongsTo
+    {
+        return $this->belongsTo(Company::class, 'default_company_id');
+    }
+
+    public function organizationMemberships(): HasMany
+    {
+        return $this->hasMany(OrganizationMembership::class);
+    }
+
+    public function companyMemberships(): HasMany
+    {
+        return $this->hasMany(CompanyMembership::class);
+    }
+
+    public function organizations(): BelongsToMany
+    {
+        return $this->belongsToMany(Organization::class, 'organization_memberships')
+            ->withPivot(['role', 'status', 'joined_at', 'invited_by_user_id', 'suspended_at'])
+            ->withTimestamps();
+    }
+
+    public function companies(): BelongsToMany
+    {
+        return $this->belongsToMany(Company::class, 'company_memberships')
+            ->withPivot([
+                'organization_id',
+                'role_id',
+                'custom_role_id',
+                'status',
+                'joined_at',
+                'invited_by_user_id',
+                'suspended_at',
+            ])
+            ->withTimestamps();
     }
 
     public function customRole(): BelongsTo

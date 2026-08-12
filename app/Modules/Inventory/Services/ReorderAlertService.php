@@ -2,7 +2,6 @@
 
 namespace App\Modules\Inventory\Services;
 
-use App\Modules\Authentication\Models\User;
 use App\Modules\Inventory\Models\ReorderAlert;
 use App\Modules\Inventory\Models\StockBalance;
 use App\Modules\Notifications\Services\NotificationService;
@@ -20,7 +19,7 @@ class ReorderAlertService
                 ['company_id' => $balance->company_id, 'quantity' => $balance->quantity, 'reorder_point' => $balance->reorder_point]
             );
             if ($alert->wasRecentlyCreated) {
-                $recipients = User::where('company_id', $balance->company_id)->permission('inventory.edit')->get();
+                $recipients = $this->notifications->recipientsForCompany((int) $balance->company_id, 'inventory.edit');
                 $this->notifications->send(
                     $recipients,
                     'inventory.reorder',
@@ -29,6 +28,7 @@ class ReorderAlertService
                     ['reorder_alert_id' => $alert->id, 'product_id' => $balance->product_id, 'warehouse_id' => $balance->warehouse_id],
                     '/inventory',
                     'critical',
+                    $balance->company_id,
                 );
             }
         } elseif ($open) {

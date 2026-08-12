@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Authentication\Models\User;
 use App\Modules\MetaIntegration\Models\MetaPage;
 use App\Modules\Platform\Models\SocialInteraction;
+use App\Modules\Platform\Services\CompanyContext;
 use App\Modules\Platform\Services\SocialInboxService;
 use App\Modules\Platform\Services\SocialPublishingService;
 use App\Support\ApiResponse;
@@ -19,7 +20,10 @@ use Illuminate\Validation\Rule;
  */
 class SocialInboxController extends Controller
 {
-    public function __construct(private readonly SocialInboxService $inbox) {}
+    public function __construct(
+        private readonly SocialInboxService $inbox,
+        private readonly CompanyContext $context,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -160,8 +164,9 @@ class SocialInboxController extends Controller
         $user = $request->user();
 
         abort_unless($user->can($permission), 403, 'You are not allowed to manage the social inbox.');
-        abort_unless($user->company_id !== null, 403, 'A company assignment is required.');
+        $companyId = $this->context->companyIdFor($user);
+        abort_unless($companyId !== null, 403, 'A company assignment is required.');
 
-        return (int) $user->company_id;
+        return $companyId;
     }
 }

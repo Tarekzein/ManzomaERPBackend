@@ -14,6 +14,9 @@ use App\Modules\Companies\DTOs\CreateCompanyData;
 use App\Modules\Companies\Services\CompanyService;
 use App\Modules\Finance\Services\FinanceSetupService;
 use App\Modules\Inventory\Services\InventorySetupService;
+use App\Modules\Organizations\Models\CompanyMembership;
+use App\Modules\Organizations\Models\Organization;
+use App\Modules\Organizations\Models\OrganizationMembership;
 use App\Modules\Subscriptions\DTOs\SubscribeData;
 use App\Modules\Subscriptions\Models\SubscriptionPlan;
 use App\Modules\Subscriptions\Services\CompanySubscriptionService;
@@ -24,6 +27,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
 use Laravel\Fortify\Fortify;
+use Spatie\Permission\Models\Role;
 
 class AuthenticationService
 {
@@ -61,7 +65,7 @@ class AuthenticationService
                     'ends_at' => $activation['subscription']->trial_ends_at?->toISOString(),
                 ],
                 'company' => $activation['payment']->company,
-                'user' => $this->users->loadProfile($user),
+                'user' => $this->users->loadSessionProfile($user),
                 'plan' => $activation['payment']->plan,
                 'payment' => $activation['payment'],
                 'subscription' => $activation['subscription'],
@@ -86,7 +90,7 @@ class AuthenticationService
                 'error' => $payment->failure_reason,
             ],
             'company' => $payment->company,
-            'user' => $this->users->loadProfile($user),
+            'user' => $this->users->loadSessionProfile($user),
             'plan' => $payment->plan,
             'payment' => $payment,
         ];
@@ -95,6 +99,15 @@ class AuthenticationService
     public function createCompanyAdmin(RegisterData $data, bool $active = true): User
     {
         return DB::transaction(function () use ($data, $active) {
+            $organization = Organization::query()->create([
+                'name' => $data->companyName,
+                'status' => Organization::STATUS_ACTIVE,
+                'billing_email' => $data->email,
+                'timezone' => config('app.timezone'),
+                'locale' => config('app.locale'),
+                'currency' => 'EGP',
+                'settings' => [],
+            ]);
             $company = $this->companies->create(
                 new CreateCompanyData(
                     $data->companyName,
@@ -104,16 +117,37 @@ class AuthenticationService
                 ),
                 $data->planSlug,
                 $active,
+                $organization,
             );
 
             $user = $this->users->create([
                 'company_id' => $company->id,
+                'default_company_id' => $company->id,
                 'name' => $data->name,
                 'email' => $data->email,
                 'password' => Hash::make($data->password),
             ]);
 
             $this->roles->assign($user, UserRole::CompanyAdmin->value);
+            $organization->forceFill(['created_by_user_id' => $user->getKey()])->save();
+            OrganizationMembership::query()->create([
+                'organization_id' => $organization->getKey(),
+                'user_id' => $user->getKey(),
+                'role' => OrganizationMembership::ROLE_OWNER,
+                'status' => OrganizationMembership::STATUS_ACTIVE,
+                'joined_at' => now(),
+            ]);
+            CompanyMembership::query()->create([
+                'organization_id' => $organization->getKey(),
+                'company_id' => $company->getKey(),
+                'user_id' => $user->getKey(),
+                'role_id' => Role::findByName(
+                    UserRole::CompanyAdmin->value,
+                    'web',
+                )->getKey(),
+                'status' => CompanyMembership::STATUS_ACTIVE,
+                'joined_at' => now(),
+            ]);
             if ($active) {
                 $this->subscriptions->start(
                     $company,
@@ -124,7 +158,7 @@ class AuthenticationService
                 $this->inventorySetup->provision($company);
             }
 
-            return $this->users->loadProfile($user);
+            return $this->users->loadSessionProfile($user);
         });
     }
 
@@ -136,9 +170,7 @@ class AuthenticationService
         // EnforceCompanyAccess narrows it down to the billing endpoints.
         $accountIsActive = $user !== null
             && $user->is_active === true
-            && ($user->isSuperAdmin()
-                || $user->company?->is_active === true
-                || $user->company?->isBillingSuspended() === true);
+            && ($user->isSuperAdmin() || $this->hasAccessibleTenant($user));
         $success = $credentialsAreValid && $accountIsActive;
 
         $this->loginAttempts->record([
@@ -164,7 +196,7 @@ class AuthenticationService
 
     public function profile(User $user): User
     {
-        return $this->users->loadProfile($user);
+        return $this->users->loadSessionProfile($user);
     }
 
     public function logout(User $user): void
@@ -188,13 +220,13 @@ class AuthenticationService
             'must_change_password' => false,
         ])->save();
 
-        return $this->users->loadProfile($user);
+        return $this->users->loadSessionProfile($user);
     }
 
     public function tokenResponse(User $user, string $deviceName): array
     {
         return [
-            'user' => $this->users->loadProfile($user),
+            'user' => $this->users->loadSessionProfile($user),
             'token' => $user->createToken($deviceName)->plainTextToken,
         ];
     }
@@ -246,6 +278,44 @@ class AuthenticationService
                 'expires_at' => now()->addDays(90),
             ],
         );
+    }
+
+    /**
+     * An unpaid registration and an administratively suspended company must
+     * not become login-capable merely because their organization membership
+     * already exists. Organization-only members may still sign in to manage
+     * the organization, and billing-suspended tenants may sign in to recover.
+     */
+    private function hasAccessibleTenant(User $user): bool
+    {
+        $memberships = $user->organizationMemberships()
+            ->where('status', OrganizationMembership::STATUS_ACTIVE)
+            ->whereHas('organization', fn ($query) => $query->where('status', '!=', Organization::STATUS_ARCHIVED))
+            ->with('organization')
+            ->get();
+
+        foreach ($memberships as $membership) {
+            if ($membership->organization?->billing_suspended_at !== null) {
+                return true;
+            }
+
+            $companyMemberships = $user->companyMemberships()
+                ->where('organization_id', $membership->organization_id)
+                ->where('status', CompanyMembership::STATUS_ACTIVE);
+
+            if (! $companyMemberships->exists()) {
+                return true;
+            }
+
+            if ($companyMemberships->whereHas('company', fn ($query) => $query
+                ->whereNull('archived_at')
+                ->where('is_active', true))->exists()) {
+                return true;
+            }
+        }
+
+        return $user->company?->is_active === true
+            || $user->company?->isBillingSuspended() === true;
     }
 
     private function deviceFingerprint(LoginData $data): string

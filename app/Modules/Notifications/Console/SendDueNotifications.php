@@ -2,7 +2,6 @@
 
 namespace App\Modules\Notifications\Console;
 
-use App\Modules\Authentication\Models\User;
 use App\Modules\CRM\Models\CRMTask;
 use App\Modules\Finance\Models\Invoice;
 use App\Modules\Notifications\Services\NotificationService;
@@ -19,14 +18,14 @@ class SendDueNotifications extends Command
     public function handle(NotificationService $notifications): int
     {
         CRMTask::with('assignee')->whereIn('status', ['open', 'in_progress'])->whereBetween('reminder_at', [now()->subMinute(), now()])->each(
-            fn (CRMTask $task) => $task->assignee && $notifications->send($task->assignee, 'crm.followup.due', 'CRM follow-up due', $task->title, ['task_id' => $task->id], '/crm', 'warning')
+            fn (CRMTask $task) => $task->assignee && $notifications->send($task->assignee, 'crm.followup.due', 'CRM follow-up due', $task->title, ['task_id' => $task->id], '/crm', 'warning', $task->company_id)
         );
         ProjectTask::with('assignee', 'project')->where('status', '!=', TaskStatus::Done->value)->whereDate('due_date', today())->each(
-            fn (ProjectTask $task) => $task->assignee && $notifications->send($task->assignee, 'projects.task.due', 'Project task due today', $task->title, ['task_id' => $task->id], '/projects', 'warning')
+            fn (ProjectTask $task) => $task->assignee && $notifications->send($task->assignee, 'projects.task.due', 'Project task due today', $task->title, ['task_id' => $task->id], '/projects', 'warning', $task->project->company_id)
         );
         Invoice::whereNotIn('status', ['paid', 'cancelled'])->whereDate('due_date', '<', today())->each(function (Invoice $invoice) use ($notifications) {
-            $users = User::where('company_id', $invoice->company_id)->permission('finance.edit')->get();
-            $notifications->send($users, 'finance.invoice.overdue', 'Invoice overdue', "Invoice {$invoice->number} is overdue.", ['invoice_id' => $invoice->id], '/finance', 'critical');
+            $users = $notifications->recipientsForCompany((int) $invoice->company_id, 'finance.edit');
+            $notifications->send($users, 'finance.invoice.overdue', 'Invoice overdue', "Invoice {$invoice->number} is overdue.", ['invoice_id' => $invoice->id], '/finance', 'critical', $invoice->company_id);
         });
 
         return self::SUCCESS;

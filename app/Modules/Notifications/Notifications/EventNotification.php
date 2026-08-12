@@ -18,6 +18,7 @@ class EventNotification extends Notification
         private readonly ?string $actionUrl = null,
         private readonly string $severity = 'info',
         private readonly array $channels = ['database'],
+        public readonly ?int $companyId = null,
     ) {}
 
     public function via(object $notifiable): array
@@ -30,6 +31,7 @@ class EventNotification extends Notification
         return [
             'event_type' => $this->eventType, 'title' => $this->title, 'message' => $this->message,
             'severity' => $this->severity, 'action_url' => $this->actionUrl, 'payload' => $this->payload,
+            'company_id' => $this->companyId,
         ];
     }
 

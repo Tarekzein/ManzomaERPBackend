@@ -7,10 +7,12 @@ use App\Modules\Authentication\Models\User;
 use App\Modules\Companies\Models\Company;
 use App\Modules\Finance\Services\FinanceSetupService;
 use App\Modules\Inventory\Services\InventorySetupService;
+use App\Modules\Organizations\Models\Organization;
 use App\Modules\Subscriptions\Contracts\PaymobGateway;
 use App\Modules\Subscriptions\DTOs\SubscribeData;
 use App\Modules\Subscriptions\Enums\PaymentPurpose;
 use App\Modules\Subscriptions\Enums\SubscriptionStatus;
+use App\Modules\Subscriptions\Exceptions\OrganizationQuotaExceededException;
 use App\Modules\Subscriptions\Exceptions\PaymobException;
 use App\Modules\Subscriptions\Models\CompanySubscription;
 use App\Modules\Subscriptions\Models\SubscriptionPayment;
@@ -23,6 +25,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class SubscriptionPaymentService
 {
@@ -62,12 +65,18 @@ class SubscriptionPaymentService
     public function createUpgradeCheckout(User $actor, SubscriptionPlan $plan, string $billingCycle): SubscriptionPayment
     {
         $this->subscriptions->ensureCanManageBilling($actor);
+        $company = $this->subscriptions->companyFor($actor);
+        $this->subscriptions->ensurePlanFits($company, $plan);
         $subscription = $this->subscriptions->current($actor);
 
         // Asking for the same plan again reuses the open invoice, so a customer
         // who clicks twice cannot end up with two payable Paymob orders.
         $open = SubscriptionPayment::query()
-            ->where('company_id', $actor->company_id)
+            ->when(
+                $company->organization_id !== null,
+                fn ($query) => $query->where('organization_id', $company->organization_id),
+                fn ($query) => $query->where('company_id', $company->getKey()),
+            )
             ->where('purpose', PaymentPurpose::Upgrade->value)
             ->where('subscription_plan_id', $plan->id)
             ->where('billing_cycle', $billingCycle)
@@ -80,7 +89,7 @@ class SubscriptionPaymentService
         }
 
         $payment = $this->newPayment(
-            company: $actor->company,
+            company: $company,
             user: $actor,
             plan: $plan,
             billingCycle: $billingCycle,
@@ -240,6 +249,8 @@ class SubscriptionPaymentService
             $payment = SubscriptionPayment::create([
                 'reference' => (string) Str::uuid(),
                 'company_id' => $admin->company_id,
+                'organization_id' => $company->organization_id,
+                'initiated_from_company_id' => $admin->company_id,
                 'company_subscription_id' => $subscription->id,
                 'user_id' => $admin->id,
                 'subscription_plan_id' => $plan->id,
@@ -293,14 +304,22 @@ class SubscriptionPaymentService
     {
         return SubscriptionPayment::with('company', 'plan.features')
             ->where('reference', $reference)
-            ->where('company_id', $company->id)
+            ->when(
+                $company->organization_id !== null,
+                fn ($query) => $query->where('organization_id', $company->organization_id),
+                fn ($query) => $query->where('company_id', $company->id),
+            )
             ->firstOrFail();
     }
 
     public function history(Company $company, int $limit = 50)
     {
         return SubscriptionPayment::with('plan:id,slug,name')
-            ->where('company_id', $company->id)
+            ->when(
+                $company->organization_id !== null,
+                fn ($query) => $query->where('organization_id', $company->organization_id),
+                fn ($query) => $query->where('company_id', $company->id),
+            )
             ->latest('id')
             ->limit($limit)
             ->get();
@@ -353,17 +372,26 @@ class SubscriptionPaymentService
             return $this->storeCardToken($payment, $normalized);
         }
 
-        // Keep the transaction that settled the invoice; a later one is a
-        // duplicate charge and is recorded separately rather than overwriting.
-        $settled = $payment->isSettled();
+        // Serialize callback bookkeeping with settlement. In particular, a
+        // late failure callback must never overwrite the transaction id that
+        // captured the money in a concurrent success callback.
+        $payment = DB::transaction(function () use ($payment, $normalized, $payload) {
+            $locked = SubscriptionPayment::query()
+                ->whereKey($payment->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+            $settled = $locked->isSettled();
 
-        $payment->forceFill([
-            'provider_order_id' => $normalized['provider_order_id'] ?: $payment->provider_order_id,
-            'provider_transaction_id' => $settled
-                ? $payment->provider_transaction_id
-                : ($normalized['provider_transaction_id'] ?: $payment->provider_transaction_id),
-            'callback_payload' => $payload,
-        ])->save();
+            $locked->forceFill([
+                'provider_order_id' => $normalized['provider_order_id'] ?: $locked->provider_order_id,
+                'provider_transaction_id' => $settled
+                    ? $locked->provider_transaction_id
+                    : ($normalized['provider_transaction_id'] ?: $locked->provider_transaction_id),
+                'callback_payload' => $payload,
+            ])->save();
+
+            return $locked->refresh();
+        });
 
         return match ($normalized['status']) {
             'succeeded' => $this->markSucceeded($payment, [
@@ -378,12 +406,25 @@ class SubscriptionPaymentService
 
     public function markSucceeded(SubscriptionPayment $payment, array $metadata = []): array
     {
-        return DB::transaction(function () use ($payment, $metadata) {
+        $capture = DB::transaction(function () use ($payment, $metadata) {
             $locked = SubscriptionPayment::query()
                 ->with('company', 'user.roles.permissions', 'plan.features')
                 ->whereKey($payment->id)
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            // A committed activation-pending row means Paymob was already
+            // acknowledged, but the activation transaction did not finish
+            // (for example, the worker died). Re-entering is safe because the
+            // entitlement mutation and final status update commit together.
+            if ($locked->status === SubscriptionPayment::STATUS_ACTIVATION_PENDING) {
+                $this->recordDuplicateCharge($locked, $metadata);
+                $locked->forceFill([
+                    'metadata' => array_replace($locked->metadata ?? [], $metadata),
+                ])->save();
+
+                return ['payment' => $locked->refresh(), 'activate' => true];
+            }
 
             // Already paid: a repeated callback is a no-op, but a *different*
             // transaction means the customer was charged twice and someone
@@ -391,7 +432,7 @@ class SubscriptionPaymentService
             if ($locked->isSettled()) {
                 $this->recordDuplicateCharge($locked, $metadata);
 
-                return ['payment' => $locked, 'auth' => null];
+                return ['payment' => $locked->refresh(), 'activate' => false];
             }
 
             // A superseded invoice (an older checkout link that was paid after
@@ -409,80 +450,242 @@ class SubscriptionPaymentService
                     'transaction' => $locked->provider_transaction_id,
                 ]);
 
-                return ['payment' => $locked, 'auth' => null];
+                return ['payment' => $locked, 'activate' => false];
             }
 
+            $capturedAt = now();
             $locked->forceFill([
-                'status' => SubscriptionPayment::STATUS_SUCCEEDED,
-                'paid_at' => now(),
+                'status' => SubscriptionPayment::STATUS_ACTIVATION_PENDING,
+                'paid_at' => $capturedAt,
                 'failed_at' => null,
                 'failure_reason' => null,
                 'next_retry_at' => null,
-                'metadata' => array_replace($locked->metadata ?? [], $metadata),
+                'provider_transaction_id' => $metadata['provider_transaction_id']
+                    ?? $locked->provider_transaction_id,
+                'metadata' => array_replace($locked->metadata ?? [], $metadata, [
+                    'provider_payment_captured' => true,
+                    'provider_payment_captured_at' => $capturedAt->toISOString(),
+                ]),
             ])->save();
 
-            $subscription = $locked->isRenewal()
-                ? $this->applyRenewal($locked)
-                : $this->activateFromPayment($locked);
-
-            $locked->forceFill(['company_subscription_id' => $subscription?->id])->save();
-            $this->supersedeOpenInvoices($locked);
-
-            if ($subscription) {
-                $this->notifier->paymentSucceeded($subscription, $locked);
-            }
-
-            return [
-                'payment' => $locked->fresh(['company', 'plan.features']),
-                'subscription' => $subscription?->fresh(['plan.features']),
-                'auth' => null,
-            ];
+            return ['payment' => $locked->refresh(), 'activate' => true];
         });
+
+        if (! $capture['activate']) {
+            return ['payment' => $capture['payment'], 'auth' => null];
+        }
+
+        try {
+            $result = DB::transaction(function () use ($capture) {
+                /** @var SubscriptionPayment $captured */
+                $captured = $capture['payment'];
+                $this->lockPaymentBillingOwner($captured);
+
+                $locked = SubscriptionPayment::query()
+                    ->with('company', 'user.roles.permissions', 'plan.features', 'subscription')
+                    ->whereKey($captured->getKey())
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                // Another callback may have completed activation while this
+                // request waited for the organization lock.
+                if ($locked->status !== SubscriptionPayment::STATUS_ACTIVATION_PENDING) {
+                    return ['payment' => $locked, 'auth' => null];
+                }
+
+                $subscription = $locked->isRenewal()
+                    ? $this->applyRenewal($locked)
+                    : $this->activateFromPayment($locked);
+
+                $locked->forceFill([
+                    'status' => SubscriptionPayment::STATUS_SUCCEEDED,
+                    'company_subscription_id' => $subscription?->id,
+                    'failure_reason' => null,
+                    'metadata' => array_replace($locked->metadata ?? [], [
+                        'activation_completed_at' => now()->toISOString(),
+                    ]),
+                ])->save();
+                $this->supersedeOpenInvoices($locked);
+
+                return [
+                    'payment' => $locked->fresh(['company', 'plan.features']),
+                    'subscription' => $subscription?->fresh(['plan.features']),
+                    'auth' => null,
+                ];
+            });
+        } catch (Throwable $exception) {
+            Log::error('[subscriptions] payment captured but entitlement activation failed', [
+                'payment_id' => $payment->getKey(),
+                'reference' => $payment->reference,
+                'organization_id' => $payment->organization_id,
+                'company_id' => $payment->company_id,
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+            ]);
+
+            return DB::transaction(function () use ($payment, $exception) {
+                $this->lockPaymentBillingOwner($payment);
+                $locked = SubscriptionPayment::query()
+                    ->with('company', 'plan.features')
+                    ->whereKey($payment->getKey())
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                // Do not overwrite a successful activation completed by a
+                // concurrent callback after the failed attempt rolled back.
+                if ($locked->status === SubscriptionPayment::STATUS_ACTIVATION_PENDING) {
+                    $activationError = $exception instanceof OrganizationQuotaExceededException
+                        ? [
+                            'code' => $exception->errorCode,
+                            'message' => $exception->getMessage(),
+                            'details' => $exception->details,
+                        ]
+                        : [
+                            'code' => 'SUBSCRIPTION_ACTIVATION_FAILED',
+                            'message' => 'Subscription activation failed after payment capture.',
+                        ];
+
+                    $locked->forceFill([
+                        'status' => SubscriptionPayment::STATUS_REQUIRES_REVIEW,
+                        'failure_reason' => 'Payment captured; subscription activation requires manual review.',
+                        'checkout_url' => null,
+                        'checkout_expires_at' => null,
+                        'next_retry_at' => null,
+                        'metadata' => array_replace($locked->metadata ?? [], [
+                            'activation_error' => $activationError + ['occurred_at' => now()->toISOString()],
+                        ]),
+                    ])->save();
+                    $this->supersedeOpenInvoices($locked);
+                }
+
+                return [
+                    'payment' => $locked->fresh(['company', 'plan.features']),
+                    'subscription' => null,
+                    'auth' => null,
+                ];
+            });
+        }
+
+        if (($result['subscription'] ?? null) instanceof CompanySubscription) {
+            try {
+                $this->notifier->paymentSucceeded($result['subscription'], $result['payment']);
+            } catch (Throwable $exception) {
+                // Notification delivery is not part of entitlement integrity;
+                // payment and activation have already committed successfully.
+                Log::error('[subscriptions] payment succeeded notification failed', [
+                    'payment_id' => $result['payment']->getKey(),
+                    'subscription_id' => $result['subscription']->getKey(),
+                    'exception' => $exception::class,
+                    'message' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        return $result;
     }
 
     public function markFailed(SubscriptionPayment $payment, array $metadata = [], ?string $reason = null): array
     {
-        if ($payment->isSuccessful()) {
-            return ['payment' => $payment, 'auth' => null];
+        $result = DB::transaction(function () use ($payment, $metadata, $reason) {
+            $locked = SubscriptionPayment::query()
+                ->with('company', 'plan.features', 'subscription')
+                ->whereKey($payment->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($locked->isSettled()) {
+                return ['payment' => $locked, 'subscription' => null, 'notify' => false];
+            }
+
+            $locked->forceFill([
+                'status' => SubscriptionPayment::STATUS_FAILED,
+                'failed_at' => now(),
+                'failure_reason' => $reason ? Str::limit($reason, 250, '') : $locked->failure_reason,
+                'metadata' => array_replace($locked->metadata ?? [], $metadata),
+            ])->save();
+
+            return [
+                'payment' => $locked->fresh(['company', 'plan.features']),
+                'subscription' => $locked->subscription,
+                'notify' => $locked->isRenewal() && $locked->subscription !== null,
+            ];
+        });
+
+        if ($result['notify']) {
+            $this->notifier->paymentFailed($result['subscription'], $result['payment'], $reason);
         }
 
-        $payment->forceFill([
-            'status' => SubscriptionPayment::STATUS_FAILED,
-            'failed_at' => now(),
-            'failure_reason' => $reason ? Str::limit($reason, 250, '') : $payment->failure_reason,
-            'metadata' => array_replace($payment->metadata ?? [], $metadata),
-        ])->save();
-
-        $subscription = $payment->subscription;
-
-        if ($payment->isRenewal() && $subscription) {
-            $this->notifier->paymentFailed($subscription, $payment->refresh(), $reason);
-        }
-
-        return ['payment' => $payment->fresh(['company', 'plan.features']), 'auth' => null];
+        return ['payment' => $result['payment'], 'auth' => null];
     }
 
     public function markRefunded(SubscriptionPayment $payment, string $status = 'refunded'): array
     {
-        $payment->forceFill([
-            'status' => SubscriptionPayment::STATUS_REFUNDED,
-            'refunded_at' => now(),
-            'metadata' => array_replace($payment->metadata ?? [], ['provider_status' => $status]),
-        ])->save();
+        return DB::transaction(function () use ($payment, $status) {
+            // Read only the immutable owner key before taking locks, then use
+            // the same owner -> payment order as successful activation.
+            $identity = SubscriptionPayment::query()
+                ->select(['id', 'company_id', 'organization_id'])
+                ->findOrFail($payment->getKey());
+            $this->lockPaymentBillingOwner($identity);
 
-        $subscription = $payment->subscription;
+            $locked = SubscriptionPayment::query()
+                ->whereKey($payment->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        // Money went back to the customer, so the period it paid for ends now.
-        if ($subscription && in_array($subscription->status, SubscriptionStatus::servingValues(), true)) {
-            $this->lifecycle->expire($subscription, "payment_{$status}");
-        }
+            if ($locked->status === SubscriptionPayment::STATUS_REFUNDED) {
+                return ['payment' => $locked->fresh(['company', 'plan.features']), 'auth' => null];
+            }
 
-        return ['payment' => $payment->fresh(['company', 'plan.features']), 'auth' => null];
+            // Only a completed activation owns a service period to revoke.
+            // A refunded activation-pending/manual-review or superseded charge
+            // must leave the customer's previous subscription untouched.
+            $shouldExpireSubscription = $locked->status === SubscriptionPayment::STATUS_SUCCEEDED
+                && ! $locked->wasSuperseded()
+                && $locked->company_subscription_id !== null;
+
+            $locked->forceFill([
+                'status' => SubscriptionPayment::STATUS_REFUNDED,
+                'refunded_at' => now(),
+                'metadata' => array_replace($locked->metadata ?? [], ['provider_status' => $status]),
+            ])->save();
+
+            if ($shouldExpireSubscription) {
+                $subscription = CompanySubscription::query()
+                    ->whereKey($locked->company_subscription_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($subscription && in_array($subscription->status, SubscriptionStatus::servingValues(), true)) {
+                    $this->lifecycle->expire($subscription, "payment_{$status}");
+                }
+            }
+
+            return ['payment' => $locked->fresh(['company', 'plan.features']), 'auth' => null];
+        });
     }
 
     /* ---------------------------------------------------------------------
      | Internals
      |--------------------------------------------------------------------- */
+
+    /** Keep activation lock order consistent with plan changes and renewals. */
+    private function lockPaymentBillingOwner(SubscriptionPayment $payment): void
+    {
+        if ($payment->organization_id !== null) {
+            Organization::query()
+                ->whereKey($payment->organization_id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            return;
+        }
+
+        Company::query()
+            ->whereKey($payment->company_id)
+            ->lockForUpdate()
+            ->firstOrFail();
+    }
 
     private function applyRenewal(SubscriptionPayment $payment): ?CompanySubscription
     {
@@ -504,10 +707,9 @@ class SubscriptionPaymentService
             return null;
         }
 
-        $company->forceFill([
-            'is_active' => true,
-            'plan' => $payment->plan->slug,
-        ])->save();
+        if ($payment->isRegistration()) {
+            $company->forceFill(['is_active' => true])->save();
+        }
 
         $subscription = $this->subscriptions->start(
             $company,
@@ -555,7 +757,11 @@ class SubscriptionPaymentService
     private function supersedeOpenInvoices(SubscriptionPayment $paid): void
     {
         SubscriptionPayment::query()
-            ->where('company_id', $paid->company_id)
+            ->when(
+                $paid->organization_id !== null,
+                fn ($query) => $query->where('organization_id', $paid->organization_id),
+                fn ($query) => $query->where('company_id', $paid->company_id),
+            )
             ->whereKeyNot($paid->id)
             ->where('status', SubscriptionPayment::STATUS_PENDING)
             ->whereIn('purpose', [PaymentPurpose::Registration->value, PaymentPurpose::Upgrade->value])
@@ -638,6 +844,8 @@ class SubscriptionPaymentService
         return SubscriptionPayment::create(array_replace([
             'reference' => (string) Str::uuid(),
             'company_id' => $company->id,
+            'organization_id' => $company->organization_id,
+            'initiated_from_company_id' => $company->id,
             'user_id' => $user->id,
             'subscription_plan_id' => $plan->id,
             'billing_cycle' => $billingCycle,
@@ -653,6 +861,23 @@ class SubscriptionPaymentService
     private function billingContact(CompanySubscription $subscription): ?User
     {
         $companyId = $subscription->company_id;
+
+        if ($subscription->organization_id !== null) {
+            $billingContact = User::query()
+                ->where('users.is_active', true)
+                ->join('organization_memberships', 'organization_memberships.user_id', '=', 'users.id')
+                ->where('organization_memberships.organization_id', $subscription->organization_id)
+                ->where('organization_memberships.status', 'active')
+                ->whereIn('organization_memberships.role', ['owner', 'billing_admin'])
+                ->orderByRaw("CASE organization_memberships.role WHEN 'owner' THEN 0 ELSE 1 END")
+                ->orderBy('users.id')
+                ->select('users.*')
+                ->first();
+
+            if ($billingContact) {
+                return $billingContact;
+            }
+        }
 
         return User::query()
             ->where('company_id', $companyId)

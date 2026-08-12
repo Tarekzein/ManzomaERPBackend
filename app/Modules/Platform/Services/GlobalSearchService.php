@@ -21,11 +21,12 @@ class GlobalSearchService
     public function __construct(
         private readonly EffectiveAccessService $access,
         private readonly WorkScopeService $scope,
+        private readonly CompanyContext $context,
     ) {}
 
     public function search(User $user, string $term, int $limit = 8): array
     {
-        $companyId = $user->company_id;
+        $companyId = $this->context->companyIdFor($user);
         abort_unless($companyId, 422, 'Global operational search requires a company.');
 
         $term = $this->normalizeTerm($term);

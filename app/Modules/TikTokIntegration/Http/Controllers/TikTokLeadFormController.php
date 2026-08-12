@@ -109,7 +109,18 @@ class TikTokLeadFormController extends Controller
             return;
         }
 
-        if (! User::where('company_id', $companyId)->whereKey($ownerId)->exists()) {
+        if (! User::query()
+            ->whereKey($ownerId)
+            ->where(function ($query) use ($companyId) {
+                $query->whereHas('companyMemberships', fn ($memberships) => $memberships
+                    ->where('company_id', $companyId)
+                    ->where('status', 'active'))
+                    ->orWhere(function ($legacy) use ($companyId) {
+                        $legacy->where('company_id', $companyId)
+                            ->whereDoesntHave('companyMemberships');
+                    });
+            })
+            ->exists()) {
             throw ValidationException::withMessages([
                 'default_owner_id' => ['Choose a default owner that belongs to this company.'],
             ]);

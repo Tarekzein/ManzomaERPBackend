@@ -2,6 +2,7 @@
 
 namespace App\Modules\Subscriptions\Services;
 
+use App\Modules\Organizations\Models\Organization;
 use App\Modules\Subscriptions\Contracts\PaymobGateway;
 use App\Modules\Subscriptions\Enums\SubscriptionStatus;
 use App\Modules\Subscriptions\Exceptions\PaymobException;
@@ -9,6 +10,7 @@ use App\Modules\Subscriptions\Models\CompanySubscription;
 use App\Modules\Subscriptions\Models\SubscriptionPayment;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -31,7 +33,7 @@ class SubscriptionRenewalService
      */
     public function processDue(?int $limit = null): array
     {
-        $stats = ['renewed' => 0, 'charge_failed' => 0, 'checkout_sent' => 0, 'past_due' => 0, 'expired' => 0, 'cancelled' => 0, 'skipped' => 0, 'errors' => 0];
+        $stats = ['renewed' => 0, 'manual_review' => 0, 'charge_failed' => 0, 'checkout_sent' => 0, 'past_due' => 0, 'expired' => 0, 'cancelled' => 0, 'skipped' => 0, 'errors' => 0];
 
         $this->dueQuery()
             ->when($limit, fn (Builder $query) => $query->limit($limit))
@@ -47,6 +49,7 @@ class SubscriptionRenewalService
                         Log::error('[subscriptions] renewal processing failed', [
                             'subscription_id' => $subscription->id,
                             'company_id' => $subscription->company_id,
+                            'organization_id' => $subscription->organization_id,
                             'message' => $exception->getMessage(),
                         ]);
                     }
@@ -77,6 +80,30 @@ class SubscriptionRenewalService
      */
     public function process(CompanySubscription $subscription): string
     {
+        return DB::transaction(function () use ($subscription) {
+            if ($subscription->organization_id !== null) {
+                Organization::query()
+                    ->whereKey($subscription->organization_id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+            }
+
+            $locked = CompanySubscription::query()
+                ->with('plan', 'company')
+                ->whereKey($subscription->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            return $this->processLocked($locked);
+        });
+    }
+
+    private function processLocked(CompanySubscription $subscription): string
+    {
+        if (! in_array($subscription->status, SubscriptionStatus::renewableValues(), true)) {
+            return 'skipped';
+        }
+
         $periodEnd = $subscription->periodEndsAt();
 
         if (! $periodEnd) {
@@ -119,7 +146,9 @@ class SubscriptionRenewalService
 
         $payment = $this->payments->createRenewalPayment($subscription);
 
-        if ($payment->isSuccessful()) {
+        // `activation_pending` and `requires_review` both mean the provider
+        // already captured money. Never charge or open checkout for them again.
+        if ($payment->isSettled()) {
             return 'skipped';
         }
 
@@ -156,9 +185,9 @@ class SubscriptionRenewalService
         ])->save();
 
         if ($result['status'] === 'succeeded') {
-            $this->payments->markSucceeded($payment->refresh(), ['renewal' => 'saved_card']);
+            $settled = $this->payments->markSucceeded($payment->refresh(), ['renewal' => 'saved_card']);
 
-            return 'renewed';
+            return $settled['payment']->isSuccessful() ? 'renewed' : 'manual_review';
         }
 
         // A pending 3-D Secure result is settled by the webhook instead.

@@ -4,11 +4,14 @@ namespace App\Modules\CRM\Policies;
 
 use App\Modules\Authentication\Models\User;
 use App\Modules\Companies\Models\Company;
+use App\Modules\Platform\Services\CompanyContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
 
 class CRMPolicy
 {
+    public function __construct(private readonly CompanyContext $context) {}
+
     public function companyId(User $user, string $permission = 'crm.view', ?int $requestedCompanyId = null): int
     {
         if (! $user->can($permission)) {
@@ -16,7 +19,12 @@ class CRMPolicy
         }
 
         if ($user->isSuperAdmin()) {
-            $companyId = $requestedCompanyId ?: Company::query()->value('id');
+            $selectedCompanyId = $this->context->companyId();
+            if ($selectedCompanyId && $requestedCompanyId && $selectedCompanyId !== $requestedCompanyId) {
+                throw new AuthorizationException('The requested company does not match the selected workspace.');
+            }
+
+            $companyId = $selectedCompanyId ?: $requestedCompanyId;
             if (! $companyId || ! Company::whereKey($companyId)->exists()) {
                 throw new AuthorizationException('A valid company is required for this CRM operation.');
             }
@@ -24,11 +32,16 @@ class CRMPolicy
             return (int) $companyId;
         }
 
-        if ($user->company_id === null) {
+        $companyId = $this->context->companyIdFor($user);
+        if ($companyId === null) {
             throw new AuthorizationException('A company assignment is required for this CRM operation.');
         }
 
-        return $user->company_id;
+        if ($requestedCompanyId && $requestedCompanyId !== $companyId) {
+            throw new AuthorizationException('The requested company does not match the selected workspace.');
+        }
+
+        return $companyId;
     }
 
     public function ensureOwned(User $user, Model $model, string $permission = 'crm.edit'): int
@@ -38,13 +51,19 @@ class CRMPolicy
         }
 
         if ($user->isSuperAdmin()) {
-            return (int) $model->getAttribute('company_id');
+            $modelCompanyId = (int) $model->getAttribute('company_id');
+            if ($this->context->companyId() && $this->context->companyId() !== $modelCompanyId) {
+                throw new AuthorizationException('This CRM record belongs to another company.');
+            }
+
+            return $modelCompanyId;
         }
 
-        if ((int) $model->getAttribute('company_id') !== (int) $user->company_id) {
+        $companyId = $this->context->companyIdFor($user);
+        if ($companyId === null || (int) $model->getAttribute('company_id') !== $companyId) {
             throw new AuthorizationException('This CRM record belongs to another company.');
         }
 
-        return (int) $user->company_id;
+        return $companyId;
     }
 }

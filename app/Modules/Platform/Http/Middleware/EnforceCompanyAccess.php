@@ -2,6 +2,7 @@
 
 namespace App\Modules\Platform\Http\Middleware;
 
+use App\Modules\Platform\Services\CompanyContext;
 use App\Modules\Platform\Services\EffectiveAccessService;
 use App\Support\ApiResponse;
 use Closure;
@@ -11,20 +12,38 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnforceCompanyAccess
 {
-    public function __construct(private readonly EffectiveAccessService $access) {}
+    public function __construct(
+        private readonly EffectiveAccessService $access,
+        private readonly CompanyContext $context,
+    ) {}
 
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
+        $company = $this->context->company();
+        $organization = $this->context->organization();
 
-        if ($user && ! $user->isSuperAdmin() && $user->company?->is_active !== true) {
-            // A company suspended for an unpaid subscription keeps access to
-            // the billing endpoints so its admins can settle and come back.
-            if (! ($user->company?->isBillingSuspended() && $this->isBillingRequest($request))) {
+        if ($user && ! $user->isSuperAdmin() && $organization?->status === 'suspended' && ! $this->isOrganizationRecoveryRequest($request)) {
+            return $this->codedError(
+                'ORGANIZATION_SUSPENDED',
+                'Your organization account is suspended.',
+            );
+        }
+
+        if ($user && ! $user->isSuperAdmin() && $organization?->billing_suspended_at && ! $this->isBillingRequest($request)) {
+            return $this->codedError(
+                'ORGANIZATION_BILLING_SUSPENDED',
+                'Your organization subscription is suspended.',
+            );
+        }
+
+        if ($user && ! $user->isSuperAdmin() && $company && $company->is_active !== true) {
+            // Company administration is independent from organization
+            // billing. A suspended workspace stays closed for ERP data while
+            // organization, billing and session recovery routes remain usable.
+            if (! $this->isBillingRequest($request) && ! $this->isOrganizationRecoveryRequest($request)) {
                 return ApiResponse::error('Your company account is suspended.', status: 403);
             }
-
-            return $next($request);
         }
 
         if ($user?->must_change_password && ! $request->is('api/auth/change-password', 'api/auth/logout*', 'api/auth/me')) {
@@ -32,7 +51,7 @@ class EnforceCompanyAccess
         }
 
         if ($user && ! $user->isSuperAdmin() && $user->last_activity_at) {
-            $hours = max((int) data_get($user->company?->settings, 'session_timeout_hours', 8), 1);
+            $hours = max((int) data_get($company?->settings, 'session_timeout_hours', 8), 1);
 
             if (Carbon::parse($user->last_activity_at)->lt(now()->subHours($hours))) {
                 $user->tokens()->delete();
@@ -41,7 +60,7 @@ class EnforceCompanyAccess
             }
         }
 
-        if ($user && ! $user->isSuperAdmin() && $user->company?->subscription) {
+        if ($user && ! $user->isSuperAdmin() && $company) {
             $feature = $this->access->featureForPath($request->path());
 
             if ($feature && ! $this->access->hasFeature($user, $feature)) {
@@ -60,6 +79,18 @@ class EnforceCompanyAccess
         return $next($request);
     }
 
+    private function codedError(string $code, string $message): Response
+    {
+        return response()->json([
+            'success' => false,
+            'code' => $code,
+            'data' => null,
+            'message' => $message,
+            'errors' => (object) [],
+            'meta' => (object) [],
+        ], 403);
+    }
+
     private function isBillingRequest(Request $request): bool
     {
         return $request->is(
@@ -72,6 +103,20 @@ class EnforceCompanyAccess
             'api/subscriptions/payments',
             'api/subscriptions/payments/*',
             'api/payments/*',
+            'api/organizations',
+            'api/organizations/*',
+            'api/workspace/*',
+            'api/auth/me',
+            'api/auth/logout*',
+        );
+    }
+
+    private function isOrganizationRecoveryRequest(Request $request): bool
+    {
+        return $request->is(
+            'api/organizations',
+            'api/organizations/*',
+            'api/workspace/*',
             'api/auth/me',
             'api/auth/logout*',
         );

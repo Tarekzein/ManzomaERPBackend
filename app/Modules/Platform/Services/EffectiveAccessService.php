@@ -4,10 +4,16 @@ namespace App\Modules\Platform\Services;
 
 use App\Modules\Authentication\Models\User;
 use App\Modules\Authentication\Models\UserPermissionOverride;
+use App\Modules\Subscriptions\Services\OrganizationEntitlementService;
 use Illuminate\Support\Collection;
 
 class EffectiveAccessService
 {
+    public function __construct(
+        private readonly CompanyContext $context,
+        private readonly OrganizationEntitlementService $entitlements,
+    ) {}
+
     public const MODULE_FEATURES = [
         'finance' => 'core.finance',
         'inventory' => 'core.inventory',
@@ -130,6 +136,21 @@ class EffectiveAccessService
 
     public function rolePermissionNames(User $user): Collection
     {
+        if ($membership = $this->context->membershipFor($user)) {
+            $membership->loadMissing('role.permissions', 'customRole');
+
+            return collect($membership->role?->permissions?->pluck('name') ?? [])
+                ->merge($membership->customRole?->permissions ?? [])
+                ->filter()
+                ->unique()
+                ->sort()
+                ->values();
+        }
+
+        if ($this->context->hasMembershipRecordFor($user)) {
+            return collect();
+        }
+
         $user->loadMissing('roles.permissions');
 
         return $user->roles
@@ -177,6 +198,10 @@ class EffectiveAccessService
 
     private function legacyDirectPermissionNames(User $user): Collection
     {
+        if ($this->context->hasMembershipRecordFor($user)) {
+            return collect();
+        }
+
         $user->loadMissing('permissions');
 
         return $user->permissions->pluck('name')->unique()->sort()->values();
@@ -184,6 +209,36 @@ class EffectiveAccessService
 
     private function overrideNames(User $user, string $effect): Collection
     {
+        if ($membership = $this->context->membershipFor($user)) {
+            $membership->loadMissing('permissionOverrides');
+
+            $names = $membership->permissionOverrides
+                ->where('effect', $effect)
+                ->pluck('permission_name');
+
+            // During the compatibility window an older application instance
+            // can still write the legacy user-level override for the user's
+            // original company. Merge it only in that company so it cannot
+            // leak into another selected workspace.
+            if ($this->context->companyIdFor($user) === (int) $user->company_id) {
+                $user->loadMissing('permissionOverrides');
+                $names = $names->merge(
+                    $user->permissionOverrides
+                        ->where('effect', $effect)
+                        ->pluck('permission_name')
+                );
+            }
+
+            return $names
+                ->unique()
+                ->sort()
+                ->values();
+        }
+
+        if ($this->context->hasMembershipRecordFor($user)) {
+            return collect();
+        }
+
         $user->loadMissing('permissionOverrides');
 
         return $user->permissionOverrides
@@ -205,9 +260,17 @@ class EffectiveAccessService
             return collect();
         }
 
-        $user->loadMissing('company.subscription.plan.features');
+        $company = $this->context->companyFor($user);
+        if (! $company) {
+            return collect();
+        }
 
-        return collect($user->company?->subscription?->plan?->features)
+        $company->loadMissing('organization', 'subscription.plan.features');
+        $subscription = $company->organization
+            ? $this->entitlements->current($company->organization) ?: $company->subscription
+            : $company->subscription;
+
+        return collect($subscription?->plan?->features)
             ->filter(fn ($feature) => (bool) $feature->pivot?->enabled)
             ->pluck('slug')
             ->unique()

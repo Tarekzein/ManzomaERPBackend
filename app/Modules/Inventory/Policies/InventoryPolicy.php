@@ -3,18 +3,23 @@
 namespace App\Modules\Inventory\Policies;
 
 use App\Modules\Authentication\Models\User;
+use App\Modules\Platform\Services\CompanyContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
 
 class InventoryPolicy
 {
+    public function __construct(private readonly CompanyContext $context) {}
+
     public function companyId(User $user, string $permission = 'inventory.view'): int
     {
-        if ($user->company_id === null || ! $user->can($permission)) {
+        $companyId = $this->context->companyIdFor($user);
+
+        if ($companyId === null || ! $user->can($permission)) {
             throw new AuthorizationException('You are not allowed to perform this inventory operation.');
         }
 
-        return $user->company_id;
+        return $companyId;
     }
 
     public function ensureOwned(User $user, Model $model, string $permission = 'inventory.edit'): int

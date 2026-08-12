@@ -3,6 +3,7 @@
 namespace App\Modules\Projects\Services;
 
 use App\Modules\Authentication\Models\User;
+use App\Modules\Platform\Services\CompanyContext;
 use App\Modules\Projects\Contracts\ProjectActivityRepository;
 use App\Modules\Projects\Contracts\ProjectRepository;
 use App\Modules\Projects\Models\Project;
@@ -22,6 +23,7 @@ class ProjectService
         private readonly ProjectRepository $projects,
         private readonly ProjectActivityRepository $activity,
         private readonly ProjectPolicy $policy,
+        private readonly CompanyContext $context,
     ) {}
 
     public function list(User $actor, int $perPage, array $filters = [], ?string $sort = null): LengthAwarePaginator
@@ -30,7 +32,7 @@ class ProjectService
         $perPage = min(max($perPage, 1), 100);
 
         return $this->projects->paginate(
-            $actor->isSuperAdmin() ? null : $actor->company_id,
+            $this->context->companyIdFor($actor),
             $perPage,
             $filters,
             $sort,

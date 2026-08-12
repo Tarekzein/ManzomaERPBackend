@@ -7,6 +7,8 @@ use App\Modules\Companies\DTOs\CreateCompanyData;
 use App\Modules\Companies\Models\Company;
 use App\Modules\Companies\Services\CompanyDataPrivacyService;
 use App\Modules\Companies\Services\CompanyService;
+use App\Modules\Platform\Services\CompanyContext;
+use App\Modules\Subscriptions\Services\OrganizationEntitlementService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,7 +16,11 @@ use Illuminate\Validation\Rule;
 
 class CompanyController extends Controller
 {
-    public function __construct(private readonly CompanyService $companies) {}
+    public function __construct(
+        private readonly CompanyService $companies,
+        private readonly CompanyContext $context,
+        private readonly OrganizationEntitlementService $entitlements,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -30,9 +36,12 @@ class CompanyController extends Controller
 
     public function current(Request $request): JsonResponse
     {
-        abort_unless($request->user()->company, 422, 'A company is required.');
+        $company = $this->context->companyFor($request->user());
+        abort_unless($company, 422, 'A company is required.');
 
-        return ApiResponse::success($request->user()->company->load('subscription.plan.features'), 'Company loaded');
+        $this->entitlements->projectCompanySubscription($company);
+
+        return ApiResponse::success($company->loadMissing('organization'), 'Company loaded');
     }
 
     public function store(Request $request): JsonResponse

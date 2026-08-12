@@ -3,6 +3,7 @@
 namespace App\Modules\Projects\Services;
 
 use App\Modules\Authentication\Models\User;
+use App\Modules\Platform\Services\CompanyContext;
 use App\Modules\Projects\Contracts\ProjectRepository;
 use App\Modules\Projects\Enums\TaskStatus;
 use App\Modules\Projects\Models\Project;
@@ -14,6 +15,7 @@ class ProjectReportingService
     public function __construct(
         private readonly ProjectRepository $projects,
         private readonly ProjectPolicy $policy,
+        private readonly CompanyContext $context,
     ) {}
 
     public function gantt(User $actor): Collection
@@ -21,7 +23,7 @@ class ProjectReportingService
         $this->policy->ensureCanList($actor);
 
         return $this->projects
-            ->timeline($actor->isSuperAdmin() ? null : $actor->company_id, $actor)
+            ->timeline($this->context->companyIdFor($actor), $actor)
             ->map(fn (Project $project) => [
                 'id' => "project-{$project->id}",
                 'type' => 'project',

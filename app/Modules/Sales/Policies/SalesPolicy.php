@@ -3,18 +3,23 @@
 namespace App\Modules\Sales\Policies;
 
 use App\Modules\Authentication\Models\User;
+use App\Modules\Platform\Services\CompanyContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
 
 class SalesPolicy
 {
+    public function __construct(private readonly CompanyContext $context) {}
+
     public function companyId(User $user, string $permission = 'sales.view'): int
     {
-        if ($user->company_id === null || ! $user->can($permission)) {
+        $companyId = $this->context->companyIdFor($user);
+
+        if ($companyId === null || ! $user->can($permission)) {
             throw new AuthorizationException('You are not allowed to perform this sales operation.');
         }
 
-        return $user->company_id;
+        return $companyId;
     }
 
     public function ensureOwned(User $user, Model $model, string $permission = 'sales.edit'): int

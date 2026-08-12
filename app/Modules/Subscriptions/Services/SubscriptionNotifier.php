@@ -169,6 +169,23 @@ class SubscriptionNotifier
 
     private function recipients(CompanySubscription $subscription): Collection
     {
+        if ($subscription->organization_id !== null) {
+            $billingRecipients = User::query()
+                ->where('users.is_active', true)
+                ->join('organization_memberships', 'organization_memberships.user_id', '=', 'users.id')
+                ->where('organization_memberships.organization_id', $subscription->organization_id)
+                ->where('organization_memberships.status', 'active')
+                ->whereIn('organization_memberships.role', ['owner', 'billing_admin'])
+                ->orderBy('users.id')
+                ->select('users.*')
+                ->distinct()
+                ->get();
+
+            if ($billingRecipients->isNotEmpty()) {
+                return $billingRecipients;
+            }
+        }
+
         $admins = User::query()
             ->where('company_id', $subscription->company_id)
             ->where('is_active', true)

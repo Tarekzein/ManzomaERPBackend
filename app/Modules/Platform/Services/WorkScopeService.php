@@ -11,24 +11,26 @@ use Illuminate\Support\Collection;
 
 class WorkScopeService
 {
+    public function __construct(private readonly CompanyContext $context) {}
+
     public function isCompanyWide(User $user): bool
     {
-        return $user->isSuperAdmin() || $user->hasRole(UserRole::CompanyAdmin->value);
+        return $user->isSuperAdmin() || $this->context->hasCompanyRole($user, UserRole::CompanyAdmin->value);
     }
 
     public function isManager(User $user): bool
     {
-        return $user->hasRole(UserRole::Manager->value);
+        return $this->context->hasCompanyRole($user, UserRole::Manager->value);
     }
 
     public function employee(User $user): ?Employee
     {
-        if (! $user->company_id) {
+        if (! ($companyId = $this->context->companyIdFor($user))) {
             return null;
         }
 
         return Employee::query()
-            ->where('company_id', $user->company_id)
+            ->where('company_id', $companyId)
             ->where('user_id', $user->id)
             ->first();
     }
@@ -93,11 +95,13 @@ class WorkScopeService
 
     public function canViewProject(User $user, Project $project): bool
     {
+        $companyId = $this->context->companyIdFor($user);
+
         if ($this->isCompanyWide($user)) {
-            return $user->isSuperAdmin() || $user->company_id === $project->company_id;
+            return $user->isSuperAdmin() || $companyId === $project->company_id;
         }
 
-        if ($user->company_id !== $project->company_id) {
+        if ($companyId !== $project->company_id) {
             return false;
         }
 

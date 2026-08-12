@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Authentication\Models\CompanyCustomRole;
 use App\Modules\Authentication\Models\User;
 use App\Modules\Authentication\Services\CustomRoleService;
+use App\Modules\Platform\Services\CompanyContext;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,7 +14,10 @@ use Illuminate\Validation\Rule;
 
 class CustomRoleController extends Controller
 {
-    public function __construct(private readonly CustomRoleService $roles) {}
+    public function __construct(
+        private readonly CustomRoleService $roles,
+        private readonly CompanyContext $context,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -50,7 +54,10 @@ class CustomRoleController extends Controller
     private function validateRole(Request $request, ?CompanyCustomRole $role = null): array
     {
         return $request->validate([
-            'name' => ['required', 'string', 'max:100', Rule::unique('company_custom_roles')->where('company_id', $request->user()->company_id)->ignore($role)],
+            'name' => ['required', 'string', 'max:100', Rule::unique('company_custom_roles')->where(
+                'company_id',
+                $this->context->companyIdFor($request->user())
+            )->ignore($role)],
             'description' => ['nullable', 'string'],
             'permissions' => ['required', 'array', 'min:1'],
             'permissions.*' => ['required', 'string', 'exists:permissions,name'],

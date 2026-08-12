@@ -41,11 +41,13 @@ class CompanySubscriptionController extends Controller
     public function subscribe(SubscribeRequest $request): JsonResponse
     {
         $user = $this->user($request);
+        $company = $this->subscriptions->companyFor($user);
         $data = SubscribeData::from($request->validated());
         $plan = $this->plans->findActiveBySlug($data->planSlug);
+        $this->subscriptions->ensurePlanFits($company, $plan);
         $pricing = $this->pricing->forCycle($plan, $data->billingCycle);
 
-        if ($this->subscriptions->trialEligible($user->company, $plan)) {
+        if ($this->subscriptions->trialEligible($company, $plan)) {
             return ApiResponse::success(
                 $this->decorate($this->subscriptions->startTrialFor($user, $plan, $data->billingCycle)),
                 "Free trial started for {$plan->trial_days} days",
@@ -72,10 +74,12 @@ class CompanySubscriptionController extends Controller
     public function checkout(SubscribeRequest $request): JsonResponse
     {
         $user = $this->user($request);
+        $company = $this->subscriptions->companyFor($user);
         $data = SubscribeData::from($request->validated());
         $plan = $this->plans->findActiveBySlug($data->planSlug);
+        $this->subscriptions->ensurePlanFits($company, $plan);
 
-        if ($request->boolean('start_trial') && $this->subscriptions->trialEligible($user->company, $plan)) {
+        if ($request->boolean('start_trial') && $this->subscriptions->trialEligible($company, $plan)) {
             return ApiResponse::success(
                 $this->decorate($this->subscriptions->startTrialFor($user, $plan, $data->billingCycle)),
                 "Free trial started for {$plan->trial_days} days",
@@ -155,7 +159,7 @@ class CompanySubscriptionController extends Controller
         $this->subscriptions->ensureCanManageBilling($user);
 
         return ApiResponse::success(
-            $this->payments->history($user->company),
+            $this->payments->history($this->subscriptions->companyFor($user)),
             'Billing history loaded'
         );
     }
@@ -167,7 +171,7 @@ class CompanySubscriptionController extends Controller
         $this->subscriptions->ensureCanManageBilling($user);
 
         return ApiResponse::success(
-            $this->payments->findForCompany($reference, $user->company),
+            $this->payments->findForCompany($reference, $this->subscriptions->companyFor($user)),
             'Payment status loaded'
         );
     }
@@ -186,6 +190,9 @@ class CompanySubscriptionController extends Controller
         $subscription->setAttribute('trial_used', $subscription->company_id
             ? $this->subscriptions->hasUsedTrial($subscription->company)
             : false);
+        $subscription->setAttribute('quota_usage', $subscription->company
+            ? $this->subscriptions->quotaUsage($subscription->company)
+            : null);
 
         return $subscription;
     }

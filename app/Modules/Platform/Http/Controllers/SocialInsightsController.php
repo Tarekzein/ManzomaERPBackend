@@ -4,6 +4,7 @@ namespace App\Modules\Platform\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Authentication\Models\User;
+use App\Modules\Platform\Services\CompanyContext;
 use App\Modules\Platform\Services\SocialInsightsService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -16,7 +17,10 @@ use Illuminate\Validation\Rule;
  */
 class SocialInsightsController extends Controller
 {
-    public function __construct(private readonly SocialInsightsService $insights) {}
+    public function __construct(
+        private readonly SocialInsightsService $insights,
+        private readonly CompanyContext $context,
+    ) {}
 
     public function summary(Request $request): JsonResponse
     {
@@ -44,9 +48,10 @@ class SocialInsightsController extends Controller
     private function companyId(User $user): int
     {
         abort_unless($user->can('crm.view'), 403, 'You are not allowed to view social insights.');
-        abort_unless($user->company_id !== null, 403, 'A company assignment is required.');
+        $companyId = $this->context->companyIdFor($user);
+        abort_unless($companyId !== null, 403, 'A company assignment is required.');
 
-        return (int) $user->company_id;
+        return $companyId;
     }
 
     private function user(Request $request): User

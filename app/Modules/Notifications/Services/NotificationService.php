@@ -3,6 +3,8 @@
 namespace App\Modules\Notifications\Services;
 
 use App\Modules\Authentication\Models\User;
+use App\Modules\Companies\Models\Company;
+use App\Modules\HR\Models\Employee;
 use App\Modules\Notifications\Channels\TwilioSmsChannel;
 use App\Modules\Notifications\Models\NotificationDeliveryLog;
 use App\Modules\Notifications\Models\NotificationPreference;
@@ -69,37 +71,99 @@ class NotificationService
         return $this->preferences($user);
     }
 
-    public function send(User|Collection|array $recipients, string $eventType, string $title, string $message, array $payload = [], ?string $actionUrl = null, string $severity = 'info'): void
+    public function recipientsForCompany(int $companyId, string $permission): Collection
     {
+        return User::query()
+            ->where('is_active', true)
+            ->where(function ($query) use ($companyId, $permission) {
+                $query->whereHas('companyMemberships', function ($memberships) use ($companyId, $permission) {
+                    $memberships
+                        ->where('company_id', $companyId)
+                        ->where('status', 'active')
+                        ->whereDoesntHave('permissionOverrides', fn ($overrides) => $overrides
+                            ->where('permission_name', $permission)
+                            ->where('effect', 'deny'))
+                        ->where(function ($access) use ($permission) {
+                            $access->whereHas('role.permissions', fn ($permissions) => $permissions
+                                ->where('name', $permission))
+                                ->orWhereHas('customRole', fn ($roles) => $roles
+                                    ->whereJsonContains('permissions', $permission))
+                                ->orWhereHas('permissionOverrides', fn ($overrides) => $overrides
+                                    ->where('permission_name', $permission)
+                                    ->where('effect', 'allow'));
+                        });
+                })->orWhere(function ($legacy) use ($companyId, $permission) {
+                    $legacy->where('company_id', $companyId)
+                        ->whereDoesntHave('companyMemberships')
+                        ->whereDoesntHave('permissionOverrides', fn ($overrides) => $overrides
+                            ->where('permission_name', $permission)
+                            ->where('effect', 'deny'))
+                        ->where(function ($access) use ($permission) {
+                            $access->whereHas('roles.permissions', fn ($permissions) => $permissions
+                                ->where('name', $permission))
+                                ->orWhereHas('permissions', fn ($permissions) => $permissions
+                                    ->where('name', $permission))
+                                ->orWhereHas('permissionOverrides', fn ($overrides) => $overrides
+                                    ->where('permission_name', $permission)
+                                    ->where('effect', 'allow'));
+                        });
+                });
+            })
+            ->get();
+    }
+
+    public function send(
+        User|Collection|array $recipients,
+        string $eventType,
+        string $title,
+        string $message,
+        array $payload = [],
+        ?string $actionUrl = null,
+        string $severity = 'info',
+        ?int $companyId = null,
+    ): void {
         $users = $recipients instanceof User ? collect([$recipients]) : collect($recipients);
+        $selectedCompany = $companyId ? Company::query()->findOrFail($companyId) : null;
+
         foreach ($users as $user) {
-            $this->configureCompanyMail($user);
-            $channels = $this->channels($user, $eventType);
+            $company = $selectedCompany ?: $user->company;
+            $deliveryCompanyId = $company?->getKey();
+            $this->configureCompanyMail($company);
+            $channels = $this->channels($user, $eventType, $company);
             if (! $channels) {
                 continue;
             }
             try {
-                Notification::send($user, new EventNotification($eventType, $title, $message, $payload, $actionUrl, $severity, $channels));
+                Notification::send($user, new EventNotification(
+                    $eventType,
+                    $title,
+                    $message,
+                    $payload,
+                    $actionUrl,
+                    $severity,
+                    $channels,
+                    $deliveryCompanyId,
+                ));
                 foreach (array_filter($channels, fn ($channel) => $channel !== TwilioSmsChannel::class) as $channel) {
                     NotificationDeliveryLog::create([
-                        'company_id' => $user->company_id, 'user_id' => $user->id, 'event_type' => $eventType,
+                        'company_id' => $deliveryCompanyId, 'user_id' => $user->id, 'event_type' => $eventType,
                         'channel' => $channel === 'database' ? 'in_app' : $channel, 'status' => 'sent',
                         'provider' => $channel === 'mail' ? config('mail.default') : 'database', 'destination' => $channel === 'mail' ? $user->email : null,
                     ]);
                 }
             } catch (\Throwable $exception) {
                 NotificationDeliveryLog::create([
-                    'company_id' => $user->company_id, 'user_id' => $user->id, 'event_type' => $eventType,
+                    'company_id' => $deliveryCompanyId, 'user_id' => $user->id, 'event_type' => $eventType,
                     'channel' => 'delivery', 'status' => 'failed', 'error' => $exception->getMessage(),
                 ]);
             }
         }
     }
 
-    private function channels(User $user, string $eventType): array
+    private function channels(User $user, string $eventType, ?Company $company): array
     {
         $preference = NotificationPreference::where('user_id', $user->id)->where('event_type', $eventType)->first();
-        $settings = $user->company?->settings['notifications'] ?? [];
+        $settings = $company?->settings['notifications'] ?? [];
         $channels = [];
         if ($preference?->in_app ?? true) {
             $channels[] = 'database';
@@ -107,16 +171,18 @@ class NotificationService
         if (($settings['email']['enabled'] ?? true) && ($preference?->email ?? true) && $user->email) {
             $channels[] = 'mail';
         }
-        if (($settings['sms']['enabled'] ?? false) && ($preference?->sms ?? false) && $user->routeNotificationForSms()) {
+        if (($settings['sms']['enabled'] ?? false)
+            && ($preference?->sms ?? false)
+            && $this->phoneForCompany($user, $company)) {
             $channels[] = TwilioSmsChannel::class;
         }
 
         return $channels;
     }
 
-    private function configureCompanyMail(User $user): void
+    private function configureCompanyMail(?Company $company): void
     {
-        $email = $user->company?->settings['notifications']['email'] ?? [];
+        $email = $company?->settings['notifications']['email'] ?? [];
         $mailer = $email['mailer'] ?? config('mail.default');
         config(['mail.default' => $mailer]);
         if ($mailer === 'smtp') {
@@ -132,5 +198,17 @@ class NotificationService
         if (! empty($email['from_name'])) {
             config(['mail.from.name' => $email['from_name']]);
         }
+    }
+
+    private function phoneForCompany(User $user, ?Company $company): ?string
+    {
+        if (! $company) {
+            return $user->routeNotificationForSms();
+        }
+
+        return Employee::query()
+            ->where('company_id', $company->getKey())
+            ->where('user_id', $user->getKey())
+            ->value('phone');
     }
 }

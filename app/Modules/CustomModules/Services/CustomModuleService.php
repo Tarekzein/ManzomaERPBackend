@@ -4,17 +4,26 @@ namespace App\Modules\CustomModules\Services;
 
 use App\Modules\Authentication\Models\User;
 use App\Modules\CustomModules\Models\CustomModule;
+use App\Modules\Platform\Services\CompanyContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CustomModuleService
 {
+    public function __construct(private readonly CompanyContext $context) {}
+
     public function catalog(User $actor)
     {
+        $companyId = $this->context->companyIdFor($actor);
+
         return CustomModule::query()
             ->when(! $actor->isSuperAdmin(), fn ($query) => $query->where('status', 'approved')->where('is_active', true))
-            ->with(['companies' => fn ($query) => $query->where('companies.id', $actor->company_id)])
+            ->with(['companies' => fn ($query) => $query->when(
+                $companyId,
+                fn ($companyQuery) => $companyQuery->where('companies.id', $companyId),
+                fn ($companyQuery) => $companyQuery->whereRaw('1 = 0'),
+            )])
             ->orderBy('name')
             ->get();
     }
@@ -31,7 +40,7 @@ class CustomModuleService
 
     public function install(User $actor, CustomModule $module, array $settings = []): CustomModule
     {
-        $this->ensureCompanyAdmin($actor);
+        $companyId = $this->ensureCompanyAdmin($actor);
 
         if (! $module->is_active || $module->status !== 'approved') {
             throw ValidationException::withMessages(['module' => ['This module is not approved for installation.']]);
@@ -42,7 +51,7 @@ class CustomModuleService
         }
 
         DB::table('company_custom_modules')->updateOrInsert(
-            ['company_id' => $actor->company_id, 'custom_module_id' => $module->id],
+            ['company_id' => $companyId, 'custom_module_id' => $module->id],
             [
                 'installed_version' => $module->version,
                 'status' => 'enabled',
@@ -55,32 +64,35 @@ class CustomModuleService
             ]
         );
 
-        return $module->load(['companies' => fn ($query) => $query->where('companies.id', $actor->company_id)]);
+        return $module->load(['companies' => fn ($query) => $query->where('companies.id', $companyId)]);
     }
 
     public function setStatus(User $actor, CustomModule $module, string $status): CustomModule
     {
-        $this->ensureCompanyAdmin($actor);
-        abort_unless(DB::table('company_custom_modules')->where('company_id', $actor->company_id)->where('custom_module_id', $module->id)->exists(), 404);
+        $companyId = $this->ensureCompanyAdmin($actor);
+        abort_unless(DB::table('company_custom_modules')->where('company_id', $companyId)->where('custom_module_id', $module->id)->exists(), 404);
 
         DB::table('company_custom_modules')
-            ->where('company_id', $actor->company_id)
+            ->where('company_id', $companyId)
             ->where('custom_module_id', $module->id)
             ->update(['status' => $status, 'disabled_at' => $status === 'disabled' ? now() : null, 'updated_at' => now()]);
 
-        return $module->load(['companies' => fn ($query) => $query->where('companies.id', $actor->company_id)]);
+        return $module->load(['companies' => fn ($query) => $query->where('companies.id', $companyId)]);
     }
 
     public function uninstall(User $actor, CustomModule $module): void
     {
-        $this->ensureCompanyAdmin($actor);
-        DB::table('company_custom_modules')->where('company_id', $actor->company_id)->where('custom_module_id', $module->id)->delete();
+        $companyId = $this->ensureCompanyAdmin($actor);
+        DB::table('company_custom_modules')->where('company_id', $companyId)->where('custom_module_id', $module->id)->delete();
     }
 
-    private function ensureCompanyAdmin(User $actor): void
+    private function ensureCompanyAdmin(User $actor): int
     {
-        if (! $actor->company_id || ! $actor->can('custom_modules.edit')) {
+        $companyId = $this->context->companyIdFor($actor);
+        if (! $companyId || ! $actor->can('custom_modules.edit')) {
             throw new AuthorizationException('You are not allowed to manage company modules.');
         }
+
+        return $companyId;
     }
 }

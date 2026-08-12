@@ -4,6 +4,7 @@ namespace App\Modules\Subscriptions\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Authentication\Services\AuthenticationService;
+use App\Modules\Subscriptions\Models\SubscriptionPayment;
 use App\Modules\Subscriptions\Services\SubscriptionPaymentService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -40,7 +41,13 @@ class SubscriptionPaymentController extends Controller
 
         $payment = $this->payments->findForRegistration($reference, $data['registration_token']);
 
-        abort_if($payment->isSuccessful(), 409, 'This payment has already been completed.');
+        abort_if(
+            $payment->isSettled(),
+            409,
+            $payment->status === SubscriptionPayment::STATUS_REQUIRES_REVIEW
+                ? 'This payment was captured and requires manual review before activation.'
+                : 'This payment has already been completed.',
+        );
 
         // Returns the live session when there is one; only a missing or expired
         // session mints a new Paymob order.

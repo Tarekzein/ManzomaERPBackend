@@ -4,6 +4,7 @@ namespace App\Modules\Subscriptions\Services;
 
 use App\Modules\Authentication\Models\User;
 use App\Modules\Companies\Models\Company;
+use App\Modules\Organizations\Models\Organization;
 use App\Modules\Platform\Services\AuditService;
 use App\Modules\Subscriptions\Enums\SubscriptionStatus;
 use App\Modules\Subscriptions\Models\CompanySubscription;
@@ -17,6 +18,7 @@ class SubscriptionAdminService
     public function __construct(
         private readonly SubscriptionPolicy $policy,
         private readonly SubscriptionLifecycleService $lifecycle,
+        private readonly OrganizationQuotaService $quotas,
         private readonly AuditService $audit,
     ) {}
 
@@ -28,19 +30,60 @@ class SubscriptionAdminService
     {
         $this->policy->ensureCanManageCompanySubscriptions($actor);
 
+        $organizationModels = Organization::query()
+            ->withCount('companies')
+            ->orderBy('name')
+            ->get();
+        $organizationSubscriptions = CompanySubscription::query()
+            ->with('plan')
+            ->whereIn('organization_id', $organizationModels->modelKeys())
+            ->latest('id')
+            ->get()
+            ->groupBy('organization_id')
+            ->map(fn ($subscriptions) => $subscriptions->first(
+                fn (CompanySubscription $subscription) => in_array(
+                    $subscription->status,
+                    SubscriptionStatus::servingValues(),
+                    true,
+                )
+            ) ?? $subscriptions->first());
+
         $companies = Company::query()
-            ->with('latestSubscription.plan')
+            ->with(['latestSubscription.plan', 'organization'])
             ->withCount('subscriptionPayments')
             ->orderBy('name')
             ->get()
-            ->map(function (Company $company) {
-                $subscription = $company->latestSubscription;
+            ->map(function (Company $company) use ($organizationSubscriptions) {
+                $subscription = $company->organization
+                    ? $organizationSubscriptions->get($company->organization_id)
+                    : $company->latestSubscription;
 
                 return [
                     'id' => $company->id,
                     'name' => $company->name,
                     'is_active' => $company->is_active,
+                    'organization_id' => $company->organization_id,
                     'payments_count' => $company->subscription_payments_count,
+                    'subscription' => $subscription ? $this->subscriptionData($subscription) : null,
+                ];
+            })
+            ->values();
+
+        $organizations = $organizationModels
+            ->map(function (Organization $organization) use ($organizationSubscriptions) {
+                $subscription = $organizationSubscriptions->get($organization->id);
+
+                return [
+                    'id' => $organization->id,
+                    'name' => $organization->name,
+                    'status' => $organization->status,
+                    'billing_suspended_at' => $organization->billing_suspended_at,
+                    'companies_count' => $organization->companies_count,
+                    'members_count' => DB::table('organization_memberships')
+                        ->where('organization_id', $organization->id)
+                        ->where('status', 'active')
+                        ->count(),
+                    'usage' => $this->quotas->usage($organization),
                     'subscription' => $subscription ? $this->subscriptionData($subscription) : null,
                 ];
             })
@@ -49,6 +92,8 @@ class SubscriptionAdminService
         $payments = SubscriptionPayment::query()
             ->with([
                 'company:id,name',
+                'organization:id,name',
+                'initiatedFromCompany:id,name',
                 'plan:id,slug,name',
                 'user:id,name,email',
             ])
@@ -58,6 +103,8 @@ class SubscriptionAdminService
                 'id' => $payment->id,
                 'reference' => $payment->reference,
                 'company_id' => $payment->company_id,
+                'organization_id' => $payment->organization_id,
+                'initiated_from_company_id' => $payment->initiated_from_company_id,
                 'company_subscription_id' => $payment->company_subscription_id,
                 'user_id' => $payment->user_id,
                 'subscription_plan_id' => $payment->subscription_plan_id,
@@ -78,12 +125,14 @@ class SubscriptionAdminService
                 'refunded_at' => $payment->refunded_at,
                 'created_at' => $payment->created_at,
                 'company' => $payment->company,
+                'organization' => $payment->organization,
+                'initiated_from_company' => $payment->initiatedFromCompany,
                 'plan' => $payment->plan,
                 'user' => $payment->user,
             ])
             ->values();
 
-        return compact('companies', 'payments');
+        return compact('organizations', 'companies', 'payments');
     }
 
     /**
@@ -99,18 +148,68 @@ class SubscriptionAdminService
     ): CompanySubscription {
         $this->policy->ensureCanManageCompanySubscriptions($actor);
 
-        $subscription = $company->latestSubscription()->with('plan')->first();
-        abort_unless($subscription, 404, 'This company does not have a subscription to renew.');
-
         $through = $through->copy()->endOfDay();
-        $currentEnd = $subscription->periodEndsAt();
-        abort_if(
-            $currentEnd?->gte($through),
-            422,
-            'The complimentary renewal date must be after the current subscription end date.'
-        );
 
-        return DB::transaction(function () use ($actor, $company, $subscription, $through, $reason, $currentEnd) {
+        return DB::transaction(function () use ($actor, $company, $through, $reason) {
+            $organization = null;
+            if ($company->organization_id !== null) {
+                // Every organization-level subscription mutation takes this
+                // lock first. Selecting the subscription afterwards prevents
+                // a stale expired row from being reactivated over a newer one.
+                $organization = Organization::query()
+                    ->whereKey($company->organization_id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+            } else {
+                Company::query()->whereKey($company->getKey())->lockForUpdate()->firstOrFail();
+            }
+
+            $scope = CompanySubscription::query()
+                ->with('plan')
+                ->when(
+                    $organization !== null,
+                    fn ($query) => $query->where('organization_id', $organization->getKey()),
+                    fn ($query) => $query->where('company_id', $company->getKey()),
+                );
+
+            $subscription = (clone $scope)
+                ->whereIn('status', SubscriptionStatus::servingValues())
+                ->latest('id')
+                ->lockForUpdate()
+                ->first()
+                ?? (clone $scope)->latest('id')->lockForUpdate()->first();
+
+            abort_unless($subscription, 404, 'This company does not have a subscription to renew.');
+
+            $currentEnd = $subscription->periodEndsAt();
+            abort_if(
+                $currentEnd?->gte($through),
+                422,
+                'The complimentary renewal date must be after the current subscription end date.'
+            );
+
+            // Defensive repair for legacy or previously raced data. The
+            // organization/company lock prevents another supported writer
+            // from introducing a second serving row while this is applied.
+            (clone $scope)
+                ->whereKeyNot($subscription->getKey())
+                ->whereIn('status', SubscriptionStatus::servingValues())
+                ->lockForUpdate()
+                ->get()
+                ->each(function (CompanySubscription $stale) use ($subscription) {
+                    $stale->forceFill([
+                        'status' => SubscriptionStatus::Cancelled->value,
+                        'auto_renew' => false,
+                        'cancel_at_period_end' => false,
+                        'cancelled_at' => now(),
+                        'ends_at' => now(),
+                        'cancellation_reason' => 'superseded_by_admin_complimentary_renewal',
+                        'metadata' => array_replace($stale->metadata ?? [], [
+                            'superseded_by_subscription_id' => $subscription->getKey(),
+                        ]),
+                    ])->save();
+                });
+
             $old = [
                 'status' => $subscription->status,
                 'current_period_ends_at' => $currentEnd?->toISOString(),
@@ -162,6 +261,7 @@ class SubscriptionAdminService
                     'cancel_at_period_end' => true,
                     'reason' => $reason,
                     'company_id' => $company->id,
+                    'organization_id' => $organization?->id,
                 ],
             );
 
@@ -174,6 +274,7 @@ class SubscriptionAdminService
         return [
             'id' => $subscription->id,
             'company_id' => $subscription->company_id,
+            'organization_id' => $subscription->organization_id,
             'billing_cycle' => $subscription->billing_cycle,
             'status' => $subscription->status,
             'auto_renew' => $subscription->auto_renew,

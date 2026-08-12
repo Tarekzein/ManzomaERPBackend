@@ -8,20 +8,24 @@ use App\Modules\Notifications\Http\Requests\NotificationRequest;
 use App\Modules\Notifications\Models\NotificationDeliveryLog;
 use App\Modules\Notifications\Services\NotificationSecrets;
 use App\Modules\Notifications\Services\NotificationService;
+use App\Modules\Platform\Services\CompanyContext;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 
 class NotificationController extends Controller
 {
-    public function __construct(private readonly NotificationService $notifications) {}
+    public function __construct(
+        private readonly NotificationService $notifications,
+        private readonly CompanyContext $context,
+    ) {}
 
     public function index(Request $request)
     {
         abort_unless($request->user()->can('notifications.view'), 403);
-        $query = $request->boolean('unread') ? $request->user()->unreadNotifications() : $request->user()->notifications();
+        $query = $this->notificationQuery($request->user(), $request->boolean('unread'));
 
         return ApiResponse::success($query->latest()->paginate(min($request->integer('per_page', 25), 100)), meta: [
-            'unread_count' => $request->user()->unreadNotifications()->count(),
+            'unread_count' => $this->notificationQuery($request->user(), true)->count(),
         ]);
     }
 
@@ -29,12 +33,12 @@ class NotificationController extends Controller
     {
         abort_unless($request->user()->can('notifications.view'), 403);
 
-        return ApiResponse::success(['count' => $request->user()->unreadNotifications()->count()]);
+        return ApiResponse::success(['count' => $this->notificationQuery($request->user(), true)->count()]);
     }
 
     public function read(Request $request, string $notification)
     {
-        $item = $request->user()->notifications()->findOrFail($notification);
+        $item = $this->notificationQuery($request->user())->findOrFail($notification);
         $item->markAsRead();
 
         return ApiResponse::success($item->fresh(), 'Notification marked as read');
@@ -42,14 +46,14 @@ class NotificationController extends Controller
 
     public function readAll(Request $request)
     {
-        $request->user()->unreadNotifications->markAsRead();
+        $this->notificationQuery($request->user(), true)->get()->markAsRead();
 
         return ApiResponse::success(null, 'All notifications marked as read');
     }
 
     public function destroy(Request $request, string $notification)
     {
-        $request->user()->notifications()->findOrFail($notification)->delete();
+        $this->notificationQuery($request->user())->findOrFail($notification)->delete();
 
         return ApiResponse::success(null, 'Notification deleted');
     }
@@ -67,8 +71,9 @@ class NotificationController extends Controller
     public function settings(Request $request)
     {
         $user = $request->user();
-        abort_unless($user->can('notifications.edit') && $user->company_id, 403);
-        $settings = $user->company->settings['notifications'] ?? [];
+        $company = $this->context->companyFor($user);
+        abort_unless($user->can('notifications.edit') && $company, 403);
+        $settings = $company->settings['notifications'] ?? [];
         if (isset($settings['twilio']['token'])) {
             $settings['twilio']['token'] = '********';
         }
@@ -82,8 +87,8 @@ class NotificationController extends Controller
     public function updateSettings(NotificationRequest $request)
     {
         $user = $request->user();
-        abort_unless($user->can('notifications.edit') && $user->company_id, 403);
-        $company = $user->company;
+        $company = $this->context->companyFor($user);
+        abort_unless($user->can('notifications.edit') && $company, 403);
         $settings = $company->settings ?? [];
         $notifications = $request->validated();
         $twilioTokenChanged = ($notifications['twilio']['token'] ?? null) !== '********';
@@ -110,14 +115,32 @@ class NotificationController extends Controller
     {
         $user = $request->user();
         abort_unless($user->can('notifications.create'), 403);
+        $companyId = $this->context->companyIdFor($user);
         $query = User::query();
-        if (! $user->isSuperAdmin()) {
-            $query->where('company_id', $user->company_id);
+        if ($companyId) {
+            $query->where(function ($companyQuery) use ($companyId) {
+                $companyQuery->whereHas('companyMemberships', fn ($membershipQuery) => $membershipQuery
+                    ->where('company_id', $companyId)
+                    ->where('status', 'active'))
+                    ->orWhere(function ($legacyQuery) use ($companyId) {
+                        $legacyQuery->where('company_id', $companyId)
+                            ->whereDoesntHave('companyMemberships');
+                    });
+            });
+        } elseif (! $user->isSuperAdmin()) {
+            abort(403);
         }
         if ($request->validated('user_ids')) {
             $query->whereIn('id', $request->validated('user_ids'));
         }
-        $this->notifications->send($query->get(), 'system.announcement', $request->validated('title'), $request->validated('message'), severity: $request->validated('severity', 'info'));
+        $this->notifications->send(
+            $query->get(),
+            'system.announcement',
+            $request->validated('title'),
+            $request->validated('message'),
+            severity: $request->validated('severity', 'info'),
+            companyId: $companyId,
+        );
 
         return ApiResponse::success(null, 'Announcement sent');
     }
@@ -127,10 +150,31 @@ class NotificationController extends Controller
         $user = $request->user();
         abort_unless($user->can('notifications.edit'), 403);
         $query = NotificationDeliveryLog::query()->latest();
-        if (! $user->isSuperAdmin()) {
-            $query->where('company_id', $user->company_id);
+        $companyId = $this->context->companyIdFor($user);
+        if ($companyId) {
+            $query->where('company_id', $companyId);
+        } elseif (! $user->isSuperAdmin()) {
+            abort(403);
         }
 
         return ApiResponse::success($query->paginate(min($request->integer('per_page', 50), 100)));
+    }
+
+    private function notificationQuery(User $user, bool $unread = false)
+    {
+        $query = $unread ? $user->unreadNotifications() : $user->notifications();
+        $companyId = $this->context->companyIdFor($user);
+
+        if ($companyId) {
+            $query->where(function ($companyQuery) use ($companyId, $user) {
+                $companyQuery->where('data->company_id', $companyId);
+
+                if ((int) $user->company_id === $companyId) {
+                    $companyQuery->orWhereNull('data->company_id');
+                }
+            });
+        }
+
+        return $query;
     }
 }

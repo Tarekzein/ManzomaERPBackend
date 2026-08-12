@@ -5,6 +5,7 @@ namespace App\Modules\Platform\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Platform\Models\WebhookDelivery;
 use App\Modules\Platform\Models\WebhookEndpoint;
+use App\Modules\Platform\Services\CompanyContext;
 use App\Modules\Platform\Services\WebhookService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -13,12 +14,14 @@ use Illuminate\Support\Str;
 
 class WebhookController extends Controller
 {
+    public function __construct(private readonly CompanyContext $context) {}
+
     public function index(Request $request): JsonResponse
     {
         $this->authorizeAccess($request);
 
         return ApiResponse::success(
-            WebhookEndpoint::where('company_id', $request->user()->company_id)->withCount('deliveries')->latest()->get(),
+            WebhookEndpoint::where('company_id', $this->companyId($request))->withCount('deliveries')->latest()->get(),
             'Webhook endpoints loaded'
         );
     }
@@ -34,7 +37,7 @@ class WebhookController extends Controller
         ]);
 
         $endpoint = WebhookEndpoint::create($data + [
-            'company_id' => $request->user()->company_id,
+            'company_id' => $this->companyId($request),
             'secret' => Str::random(48),
         ]);
 
@@ -68,7 +71,7 @@ class WebhookController extends Controller
         $this->authorizeAccess($request);
 
         return ApiResponse::success(
-            WebhookDelivery::whereHas('endpoint', fn ($query) => $query->where('company_id', $request->user()->company_id))
+            WebhookDelivery::whereHas('endpoint', fn ($query) => $query->where('company_id', $this->companyId($request)))
                 ->with('endpoint:id,name')
                 ->latest()
                 ->paginate(min(max($request->integer('per_page', 25), 1), 100)),
@@ -88,12 +91,20 @@ class WebhookController extends Controller
 
     private function authorizeAccess(Request $request): void
     {
-        abort_unless($request->user()->company_id && $request->user()->can('platform.edit'), 403);
+        abort_unless($this->context->companyIdFor($request->user()) && $request->user()->can('platform.edit'), 403);
     }
 
     private function authorizeEndpoint(Request $request, WebhookEndpoint $endpoint): void
     {
         $this->authorizeAccess($request);
-        abort_unless($endpoint->company_id === $request->user()->company_id, 404);
+        abort_unless((int) $endpoint->company_id === $this->companyId($request), 404);
+    }
+
+    private function companyId(Request $request): int
+    {
+        $companyId = $this->context->companyIdFor($request->user());
+        abort_unless($companyId, 422, 'A company is required.');
+
+        return $companyId;
     }
 }

@@ -26,6 +26,7 @@ use App\Modules\Sales\Models\SalesOrder;
 use App\Modules\Subscriptions\Enums\SubscriptionStatus;
 use App\Modules\Subscriptions\Models\CompanySubscription;
 use App\Modules\Subscriptions\Models\SubscriptionPlan;
+use App\Modules\Subscriptions\Services\OrganizationEntitlementService;
 use Illuminate\Support\Facades\DB;
 
 class DashboardService
@@ -34,6 +35,8 @@ class DashboardService
         private readonly EffectiveAccessService $access,
         private readonly WorkScopeService $scope,
         private readonly SocialInsightsService $social,
+        private readonly CompanyContext $context,
+        private readonly OrganizationEntitlementService $entitlements,
     ) {}
 
     public function summary(User $user): array
@@ -43,6 +46,13 @@ class DashboardService
 
     private function platformSummary(): array
     {
+        $recentCompanies = Company::query()
+            ->withCount(['members as users_count' => fn ($query) => $query->where('company_memberships.status', 'active')])
+            ->latest()
+            ->limit(5)
+            ->get();
+        $this->entitlements->projectCompanySubscriptions($recentCompanies);
+
         return [
             'scope' => 'platform',
             'metrics' => [
@@ -52,12 +62,7 @@ class DashboardService
                 'plans' => SubscriptionPlan::where('is_active', true)->count(),
                 'active_subscriptions' => CompanySubscription::whereIn('status', SubscriptionStatus::servingValues())->count(),
             ],
-            'recent_companies' => Company::query()
-                ->with('subscription.plan')
-                ->withCount('users')
-                ->latest()
-                ->limit(5)
-                ->get(),
+            'recent_companies' => $recentCompanies,
             'analytics' => [
                 'company_growth' => $this->monthlyCount(Company::query(), 'created_at'),
                 'user_growth' => $this->monthlyCount(User::query(), 'created_at'),
@@ -78,7 +83,7 @@ class DashboardService
 
     private function companySummary(User $user): array
     {
-        $companyId = $user->company_id;
+        $companyId = $this->context->companyIdFor($user);
 
         if ($companyId === null) {
             return ['scope' => 'company', 'metrics' => [], 'analytics' => [], 'access' => $this->access->effectiveAccess($user)];

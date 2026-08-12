@@ -3,21 +3,39 @@
 namespace App\Modules\Subscriptions\Repositories;
 
 use App\Modules\Companies\Models\Company;
+use App\Modules\Organizations\Models\Organization;
 use App\Modules\Subscriptions\Contracts\CompanySubscriptionRepository;
 use App\Modules\Subscriptions\Enums\SubscriptionStatus;
 use App\Modules\Subscriptions\Models\CompanySubscription;
 use App\Modules\Subscriptions\Models\SubscriptionPlan;
+use App\Modules\Subscriptions\Services\OrganizationEntitlementService;
 use App\Modules\Subscriptions\Support\BillingPeriod;
 use Illuminate\Support\Carbon;
 
 class EloquentCompanySubscriptionRepository implements CompanySubscriptionRepository
 {
+    public function __construct(private readonly OrganizationEntitlementService $entitlements) {}
+
     public function current(Company $company): ?CompanySubscription
     {
+        if ($company->organization_id !== null) {
+            return $this->currentForOrganization($company->organization()->firstOrFail());
+        }
+
         return $company->subscriptions()
             ->with('plan.features')
             ->whereIn('status', SubscriptionStatus::servingValues())
             ->latest()
+            ->first();
+    }
+
+    public function currentForOrganization(Organization $organization): ?CompanySubscription
+    {
+        return CompanySubscription::query()
+            ->with('plan.features')
+            ->where('organization_id', $organization->getKey())
+            ->whereIn('status', SubscriptionStatus::servingValues())
+            ->latest('id')
             ->first();
     }
 
@@ -32,7 +50,14 @@ class EloquentCompanySubscriptionRepository implements CompanySubscriptionReposi
     ): CompanySubscription {
         $previous = $this->current($company);
 
-        $company->subscriptions()->whereIn('status', SubscriptionStatus::servingValues())->update([
+        $serving = CompanySubscription::query()
+            ->when(
+                $company->organization_id !== null,
+                fn ($query) => $query->where('organization_id', $company->organization_id),
+                fn ($query) => $query->where('company_id', $company->getKey()),
+            );
+
+        $serving->whereIn('status', SubscriptionStatus::servingValues())->update([
             'status' => SubscriptionStatus::Cancelled->value,
             'cancelled_at' => now(),
             'cancellation_reason' => $attributes['replacement_reason'] ?? 'replaced_by_new_subscription',
@@ -47,8 +72,11 @@ class EloquentCompanySubscriptionRepository implements CompanySubscriptionReposi
             ? $trialEnd
             : BillingPeriod::end($billingCycle, $startsAt);
 
-        return $company->subscriptions()->create(array_replace([
+        return CompanySubscription::query()->create(array_replace([
+            'company_id' => $company->getKey(),
+            'organization_id' => $company->organization_id,
             'subscription_plan_id' => $plan->id,
+            'entitlements_snapshot' => $this->entitlements->snapshot($plan),
             'status' => $status,
             'billing_cycle' => $billingCycle,
             'auto_renew' => true,

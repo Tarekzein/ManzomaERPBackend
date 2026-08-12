@@ -68,3 +68,8 @@ Schedule::command('subscriptions:send-reminders')
     ->dailyAt('09:00')
     ->withoutOverlapping()
     ->after(fn () => Cache::put('system_health:scheduler:subscription-reminders', now()->toISOString(), now()->addHours(25)));
+
+Schedule::command('organizations:reconcile-quotas')
+    ->dailyAt('01:30')
+    ->withoutOverlapping()
+    ->after(fn () => Cache::put('system_health:scheduler:organization-quotas', now()->toISOString(), now()->addHours(25)));

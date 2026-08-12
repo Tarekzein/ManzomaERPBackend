@@ -3,6 +3,7 @@
 namespace App\Modules\Subscriptions\Services;
 
 use App\Modules\Companies\Models\Company;
+use App\Modules\Organizations\Models\Organization;
 use App\Modules\Subscriptions\Enums\SubscriptionStatus;
 use App\Modules\Subscriptions\Models\CompanySubscription;
 use App\Modules\Subscriptions\Models\SubscriptionPayment;
@@ -16,7 +17,10 @@ use Illuminate\Support\Facades\DB;
  */
 class SubscriptionLifecycleService
 {
-    public function __construct(private readonly SubscriptionNotifier $notifier) {}
+    public function __construct(
+        private readonly SubscriptionNotifier $notifier,
+        private readonly OrganizationEntitlementService $entitlements,
+    ) {}
 
     /** Extend the paid period after a successful renewal charge. */
     public function applyRenewal(CompanySubscription $subscription, SubscriptionPayment $payment): CompanySubscription
@@ -35,6 +39,7 @@ class SubscriptionLifecycleService
                 'renewal_failures' => 0,
                 'last_renewal_attempt_at' => now(),
                 'last_renewed_at' => now(),
+                'entitlements_snapshot' => $this->entitlements->snapshot($subscription->loadMissing('plan')->plan),
             ])->save();
 
             $this->restoreCompanyAccess($subscription);
@@ -198,6 +203,15 @@ class SubscriptionLifecycleService
 
     private function restoreCompanyAccess(CompanySubscription $subscription): void
     {
+        if ($subscription->organization_id !== null) {
+            Organization::query()
+                ->whereKey($subscription->organization_id)
+                ->whereNotNull('billing_suspended_at')
+                ->update(['billing_suspended_at' => null]);
+
+            return;
+        }
+
         $company = $subscription->company ?? Company::find($subscription->company_id);
 
         if ($company && (! $company->is_active || $company->plan !== $subscription->plan?->slug)) {
@@ -214,6 +228,22 @@ class SubscriptionLifecycleService
 
     private function suspendCompany(CompanySubscription $subscription): void
     {
+        if ($subscription->organization_id !== null) {
+            $hasOtherServing = CompanySubscription::query()
+                ->where('organization_id', $subscription->organization_id)
+                ->whereKeyNot($subscription->id)
+                ->whereIn('status', SubscriptionStatus::servingValues())
+                ->exists();
+
+            if (! $hasOtherServing) {
+                Organization::query()
+                    ->whereKey($subscription->organization_id)
+                    ->update(['billing_suspended_at' => now()]);
+            }
+
+            return;
+        }
+
         $company = $subscription->company ?? Company::find($subscription->company_id);
 
         // Only suspend when nothing else is keeping the company alive, e.g. a

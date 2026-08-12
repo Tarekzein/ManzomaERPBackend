@@ -10,13 +10,13 @@ class SpatieRoleRepository implements RoleRepository
 {
     public function assign(User $user, string $role): void
     {
-        Role::findOrCreate($role);
+        Role::findOrCreate($role, 'web');
         $user->assignRole($role);
     }
 
     public function sync(User $user, string $role): void
     {
-        Role::findOrCreate($role);
+        Role::findOrCreate($role, 'web');
         $user->syncRoles([$role]);
     }
 }

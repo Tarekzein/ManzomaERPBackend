@@ -2,10 +2,10 @@
 
 namespace App\Modules\MetaIntegration\Services;
 
-use App\Modules\Authentication\Enums\UserRole;
 use App\Modules\Authentication\Models\User;
 use App\Modules\MetaIntegration\Models\MetaConnection;
 use App\Modules\Notifications\Services\NotificationService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 /**
@@ -110,20 +110,33 @@ class MetaConnectionNotifier
             $payload + ['company_id' => $connection->company_id],
             self::ACTION_URL,
             $severity,
+            $connection->company_id,
         );
     }
 
     /** Company admins, plus anyone explicitly allowed to manage the integration. */
     private function recipients(MetaConnection $connection): Collection
     {
-        $admins = User::query()
-            ->where('company_id', $connection->company_id)
-            ->where('is_active', true)
-            ->whereHas('roles', fn ($query) => $query->where('name', UserRole::CompanyAdmin->value))
-            ->get();
+        $authorized = $this->notifications
+            ->recipientsForCompany((int) $connection->company_id, 'meta.edit');
 
-        return $admins->isNotEmpty()
-            ? $admins
-            : User::query()->where('company_id', $connection->company_id)->where('is_active', true)->limit(1)->get();
+        return $authorized->isNotEmpty()
+            ? $authorized
+            : $this->companyMembersQuery((int) $connection->company_id)->limit(1)->get();
+    }
+
+    private function companyMembersQuery(int $companyId): Builder
+    {
+        return User::query()
+            ->where('is_active', true)
+            ->where(function ($query) use ($companyId) {
+                $query->whereHas('companyMemberships', fn ($memberships) => $memberships
+                    ->where('company_id', $companyId)
+                    ->where('status', 'active'))
+                    ->orWhere(function ($legacy) use ($companyId) {
+                        $legacy->where('company_id', $companyId)
+                            ->whereDoesntHave('companyMemberships');
+                    });
+            });
     }
 }

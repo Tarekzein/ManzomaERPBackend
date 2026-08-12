@@ -2,13 +2,15 @@
 
 namespace App\Modules\Companies\Services;
 
-use App\Modules\Authentication\Models\User;
 use App\Modules\Authentication\Enums\UserRole;
+use App\Modules\Authentication\Models\User;
 use App\Modules\Companies\Contracts\CompanyRepository;
 use App\Modules\Companies\DTOs\CreateCompanyData;
 use App\Modules\Companies\Models\Company;
 use App\Modules\Finance\Services\FinanceSetupService;
 use App\Modules\Inventory\Services\InventorySetupService;
+use App\Modules\Organizations\Models\Organization;
+use App\Modules\Platform\Services\CompanyContext;
 use App\Modules\Subscriptions\DTOs\SubscribeData;
 use App\Modules\Subscriptions\Services\CompanySubscriptionService;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -22,11 +24,17 @@ class CompanyService
         private readonly CompanySubscriptionService $subscriptions,
         private readonly FinanceSetupService $financeSetup,
         private readonly InventorySetupService $inventorySetup,
+        private readonly CompanyContext $context,
     ) {}
 
-    public function create(CreateCompanyData $data, string $planSlug, bool $active = true): Company
-    {
+    public function create(
+        CreateCompanyData $data,
+        string $planSlug,
+        bool $active = true,
+        ?Organization $organization = null,
+    ): Company {
         return $this->companies->create([
+            'organization_id' => $organization?->getKey(),
             'name' => $data->name,
             'plan' => $planSlug,
             'timezone' => $data->timezone,
@@ -46,7 +54,16 @@ class CompanyService
         abort_unless($actor->isSuperAdmin(), 403);
 
         return DB::transaction(function () use ($actor, $data, $planSlug, $billingCycle, $active) {
-            $company = $this->create($data, $planSlug, $active);
+            $organization = Organization::query()->create([
+                'name' => $data->name,
+                'status' => Organization::STATUS_ACTIVE,
+                'timezone' => $data->timezone,
+                'locale' => $data->locale,
+                'currency' => $data->currency,
+                'created_by_user_id' => $actor->getKey(),
+                'settings' => [],
+            ]);
+            $company = $this->create($data, $planSlug, $active, $organization);
             $this->subscriptions->start(
                 $company,
                 new SubscribeData($planSlug, $billingCycle),
@@ -55,7 +72,9 @@ class CompanyService
             $this->financeSetup->provision($company);
             $this->inventorySetup->provision($company);
 
-            return $company->refresh()->load('subscription.plan.features')->loadCount('users');
+            return $company->refresh()
+                ->load(['organization', 'subscription.plan.features'])
+                ->loadCount(['members as users_count' => fn ($query) => $query->where('company_memberships.status', 'active')]);
         });
     }
 
@@ -83,9 +102,14 @@ class CompanyService
 
     public function updateSetup(User $actor, array $data): Company
     {
-        $company = $actor->company;
+        $company = $this->context->companyFor($actor);
         abort_unless($company, 422, 'A company is required.');
-        abort_unless($actor->isSuperAdmin() || $actor->hasRole(UserRole::CompanyAdmin->value) || $actor->can('companies.edit'), 403);
+        abort_unless(
+            $actor->isSuperAdmin()
+            || $this->context->hasCompanyRole($actor, UserRole::CompanyAdmin->value)
+            || $actor->can('companies.edit'),
+            403,
+        );
 
         $settings = array_replace($company->settings ?? [], [
             'display_name' => $data['display_name'] ?? data_get($company->settings, 'display_name'),
@@ -114,6 +138,10 @@ class CompanyService
 
     private function ensureCanManage(User $actor, Company $company): void
     {
-        abort_unless($actor->isSuperAdmin() || ($actor->company_id === $company->id && $actor->can('companies.edit')), 403);
+        abort_unless(
+            $actor->isSuperAdmin()
+            || ($this->context->companyIdFor($actor) === (int) $company->id && $actor->can('companies.edit')),
+            403,
+        );
     }
 }

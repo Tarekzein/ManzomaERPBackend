@@ -4,6 +4,8 @@ namespace App\Modules\Authentication\Services;
 
 use App\Modules\Authentication\Models\User;
 use App\Modules\Authentication\Models\UserSocialAccount;
+use App\Modules\Organizations\Models\Organization;
+use App\Modules\Organizations\Models\OrganizationMembership;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -141,7 +143,15 @@ class GoogleOAuthService
         }
 
         $user = $account->user;
-        if (! $user || $user->is_active !== true || (! $user->isSuperAdmin() && $user->company?->is_active !== true)) {
+        $hasOrganizationAccess = $user?->organizationMemberships()
+            ->where('status', OrganizationMembership::STATUS_ACTIVE)
+            ->whereHas('organization', fn ($query) => $query->where('status', '!=', Organization::STATUS_ARCHIVED))
+            ->exists() ?? false;
+
+        if (! $user || $user->is_active !== true || (! $user->isSuperAdmin()
+            && ! $hasOrganizationAccess
+            && $user->company?->is_active !== true
+            && $user->company?->isBillingSuspended() !== true)) {
             throw ValidationException::withMessages(['google' => ['This ManzomaERP account is not active.']]);
         }
 

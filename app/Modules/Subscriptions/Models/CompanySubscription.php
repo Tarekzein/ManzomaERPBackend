@@ -3,6 +3,7 @@
 namespace App\Modules\Subscriptions\Models;
 
 use App\Modules\Companies\Models\Company;
+use App\Modules\Organizations\Models\Organization;
 use App\Modules\Subscriptions\Enums\SubscriptionStatus;
 use App\Modules\Subscriptions\Support\BillingPeriod;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,7 +18,8 @@ class CompanySubscription extends Model
     use HasFactory;
 
     protected $fillable = [
-        'company_id', 'subscription_plan_id', 'status', 'billing_cycle', 'auto_renew',
+        'company_id', 'organization_id', 'subscription_plan_id', 'entitlements_snapshot',
+        'over_limit_since', 'pending_plan_id', 'pending_change_at', 'status', 'billing_cycle', 'auto_renew',
         'cancel_at_period_end', 'starts_at', 'current_period_started_at', 'current_period_ends_at',
         'ends_at', 'trial_ends_at', 'grace_ends_at', 'cancelled_at', 'cancellation_reason',
         'provider', 'provider_subscription_id', 'payment_method_token', 'payment_method_brand',
@@ -39,11 +41,14 @@ class CompanySubscription extends Model
             'cancelled_at' => 'datetime',
             'last_renewal_attempt_at' => 'datetime',
             'last_renewed_at' => 'datetime',
+            'over_limit_since' => 'datetime',
+            'pending_change_at' => 'datetime',
             'auto_renew' => 'boolean',
             'cancel_at_period_end' => 'boolean',
             'renewal_failures' => 'integer',
             'reminders_sent' => 'array',
             'metadata' => 'array',
+            'entitlements_snapshot' => 'array',
             'payment_method_token' => 'encrypted',
         ];
     }
@@ -55,9 +60,19 @@ class CompanySubscription extends Model
         return $this->belongsTo(Company::class);
     }
 
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class);
+    }
+
     public function plan(): BelongsTo
     {
         return $this->belongsTo(SubscriptionPlan::class, 'subscription_plan_id');
+    }
+
+    public function pendingPlan(): BelongsTo
+    {
+        return $this->belongsTo(SubscriptionPlan::class, 'pending_plan_id');
     }
 
     public function payments(): HasMany

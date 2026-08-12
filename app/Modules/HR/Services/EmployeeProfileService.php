@@ -3,26 +3,30 @@
 namespace App\Modules\HR\Services;
 
 use App\Modules\Authentication\Models\User;
+use App\Modules\Companies\Models\Company;
 use App\Modules\HR\Models\Employee;
 
 class EmployeeProfileService
 {
-    public function ensureForUser(User $user): ?Employee
+    public function ensureForUser(User $user, ?Company $company = null): ?Employee
     {
-        if (! $user->company_id) {
+        $company ??= $user->company;
+        if (! $company) {
             return null;
         }
 
+        $companyId = (int) $company->getKey();
+
         return Employee::query()->firstOrCreate(
-            ['company_id' => $user->company_id, 'user_id' => $user->id],
+            ['company_id' => $companyId, 'user_id' => $user->id],
             [
-                'employee_number' => $this->nextEmployeeNumber($user->company_id),
+                'employee_number' => $this->nextEmployeeNumber($companyId),
                 'name' => $user->name,
                 'email' => $user->email,
                 'hire_date' => now()->toDateString(),
                 'status' => 'active',
                 'base_salary' => 0,
-                'currency' => $user->company?->currency ?? config('app.currency', 'EGP'),
+                'currency' => $company->currency ?? config('app.currency', 'EGP'),
                 'payroll_formula' => ['bonuses' => 0, 'deductions' => 0, 'tax_rate' => 0],
             ]
         );

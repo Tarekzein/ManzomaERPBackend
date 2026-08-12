@@ -3,6 +3,9 @@
 namespace App\Modules\Companies\Exports;
 
 use App\Modules\Companies\Models\Company;
+use App\Modules\Organizations\Models\CompanyMembership;
+use App\Modules\Subscriptions\Enums\SubscriptionStatus;
+use App\Modules\Subscriptions\Models\CompanySubscription;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -41,21 +44,31 @@ class CompanyDataExport implements WithMultipleSheets
 
     private function companySummary(): array
     {
-        $company = $this->company->loadMissing('subscription.plan.features');
+        $company = $this->company->loadMissing('organization');
+        $subscription = CompanySubscription::query()
+            ->with('plan.features')
+            ->when(
+                $company->organization_id,
+                fn ($query) => $query->where('organization_id', $company->organization_id),
+                fn ($query) => $query->where('company_id', $company->getKey()),
+            )
+            ->whereIn('status', SubscriptionStatus::servingValues())
+            ->latest('id')
+            ->first();
         $settings = $company->settings ?? [];
 
         return [
             ['Company ID', $company->id],
             ['Name', $company->name],
             ['Display Name', data_get($settings, 'display_name', '-')],
-            ['Plan', $company->subscription?->plan?->name ?? '-'],
-            ['Subscription Status', $company->subscription?->status ?? '-'],
-            ['Billing Cycle', $company->subscription?->billing_cycle ?? '-'],
+            ['Plan', $subscription?->plan?->name ?? '-'],
+            ['Subscription Status', $subscription?->status ?? '-'],
+            ['Billing Cycle', $subscription?->billing_cycle ?? '-'],
             ['Currency', $company->currency],
             ['Locale', $company->locale],
             ['Timezone', $company->timezone],
             ['Active', $company->is_active ? 'Yes' : 'No'],
-            ['Users', $company->users()->count()],
+            ['Users', $this->activeUserCount()],
             ['Contact Email', data_get($settings, 'contact_email', '-')],
             ['Contact Phone', data_get($settings, 'contact_phone', '-')],
             ['Address', data_get($settings, 'address', '-')],
@@ -70,20 +83,50 @@ class CompanyDataExport implements WithMultipleSheets
 
     private function userRows(): array
     {
-        return $this->company->users()
-            ->with('roles')
-            ->orderBy('name')
+        if (! $this->company->companyMemberships()->exists()) {
+            return $this->company->users()
+                ->where('is_active', true)
+                ->with(['roles', 'customRole'])
+                ->orderBy('id')
+                ->get()
+                ->map(fn ($user) => [
+                    $user->id,
+                    $user->name,
+                    $user->email,
+                    $user->customRole?->name ?? ($user->roles->pluck('name')->join(', ') ?: '-'),
+                    $user->is_active ? 'Yes' : 'No',
+                    $this->formatValue($user->created_at),
+                    $this->formatValue($user->last_login_at),
+                ])
+                ->all();
+        }
+
+        return $this->company->companyMemberships()
+            ->where('status', CompanyMembership::STATUS_ACTIVE)
+            ->with(['user', 'role', 'customRole'])
+            ->orderBy('user_id')
             ->get()
-            ->map(fn ($user) => [
-                $user->id,
-                $user->name,
-                $user->email,
-                $user->roles->pluck('name')->implode(', '),
-                $user->is_active ? 'Yes' : 'No',
-                $this->formatValue($user->created_at),
-                $this->formatValue($user->last_login_at),
+            ->map(fn (CompanyMembership $membership) => [
+                $membership->user->id,
+                $membership->user->name,
+                $membership->user->email,
+                $membership->customRole?->name ?? $membership->role?->name ?? '-',
+                $membership->user->is_active ? 'Yes' : 'No',
+                $this->formatValue($membership->user->created_at),
+                $this->formatValue($membership->user->last_login_at),
             ])
             ->all();
+    }
+
+    private function activeUserCount(): int
+    {
+        if ($this->company->companyMemberships()->exists()) {
+            return $this->company->companyMemberships()
+                ->where('status', CompanyMembership::STATUS_ACTIVE)
+                ->count();
+        }
+
+        return $this->company->users()->where('is_active', true)->count();
     }
 
     private function subscriptionHeadings(): array
@@ -93,7 +136,12 @@ class CompanyDataExport implements WithMultipleSheets
 
     private function subscriptionRows(): array
     {
-        return $this->company->subscriptions()
+        return CompanySubscription::query()
+            ->when(
+                $this->company->organization_id,
+                fn ($query) => $query->where('organization_id', $this->company->organization_id),
+                fn ($query) => $query->where('company_id', $this->company->getKey()),
+            )
             ->with('plan')
             ->latest()
             ->get()

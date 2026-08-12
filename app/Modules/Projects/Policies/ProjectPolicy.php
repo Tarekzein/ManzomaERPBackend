@@ -4,6 +4,7 @@ namespace App\Modules\Projects\Policies;
 
 use App\Modules\Authentication\Enums\UserRole;
 use App\Modules\Authentication\Models\User;
+use App\Modules\Platform\Services\CompanyContext;
 use App\Modules\Platform\Services\WorkScopeService;
 use App\Modules\Projects\Models\Project;
 use App\Modules\Projects\Models\ProjectTask;
@@ -11,11 +12,14 @@ use Illuminate\Auth\Access\AuthorizationException;
 
 class ProjectPolicy
 {
-    public function __construct(private readonly WorkScopeService $scope) {}
+    public function __construct(
+        private readonly WorkScopeService $scope,
+        private readonly CompanyContext $context,
+    ) {}
 
     public function ensureCanList(User $actor): void
     {
-        if (! $actor->isSuperAdmin() && ! $actor->company_id) {
+        if (! $actor->isSuperAdmin() && ! $this->context->companyIdFor($actor)) {
             throw new AuthorizationException('User is not assigned to a company.');
         }
     }
@@ -35,7 +39,7 @@ class ProjectPolicy
 
     public function ensureCanManageProject(User $actor, ?Project $project = null): void
     {
-        if ($actor->isSuperAdmin() || $actor->hasRole(UserRole::CompanyAdmin->value)) {
+        if ($actor->isSuperAdmin() || $this->context->hasCompanyRole($actor, UserRole::CompanyAdmin->value)) {
             if ($project) {
                 $this->ensureCanViewProject($actor, $project);
             }
@@ -43,7 +47,7 @@ class ProjectPolicy
             return;
         }
 
-        if ($actor->hasRole(UserRole::Manager->value)) {
+        if ($this->context->hasCompanyRole($actor, UserRole::Manager->value)) {
             if ($project && $project->owner_id !== $actor->id) {
                 throw new AuthorizationException('Managers can only manage projects they own.');
             }
@@ -95,6 +99,12 @@ class ProjectPolicy
     public function resolveCompanyId(User $actor, ?int $companyId): int
     {
         if ($actor->isSuperAdmin()) {
+            $selectedCompanyId = $this->context->companyId();
+            if ($selectedCompanyId && $companyId && $selectedCompanyId !== $companyId) {
+                throw new AuthorizationException('The requested company does not match the selected workspace.');
+            }
+
+            $companyId = $selectedCompanyId ?: $companyId;
             if (! $companyId) {
                 throw new AuthorizationException('company_id is required for super admin project creation.');
             }
@@ -102,16 +112,21 @@ class ProjectPolicy
             return $companyId;
         }
 
-        if (! $actor->company_id) {
+        $selectedCompanyId = $this->context->companyIdFor($actor);
+        if (! $selectedCompanyId) {
             throw new AuthorizationException('User is not assigned to a company.');
         }
 
-        return $actor->company_id;
+        if ($companyId && $companyId !== $selectedCompanyId) {
+            throw new AuthorizationException('The requested company does not match the selected workspace.');
+        }
+
+        return $selectedCompanyId;
     }
 
     public function ensureUserBelongsToCompany(User $user, int $companyId): void
     {
-        if ($user->company_id === $companyId) {
+        if ($this->context->companyIdFor($user) === $companyId) {
             return;
         }
 
@@ -120,6 +135,7 @@ class ProjectPolicy
 
     private function canManageCompanyWork(User $actor): bool
     {
-        return $actor->hasAnyRole([UserRole::CompanyAdmin->value, UserRole::Manager->value]);
+        return $this->context->hasCompanyRole($actor, UserRole::CompanyAdmin->value)
+            || $this->context->hasCompanyRole($actor, UserRole::Manager->value);
     }
 }

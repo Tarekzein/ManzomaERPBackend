@@ -2,6 +2,7 @@
 
 namespace App\Modules\Authentication\Http\Requests;
 
+use App\Modules\Authentication\Enums\UserRole;
 use App\Modules\Authentication\Services\UserManagementService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -20,7 +21,15 @@ class CreateUserRequest extends FormRequest
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()],
             'role' => ['required', Rule::in($roles)],
-            'company_id' => ['nullable', 'required_if:role,Company Admin', 'integer', 'exists:companies,id'],
+            // Only a super admin picks the company: everyone else creates the
+            // user inside their own resolved workspace.
+            'company_id' => [
+                'nullable',
+                Rule::requiredIf(fn () => $this->user()?->isSuperAdmin()
+                    && $this->input('role') === UserRole::CompanyAdmin->value),
+                'integer',
+                'exists:companies,id',
+            ],
             'permissions' => ['sometimes', 'array'],
             'permissions.*' => ['required', 'string', Rule::in($permissions)],
             'allowed_permissions' => ['sometimes', 'array'],

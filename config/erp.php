@@ -10,7 +10,7 @@ return [
 
     'company_scope' => [
         'model' => 'single_database',
-        'strategy' => 'users belong to companies; module data will use company_id scoping',
+        'strategy' => 'users join organizations and selected company workspaces; module data remains company_id scoped',
     ],
 
     'modules' => [
@@ -35,6 +35,7 @@ return [
             'annual_price' => 490,
             'currency' => 'USD',
             'max_users' => 25,
+            'max_companies' => 1,
             'storage_gb' => 10,
             'api_rate_limit_per_minute' => 60,
             'trial_enabled' => false,
@@ -47,6 +48,7 @@ return [
             'annual_price' => 1490,
             'currency' => 'USD',
             'max_users' => 100,
+            'max_companies' => 5,
             'storage_gb' => 100,
             'api_rate_limit_per_minute' => 120,
             'trial_enabled' => false,
@@ -59,6 +61,7 @@ return [
             'annual_price' => 4990,
             'currency' => 'USD',
             'max_users' => null,
+            'max_companies' => null,
             'storage_gb' => 1000,
             'api_rate_limit_per_minute' => 300,
             'trial_enabled' => false,

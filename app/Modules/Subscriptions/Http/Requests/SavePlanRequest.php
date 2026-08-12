@@ -17,6 +17,7 @@ class SavePlanRequest extends FormRequest
             'annual_price' => ['required', 'numeric', 'min:0'],
             'currency' => ['required', 'string', 'size:3'],
             'max_users' => ['nullable', 'integer', 'min:1'],
+            'max_companies' => ['nullable', 'integer', 'min:1'],
             'storage_gb' => ['nullable', 'integer', 'min:1'],
             'api_rate_limit_per_minute' => ['required', 'integer', 'min:1'],
             'trial_enabled' => ['sometimes', 'boolean'],

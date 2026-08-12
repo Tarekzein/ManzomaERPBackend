@@ -10,11 +10,15 @@ use Throwable;
 
 class TranslationService
 {
-    public function __construct(private readonly TranslationProvider $provider) {}
+    public function __construct(
+        private readonly TranslationProvider $provider,
+        private readonly CompanyContext $context,
+    ) {}
 
     public function translate(User $user, string $sourceLocale, string $targetLocale, array $items): array
     {
-        abort_unless($user->company_id, 422, 'Translation requires a company account.');
+        $companyId = $this->context->companyIdFor($user);
+        abort_unless($companyId, 422, 'Translation requires a company account.');
 
         $result = [];
         $requests = [];
@@ -23,6 +27,7 @@ class TranslationService
             $text = trim($item['text']);
             if ($text === '' || $sourceLocale === $targetLocale) {
                 $result[$key] = $item['text'];
+
                 continue;
             }
 
@@ -32,7 +37,7 @@ class TranslationService
         }
 
         $cached = CachedTranslation::query()
-            ->where('company_id', $user->company_id)
+            ->where('company_id', $companyId)
             ->where('source_locale', $sourceLocale)
             ->where('target_locale', $targetLocale)
             ->whereIn('source_hash', array_keys($requests))
@@ -63,7 +68,7 @@ class TranslationService
                     $text = $translated[$index];
                     CachedTranslation::updateOrCreate(
                         [
-                            'company_id' => $user->company_id,
+                            'company_id' => $companyId,
                             'source_locale' => $sourceLocale,
                             'target_locale' => $targetLocale,
                             'source_hash' => $hash,
@@ -76,7 +81,7 @@ class TranslationService
                 }
             } catch (Throwable $exception) {
                 Log::warning('Automatic translation failed.', [
-                    'company_id' => $user->company_id,
+                    'company_id' => $companyId,
                     'provider' => $this->provider->name(),
                     'message' => $exception->getMessage(),
                 ]);

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Modules\Authentication\Enums\UserRole;
 use App\Modules\Authentication\Models\User;
+use App\Modules\Companies\Models\Company;
 use App\Modules\Subscriptions\Models\SubscriptionPlan;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -53,6 +54,30 @@ class DashboardAndCompaniesTest extends TestCase
             ]]]);
 
         $this->getJson('/api/companies')->assertForbidden();
+    }
+
+    public function test_child_companies_serialize_the_organization_subscription_in_directories_and_dashboard(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $origin = Company::where('name', 'Demo Company')->firstOrFail();
+        $subscription = $origin->organization->subscription()->firstOrFail();
+        $child = Company::factory()->create([
+            'organization_id' => $origin->organization_id,
+            'name' => 'Organization Child',
+            'plan' => $subscription->plan->slug,
+        ]);
+        $superAdmin = User::where('email', 'admin@manzomatech.com')->firstOrFail();
+        Sanctum::actingAs($superAdmin);
+
+        $this->getJson('/api/companies?search=Organization%20Child')
+            ->assertOk()
+            ->assertJsonPath('data.data.0.id', $child->id)
+            ->assertJsonPath('data.data.0.subscription.id', $subscription->id);
+
+        $this->getJson('/api/dashboard')
+            ->assertOk()
+            ->assertJsonPath('data.recent_companies.0.id', $child->id)
+            ->assertJsonPath('data.recent_companies.0.subscription.id', $subscription->id);
     }
 
     public function test_unauthenticated_user_cannot_open_dashboard_or_company_directory(): void
