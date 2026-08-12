@@ -111,7 +111,7 @@ class SubscriptionPaymentTest extends TestCase
             ->assertJsonPath('data.settings.address', 'Cairo, Egypt');
     }
 
-    public function test_inactive_user_cannot_login_and_company_admin_can_deactivate_user(): void
+    public function test_deactivated_user_signs_in_to_a_suspension_notice_instead_of_the_app(): void
     {
         $this->seed(\Database\Seeders\DatabaseSeeder::class);
         $admin = User::where('email', 'company.admin@example.com')->firstOrFail();
@@ -127,10 +127,20 @@ class SubscriptionPaymentTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.is_active', false);
 
-        $this->postJson('/api/auth/login', [
+        // Deactivation is not an authentication failure. The account signs in
+        // and is told it was deactivated, rather than that its password is
+        // wrong; everything past the session endpoints stays closed.
+        $login = $this->postJson('/api/auth/login', [
             'email' => 'inactive@example.com',
             'password' => 'Secret#123',
-        ])->assertUnprocessable();
+        ])->assertOk();
+
+        $this->assertNotEmpty($login->json('data.token'));
+        $this->assertSame('account', $login->json('data.user.suspension.scope'));
+
+        Sanctum::actingAs($employee->refresh());
+        $this->getJson('/api/dashboard')->assertForbidden()->assertJsonPath('code', 'ACCOUNT_SUSPENDED');
+        $this->getJson('/api/auth/me')->assertOk()->assertJsonPath('data.suspension.scope', 'account');
     }
 
     private function registerPendingCompany()

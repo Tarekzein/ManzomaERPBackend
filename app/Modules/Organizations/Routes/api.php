@@ -31,6 +31,10 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('companies.archive');
         Route::post('/{organization}/companies/{company}/restore', [OrganizationController::class, 'restoreCompany'])
             ->name('companies.restore');
+        Route::post('/{organization}/companies/{company}/suspend', [OrganizationController::class, 'suspendCompany'])
+            ->name('companies.suspend');
+        Route::post('/{organization}/companies/{company}/reactivate', [OrganizationController::class, 'reactivateCompany'])
+            ->name('companies.reactivate');
 
         Route::get('/{organization}/members', [OrganizationMemberController::class, 'index'])->name('members.index');
         Route::patch('/{organization}/members/{membership}', [OrganizationMemberController::class, 'update'])

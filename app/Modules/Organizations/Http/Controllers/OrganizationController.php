@@ -7,13 +7,17 @@ use App\Modules\Companies\DTOs\CreateCompanyData;
 use App\Modules\Companies\Models\Company;
 use App\Modules\Organizations\Models\Organization;
 use App\Modules\Organizations\Services\OrganizationService;
+use App\Modules\Organizations\Services\TenantSuspensionService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class OrganizationController extends Controller
 {
-    public function __construct(private readonly OrganizationService $organizations) {}
+    public function __construct(
+        private readonly OrganizationService $organizations,
+        private readonly TenantSuspensionService $suspensions,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -70,17 +74,43 @@ class OrganizationController extends Controller
 
     public function suspend(Request $request, Organization $organization): JsonResponse
     {
+        $data = $request->validate(['reason' => ['sometimes', 'nullable', 'string', 'max:500']]);
+        $this->suspensions->suspendOrganization($request->user(), $organization, $data['reason'] ?? null);
+
         return ApiResponse::success(
-            $this->organizations->setStatus($request->user(), $organization, Organization::STATUS_SUSPENDED),
+            $this->organizations->show($request->user(), $organization->refresh()),
             'Organization suspended',
         );
     }
 
     public function reactivate(Request $request, Organization $organization): JsonResponse
     {
+        $this->suspensions->reactivateOrganization($request->user(), $organization);
+
         return ApiResponse::success(
-            $this->organizations->setStatus($request->user(), $organization, Organization::STATUS_ACTIVE),
+            $this->organizations->show($request->user(), $organization->refresh()),
             'Organization reactivated',
+        );
+    }
+
+    public function suspendCompany(Request $request, Organization $organization, Company $company): JsonResponse
+    {
+        abort_unless((int) $company->organization_id === (int) $organization->getKey(), 404);
+        $data = $request->validate(['reason' => ['sometimes', 'nullable', 'string', 'max:500']]);
+
+        return ApiResponse::success(
+            $this->suspensions->suspendCompany($request->user(), $company, $data['reason'] ?? null),
+            'Company suspended',
+        );
+    }
+
+    public function reactivateCompany(Request $request, Organization $organization, Company $company): JsonResponse
+    {
+        abort_unless((int) $company->organization_id === (int) $organization->getKey(), 404);
+
+        return ApiResponse::success(
+            $this->suspensions->reactivateCompany($request->user(), $company),
+            'Company reactivated',
         );
     }
 

@@ -5,6 +5,7 @@ namespace App\Modules\Platform\Http\Middleware;
 use App\Modules\Authentication\Models\User;
 use App\Modules\Companies\Models\Company;
 use App\Modules\Organizations\Models\OrganizationMembership;
+use App\Modules\Organizations\Services\TenantSuspensionService;
 use App\Modules\Platform\Services\CompanyContext;
 use Closure;
 use Illuminate\Http\JsonResponse;
@@ -15,7 +16,10 @@ class ResolveCompanyContext
 {
     public const HEADER = 'X-Manzoma-Workspace';
 
-    public function __construct(private readonly CompanyContext $context) {}
+    public function __construct(
+        private readonly CompanyContext $context,
+        private readonly TenantSuspensionService $suspensions,
+    ) {}
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -54,7 +58,11 @@ class ResolveCompanyContext
         if ($workspace !== '') {
             $resolved = $this->resolveRequestedCompany($user, $workspace);
             if (! $resolved) {
-                return $this->notFound();
+                // A member whose access to this workspace was suspended is not
+                // the same as a stranger: tell them, instead of hiding it.
+                return $this->isSuspendedMemberOf($user, $workspace)
+                    ? $this->suspended()
+                    : $this->notFound();
             }
 
             [$company, $membership, $organizationMembership] = $resolved;
@@ -98,9 +106,15 @@ class ResolveCompanyContext
         // legacy user.company_id here would let a suspended membership regain
         // access simply by omitting the workspace header.
         if ($user->companyMemberships()->exists()) {
-            return $this->requiresWorkspace($request)
-                ? $this->notFound()
-                : $this->continue($request, $next);
+            if (! $this->requiresWorkspace($request)) {
+                return $this->continue($request, $next);
+            }
+
+            // Every workspace this user has is closed to them. Say so, rather
+            // than pretending the workspace does not exist.
+            return $this->suspensions->stateFor($user)
+                ? $this->suspended()
+                : $this->notFound();
         }
 
         // Compatibility for rows/clients not yet dual-written to memberships.
@@ -202,6 +216,26 @@ class ResolveCompanyContext
             'errors' => (object) [],
             'meta' => (object) [],
         ], 409);
+    }
+
+    /** Does this user hold a membership in that workspace that is closed to them? */
+    private function isSuspendedMemberOf(User $user, string $workspace): bool
+    {
+        $company = $this->findCompany($workspace);
+
+        return $company !== null && $this->suspensions->companyState($user, $company) !== null;
+    }
+
+    private function suspended(): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'code' => 'ACCOUNT_SUSPENDED',
+            'data' => null,
+            'message' => 'Your access has been suspended.',
+            'errors' => (object) [],
+            'meta' => (object) [],
+        ], 403);
     }
 
     private function notFound(): JsonResponse

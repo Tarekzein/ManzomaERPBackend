@@ -19,9 +19,26 @@ class EnforceCompanyAccess
 
     public function handle(Request $request, Closure $next): Response
     {
+        // Signing in is never blocked by suspension. A stale token from a
+        // suspended tenant must not stop someone re-authenticating — as
+        // another account, or to pick the suspension notice back up.
+        if ($request->is('api/auth/login', 'api/auth/register')) {
+            return $next($request);
+        }
+
         $user = $request->user();
         $company = $this->context->company();
         $organization = $this->context->organization();
+
+        // A deactivated account keeps its session so it can be told why, but
+        // reaches nothing beyond the session endpoints. Only an explicit false
+        // counts: the column defaults to true and is often simply unset.
+        if ($user && ! $user->isSuperAdmin() && $user->is_active === false && ! $this->isSessionRequest($request)) {
+            return $this->codedError(
+                'ACCOUNT_SUSPENDED',
+                'Your account has been deactivated.',
+            );
+        }
 
         if ($user && ! $user->isSuperAdmin() && $organization?->status === 'suspended' && ! $this->isOrganizationRecoveryRequest($request)) {
             return $this->codedError(
@@ -109,6 +126,12 @@ class EnforceCompanyAccess
             'api/auth/me',
             'api/auth/logout*',
         );
+    }
+
+    /** What a blocked session may still reach: itself, and the way out. */
+    private function isSessionRequest(Request $request): bool
+    {
+        return $request->is('api/auth/me', 'api/auth/logout*');
     }
 
     private function isOrganizationRecoveryRequest(Request $request): bool

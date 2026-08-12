@@ -158,6 +158,15 @@ class UserManagementPolicy
             );
     }
 
+    /**
+     * Permissions a company administrator holds but may not hand onward.
+     *
+     * The bar is damage or escalation: deleting users, moving the
+     * subscription, flipping feature flags, and anything platform- or
+     * company-level creates a subordinate who can act against the tenant.
+     * Read-only permissions are not on this list — `audit.view` in particular
+     * is delegable so an admin can build a read-only auditor role.
+     */
     private function isRestrictedForCompanyDelegation(string $permission): bool
     {
         if (str_starts_with($permission, 'platform.') || str_starts_with($permission, 'companies.')) {
@@ -165,7 +174,6 @@ class UserManagementPolicy
         }
 
         return in_array($permission, [
-            'audit.view',
             'feature_flags.manage',
             'subscriptions.manage',
             'users.delete',

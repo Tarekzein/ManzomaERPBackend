@@ -28,6 +28,7 @@ class CompanyMembership extends Model
         'joined_at',
         'invited_by_user_id',
         'suspended_at',
+        'suspension_reason',
     ];
 
     protected function casts(): array

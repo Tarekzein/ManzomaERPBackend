@@ -231,6 +231,54 @@ class OrganizationRoleBoundaryTest extends TestCase
         $this->patchJson("/api/users/{$companyAdmin->id}/role", ['role' => UserRole::Manager->value])->assertOk();
     }
 
+    public function test_the_dashboard_shows_the_organization_to_its_owner_only(): void
+    {
+        [$organization, $company, $owner] = $this->fixture();
+        $branch = Company::query()->create([
+            'organization_id' => $organization->id,
+            'name' => 'Branch Co',
+            'plan' => $company->plan,
+            'is_active' => true,
+            'settings' => [],
+        ]);
+        $companyAdmin = $this->workspaceUser($organization, $company, UserRole::CompanyAdmin->value);
+
+        Sanctum::actingAs($owner);
+        $this->withHeader('X-Manzoma-Workspace', $company->workspaceKey());
+        $overview = $this->getJson('/api/dashboard')->assertOk()->json('data.organization');
+
+        $this->assertSame($organization->name, $overview['name']);
+        $this->assertSame(OrganizationMembership::ROLE_OWNER, $overview['role']);
+        $this->assertEqualsCanonicalizing(
+            [$company->name, $branch->name],
+            collect($overview['companies'])->pluck('name')->all(),
+        );
+        $this->assertTrue(collect($overview['companies'])->firstWhere('id', $company->id)['is_current']);
+        $this->assertSame(2, $overview['usage']['companies']['used']);
+        $this->assertNotNull($overview['usage']['users']['limit']);
+
+        // The Company Admin of a workspace inside that organization gets none
+        // of it: the organization is not theirs to see.
+        Sanctum::actingAs($companyAdmin);
+        $this->getJson('/api/dashboard')->assertOk()->assertJsonPath('data.organization', null);
+    }
+
+    public function test_the_platform_dashboard_reports_organizations(): void
+    {
+        [$organization] = $this->fixture();
+        $superAdmin = User::factory()->create(['company_id' => null, 'is_active' => true]);
+        $superAdmin->assignRole(UserRole::SuperAdmin->value);
+
+        Sanctum::actingAs($superAdmin);
+        $data = $this->getJson('/api/dashboard')->assertOk()->json('data');
+
+        $this->assertSame(1, $data['metrics']['organizations']);
+        $this->assertSame($organization->name, $data['recent_organizations'][0]['name']);
+        $this->assertSame(1, $data['recent_organizations'][0]['companies_count']);
+        $this->assertSame(1, $data['recent_organizations'][0]['members_count']);
+        $this->assertNotEmpty($data['analytics']['organization_growth']);
+    }
+
     private function workspaceUser(Organization $organization, Company $company, string $role): User
     {
         $user = User::factory()->create([

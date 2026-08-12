@@ -16,6 +16,9 @@ use App\Modules\HR\Models\LeaveRequest;
 use App\Modules\HR\Models\PayrollItem;
 use App\Modules\Inventory\Models\ReorderAlert;
 use App\Modules\Inventory\Models\StockBalance;
+use App\Modules\Organizations\Models\Organization;
+use App\Modules\Organizations\Models\OrganizationMembership;
+use App\Modules\Organizations\Services\OrganizationAccessService;
 use App\Modules\Projects\Enums\ProjectStatus;
 use App\Modules\Projects\Enums\TaskStatus;
 use App\Modules\Projects\Models\Project;
@@ -27,6 +30,7 @@ use App\Modules\Subscriptions\Enums\SubscriptionStatus;
 use App\Modules\Subscriptions\Models\CompanySubscription;
 use App\Modules\Subscriptions\Models\SubscriptionPlan;
 use App\Modules\Subscriptions\Services\OrganizationEntitlementService;
+use App\Modules\Subscriptions\Services\OrganizationQuotaService;
 use Illuminate\Support\Facades\DB;
 
 class DashboardService
@@ -37,6 +41,8 @@ class DashboardService
         private readonly SocialInsightsService $social,
         private readonly CompanyContext $context,
         private readonly OrganizationEntitlementService $entitlements,
+        private readonly OrganizationAccessService $organizationAccess,
+        private readonly OrganizationQuotaService $quotas,
     ) {}
 
     public function summary(User $user): array
@@ -56,14 +62,18 @@ class DashboardService
         return [
             'scope' => 'platform',
             'metrics' => [
-                'companies' => Company::count(),
-                'active_companies' => Company::where('is_active', true)->count(),
+                // Organizations are the tenancy and billing root, so they lead.
+                'organizations' => Organization::whereNull('archived_at')->count(),
+                'companies' => Company::whereNull('archived_at')->count(),
+                'active_companies' => Company::whereNull('archived_at')->where('is_active', true)->count(),
                 'users' => User::count(),
                 'plans' => SubscriptionPlan::where('is_active', true)->count(),
                 'active_subscriptions' => CompanySubscription::whereIn('status', SubscriptionStatus::servingValues())->count(),
             ],
+            'recent_organizations' => $this->recentOrganizations(),
             'recent_companies' => $recentCompanies,
             'analytics' => [
+                'organization_growth' => $this->monthlyCount(Organization::query()->whereNull('archived_at'), 'created_at'),
                 'company_growth' => $this->monthlyCount(Company::query(), 'created_at'),
                 'user_growth' => $this->monthlyCount(User::query(), 'created_at'),
                 'subscriptions_by_plan' => SubscriptionPlan::query()
@@ -189,6 +199,7 @@ class DashboardService
             'metrics' => $metrics,
             'recent_projects' => $recentProjects,
             'analytics' => $analytics,
+            'organization' => $this->organizationOverview($user),
             'access' => $this->access->effectiveAccess($user),
         ];
     }
@@ -267,6 +278,7 @@ class DashboardService
         $summary = [
             'scope' => $isManager ? 'manager' : 'employee',
             'metrics' => $metrics,
+            'organization' => $this->organizationOverview($user),
             'personal' => [
                 'upcoming_tasks' => ProjectTask::query()
                     ->with('project:id,name,status', 'assignee:id,name,email')
@@ -340,6 +352,95 @@ class DashboardService
     private function groupedCount($query, string $column)
     {
         return $query->selectRaw("{$column} name, count(*) value")->groupBy($column)->orderByDesc('value')->get();
+    }
+
+    /**
+     * The newest organizations with the shape the platform cares about: how
+     * many workspaces they run, how many seats they hold, and what they pay.
+     */
+    private function recentOrganizations()
+    {
+        return Organization::query()
+            ->whereNull('archived_at')
+            ->withCount([
+                'companies as companies_count' => fn ($query) => $query->whereNull('archived_at'),
+                'memberships as members_count' => fn ($query) => $query->where('status', OrganizationMembership::STATUS_ACTIVE),
+            ])
+            ->latest()
+            ->limit(5)
+            ->get()
+            ->map(function (Organization $organization) {
+                $subscription = $this->entitlements->current($organization);
+                $usage = $this->quotas->usage($organization);
+
+                return [
+                    'id' => $organization->id,
+                    'name' => $organization->name,
+                    'slug' => $organization->slug,
+                    'status' => $organization->status,
+                    'companies_count' => $organization->companies_count,
+                    'members_count' => $organization->members_count,
+                    'plan' => $subscription?->plan?->name,
+                    'subscription_status' => $subscription?->status,
+                    'seats' => $this->seatLabel($usage['users'] ?? null),
+                    'created_at' => $organization->created_at,
+                ];
+            });
+    }
+
+    /**
+     * The organization a tenant belongs to, for the accounts that administer
+     * it. A company workspace role never sees this: it is organization data.
+     */
+    private function organizationOverview(User $user): ?array
+    {
+        $organization = $this->context->organization();
+        if (! $organization) {
+            return null;
+        }
+
+        $membership = $this->context->organizationMembershipFor($user);
+        if (! $this->organizationAccess->canViewOrganizationData($user, $membership)) {
+            return null;
+        }
+
+        $companies = $organization->companies()
+            ->withCount(['members as members_count' => fn ($query) => $query->where('company_memberships.status', 'active')])
+            ->orderByRaw('archived_at IS NULL DESC')
+            ->orderBy('name')
+            ->get();
+        $subscription = $this->entitlements->current($organization);
+
+        return [
+            'id' => $organization->id,
+            'name' => $organization->name,
+            'slug' => $organization->slug,
+            'status' => $organization->status,
+            'role' => $membership?->role,
+            'usage' => $this->quotas->usage($organization),
+            'plan' => $subscription?->plan?->name,
+            'subscription_status' => $subscription?->status,
+            'companies' => $companies->map(fn (Company $company) => [
+                'id' => $company->id,
+                'name' => $company->name,
+                'slug' => $company->workspaceKey(),
+                'is_active' => $company->is_active,
+                'archived_at' => $company->archived_at,
+                'members_count' => $company->members_count,
+                'is_current' => (int) $company->id === (int) $this->context->companyIdFor($user),
+            ])->values(),
+        ];
+    }
+
+    private function seatLabel(?array $users): ?string
+    {
+        if ($users === null) {
+            return null;
+        }
+
+        $used = (int) ($users['used'] ?? 0) + (int) ($users['reserved'] ?? 0);
+
+        return $used.' / '.($users['limit'] === null ? '∞' : $users['limit']);
     }
 
     private function monthlyCount($query, string $column)

@@ -166,11 +166,13 @@ class AuthenticationService
     {
         $user = $this->users->findByEmail($data->email);
         $credentialsAreValid = $user !== null && Hash::check($data->password, $user->password);
-        // A company suspended for an unpaid subscription can still sign in;
-        // EnforceCompanyAccess narrows it down to the billing endpoints.
+        // Suspension is not an authentication failure. A suspended account,
+        // company or organization signs in normally and is then told why it is
+        // blocked; EnforceCompanyAccess closes everything past the session
+        // endpoints. Only an account with nowhere to belong at all is refused,
+        // because there is nothing to show it.
         $accountIsActive = $user !== null
-            && $user->is_active === true
-            && ($user->isSuperAdmin() || $this->hasAccessibleTenant($user));
+            && ($user->isSuperAdmin() || $this->belongsToATenant($user));
         $success = $credentialsAreValid && $accountIsActive;
 
         $this->loginAttempts->record([
@@ -286,36 +288,65 @@ class AuthenticationService
      * already exists. Organization-only members may still sign in to manage
      * the organization, and billing-suspended tenants may sign in to recover.
      */
-    private function hasAccessibleTenant(User $user): bool
+    /**
+     * Whether the account still belongs somewhere it could be shown a session.
+     *
+     * Deliberately blind to suspension: a suspended organization, company or
+     * membership all still qualify, because the whole point is to sign the
+     * user in and explain the suspension. Only archived organizations and
+     * removed memberships leave an account with nothing at all.
+     */
+    private function belongsToATenant(User $user): bool
     {
-        $memberships = $user->organizationMemberships()
-            ->where('status', OrganizationMembership::STATUS_ACTIVE)
-            ->whereHas('organization', fn ($query) => $query->where('status', '!=', Organization::STATUS_ARCHIVED))
-            ->with('organization')
-            ->get();
+        // Somewhere to land: a company that is active, one an admin suspended,
+        // or one whose subscription lapsed — the last of those signs in
+        // precisely so it can pay. An inactive company with none of those
+        // marks is a registration still waiting on its first payment, and
+        // stays unreachable until the subscription activates it.
+        $usableCompany = fn ($query) => $query
+            ->whereNull('archived_at')
+            ->where(fn ($usable) => $usable
+                ->where('is_active', true)
+                ->orWhereNotNull('suspended_at')
+                ->orWhereHas('organization', fn ($organization) => $organization
+                    ->whereNotNull('billing_suspended_at'))
+                ->orWhereNotNull('settings->billing->suspended_at'));
 
-        foreach ($memberships as $membership) {
-            if ($membership->organization?->billing_suspended_at !== null) {
-                return true;
-            }
+        $hasCompany = $user->companyMemberships()
+            ->whereIn('status', [
+                CompanyMembership::STATUS_ACTIVE,
+                CompanyMembership::STATUS_SUSPENDED,
+            ])
+            ->whereHas('company', $usableCompany)
+            ->exists();
 
-            $companyMemberships = $user->companyMemberships()
-                ->where('organization_id', $membership->organization_id)
-                ->where('status', CompanyMembership::STATUS_ACTIVE);
-
-            if (! $companyMemberships->exists()) {
-                return true;
-            }
-
-            if ($companyMemberships->whereHas('company', fn ($query) => $query
-                ->whereNull('archived_at')
-                ->where('is_active', true))->exists()) {
-                return true;
-            }
+        if ($hasCompany) {
+            return true;
         }
 
-        return $user->company?->is_active === true
-            || $user->company?->isBillingSuspended() === true;
+        // An organization member with no workspace assigned yet still has a
+        // session worth showing. Checked only when they hold no company
+        // memberships at all, so an unpaid registration cannot slip through on
+        // the owner membership it was created with.
+        if (! $user->companyMemberships()->exists()
+            && $user->organizationMemberships()
+                ->whereIn('status', [
+                    OrganizationMembership::STATUS_ACTIVE,
+                    OrganizationMembership::STATUS_SUSPENDED,
+                ])
+                ->whereHas('organization', fn ($query) => $query
+                    ->where('status', '!=', Organization::STATUS_ARCHIVED)
+                    ->whereNull('archived_at'))
+                ->exists()) {
+            return true;
+        }
+
+        // Rows not yet dual-written to memberships still resolve through the
+        // legacy company relation.
+        return $user->company !== null
+            && ($user->company->is_active === true
+                || $user->company->suspended_at !== null
+                || $user->company->isBillingSuspended());
     }
 
     private function deviceFingerprint(LoginData $data): string

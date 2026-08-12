@@ -5,6 +5,7 @@ namespace App\Modules\Authentication\Repositories;
 use App\Modules\Authentication\Contracts\UserRepository;
 use App\Modules\Authentication\Models\User;
 use App\Modules\Platform\Services\CompanyContext;
+use App\Modules\Organizations\Services\TenantSuspensionService;
 use App\Modules\Platform\Services\EffectiveAccessService;
 use App\Modules\Subscriptions\Services\OrganizationEntitlementService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -15,6 +16,7 @@ class EloquentUserRepository implements UserRepository
         private readonly EffectiveAccessService $access,
         private readonly CompanyContext $context,
         private readonly OrganizationEntitlementService $entitlements,
+        private readonly TenantSuspensionService $suspensions,
     ) {}
 
     public function findByEmail(string $email): ?User
@@ -142,7 +144,10 @@ class EloquentUserRepository implements UserRepository
 
         $user->setAttribute('organizations', $organizations->all());
         $user->setAttribute('workspaces', $workspaces->all());
-        $user->syncOriginalAttributes(['organizations', 'workspaces']);
+        // Why the session is blocked, when it is. The client signs the user in
+        // either way and shows this instead of the workspace.
+        $user->setAttribute('suspension', $this->suspensions->stateFor($user));
+        $user->syncOriginalAttributes(['organizations', 'workspaces', 'suspension']);
 
         // The compact arrays above are the public session contract. Do not
         // accidentally serialize internal membership rows and overrides too.

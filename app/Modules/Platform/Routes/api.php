@@ -5,12 +5,17 @@ use App\Modules\Platform\Http\Controllers\DashboardController;
 use App\Modules\Platform\Http\Controllers\GlobalSearchController;
 use App\Modules\Platform\Http\Controllers\SocialInboxController;
 use App\Modules\Platform\Http\Controllers\SocialInsightsController;
+use App\Modules\Platform\Http\Controllers\TenantDirectoryController;
 use App\Modules\Platform\Http\Controllers\TranslationController;
 use App\Modules\Platform\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->get('/dashboard', DashboardController::class)
     ->name('dashboard');
+
+// Platform back-office: organizations merged with the companies under them.
+Route::middleware('auth:sanctum')->get('/platform/tenants', TenantDirectoryController::class)
+    ->name('platform.tenants');
 
 // Cross-platform social performance (Meta + TikTok) built from local data.
 Route::middleware('auth:sanctum')->prefix('social')->name('social.')->group(function () {

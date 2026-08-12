@@ -184,20 +184,36 @@ class UserManagementTest extends TestCase
         $this->getJson('/api/roles')->assertForbidden();
     }
 
-    public function test_user_of_inactive_company_cannot_login_but_super_admin_can(): void
+    public function test_user_of_suspended_company_signs_in_but_cannot_open_the_dashboard(): void
     {
         $this->seed(DatabaseSeeder::class);
 
-        Company::where('name', 'Demo Company')->update(['is_active' => false]);
+        Company::where('name', 'Demo Company')->update([
+            'is_active' => false,
+            'suspended_at' => now(),
+            'suspension_reason' => 'Contract under review.',
+        ]);
 
-        $this->postJson('/api/auth/login', [
-            'email' => 'company.admin@example.com',
-            'password' => 'Admin#12345',
-        ])->assertUnprocessable();
-
+        // The platform account is untouched by a tenant's suspension.
         $this->postJson('/api/auth/login', [
             'email' => 'admin@manzomatech.com',
             'password' => 'Admin#12345',
         ])->assertOk()->assertJsonPath('data.user.company_id', null);
+
+        // Suspension is not an authentication failure: the account signs in
+        // and is told why, instead of being told its password is wrong.
+        $login = $this->postJson('/api/auth/login', [
+            'email' => 'company.admin@example.com',
+            'password' => 'Admin#12345',
+        ])->assertOk();
+
+        $this->assertNotEmpty($login->json('data.token'));
+        $this->assertSame('company', $login->json('data.user.suspension.scope'));
+        $this->assertSame('Contract under review.', $login->json('data.user.suspension.reason'));
+
+        $admin = User::where('email', 'company.admin@example.com')->firstOrFail();
+        Sanctum::actingAs($admin);
+        $this->getJson('/api/dashboard')->assertForbidden();
+        $this->getJson('/api/auth/me')->assertOk()->assertJsonPath('data.suspension.scope', 'company');
     }
 }

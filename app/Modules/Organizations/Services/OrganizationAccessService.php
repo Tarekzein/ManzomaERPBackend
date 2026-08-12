@@ -19,6 +19,9 @@ class OrganizationAccessService
         'settings',
         'created_by_user_id',
         'billing_suspended_at',
+        'suspended_at',
+        'suspension_reason',
+        'suspended_by_user_id',
         'active_companies_count',
         'active_members_count',
     ];

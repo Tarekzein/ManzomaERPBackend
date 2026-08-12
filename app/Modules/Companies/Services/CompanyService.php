@@ -133,7 +133,15 @@ class CompanyService
     {
         abort_unless($actor->isSuperAdmin(), 403);
 
-        return $this->companies->save($company, ['is_active' => $active]);
+        // Stamp the suspension so this legacy route and the organization
+        // suspend endpoint leave the company in the same state; suspended_at
+        // is what tells a suspension apart from an unpaid registration.
+        return $this->companies->save($company, [
+            'is_active' => $active,
+            'suspended_at' => $active ? null : ($company->suspended_at ?: now()),
+            'suspension_reason' => $active ? null : $company->suspension_reason,
+            'suspended_by_user_id' => $active ? null : $actor->getKey(),
+        ]);
     }
 
     private function ensureCanManage(User $actor, Company $company): void

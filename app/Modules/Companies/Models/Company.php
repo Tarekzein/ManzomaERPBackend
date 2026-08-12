@@ -32,6 +32,9 @@ class Company extends Model
         'currency',
         'is_active',
         'archived_at',
+        'suspended_at',
+        'suspension_reason',
+        'suspended_by_user_id',
         'settings',
     ];
 
@@ -40,6 +43,7 @@ class Company extends Model
         return [
             'is_active' => 'boolean',
             'archived_at' => 'datetime',
+            'suspended_at' => 'datetime',
             'settings' => 'array',
         ];
     }
