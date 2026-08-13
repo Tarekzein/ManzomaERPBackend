@@ -84,16 +84,18 @@ class RolesAndPermissionsSeeder extends Seeder
         $companyAdmin = Role::findOrCreate(UserRole::CompanyAdmin->value);
         $manager = Role::findOrCreate(UserRole::Manager->value);
         $employee = Role::findOrCreate(UserRole::Employee->value);
-        Role::where('name', 'Viewer')->delete();
+        // Seeders can be run during a live deployment. Grant the permissions
+        // introduced by the application without replacing permissions that a
+        // platform administrator may already have added to these roles. In
+        // particular, never delete legacy/custom roles such as "Viewer".
+        $superAdmin->givePermissionTo(Permission::all());
 
-        $superAdmin->syncPermissions(Permission::all());
-
-        $companyAdmin->syncPermissions($permissions->reject(
+        $companyAdmin->givePermissionTo($permissions->reject(
             fn (string $permission) => str_starts_with($permission, 'platform.')
         ));
 
         $managerModules = ['hr', 'finance', 'inventory', 'sales', 'crm', 'projects', 'reporting', 'notifications', 'meta', 'tiktok'];
-        $manager->syncPermissions($permissions->filter(
+        $manager->givePermissionTo($permissions->filter(
             fn (string $permission) => in_array($permission, ['users.view', 'users.create', 'users.edit', 'roles.assign', 'auth.force_password_reset'], true)
                 || (in_array(explode('.', $permission)[0] ?? '', $managerModules, true)
                 && (str_ends_with($permission, '.view')
@@ -108,7 +110,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'hr.performance.manage',
         ]));
 
-        $employee->syncPermissions([
+        $employee->givePermissionTo([
             'hr.view',
             'projects.view',
             'projects.create',
@@ -179,7 +181,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'POS Supervisor' => $supervisor,
             'POS Administrator' => $administrator,
         ] as $name => $permissions) {
-            Role::findOrCreate($name)->syncPermissions($permissions);
+            Role::findOrCreate($name)->givePermissionTo($permissions);
         }
     }
 }

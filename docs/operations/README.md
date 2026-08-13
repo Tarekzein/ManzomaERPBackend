@@ -4,18 +4,24 @@
 
 1. Provision MySQL 8+, Redis, object storage, SMTP/SES, and the application encryption key.
 2. Configure production environment variables from `.env.example`.
-3. Build the application image, run `php artisan migrate --force`, and deploy web, queue worker, and scheduler processes.
+3. Build the application image, run `php artisan migrate --force`, then run
+   `ERP_SEED_DEMO_DATA=false php artisan db:seed --force`. The production-safe
+   seed path adds missing application permissions, role templates, subscription
+   features, and legacy organization projections without creating demo tenants
+   or replacing administrator-managed catalog values.
+4. Deploy web, queue worker, and scheduler processes.
    The worker must consume every queue in use: `php artisan queue:work --queue=meta-events,tiktok-events,default`.
    Jobs dispatched to `meta-events` (Meta lead webhooks, WhatsApp messages, conversion
    events, audience syncs) are silently never processed by a default-only worker.
-4. Run `php artisan config:cache`, `route:cache`, and `event:cache` during release.
-5. Verify `/api/health`, queue processing, scheduled report delivery, notification delivery, and external webhooks.
+5. Run `php artisan config:cache`, `route:cache`, and `event:cache` during release.
+6. Verify `/api/health`, queue processing, scheduled report delivery, notification delivery, and external webhooks.
 
 ### Organization schema upgrade
 
-The organization migration is additive, but the data backfill must run explicitly.
-Do not use `DatabaseSeeder` as an upgrade command; it creates demo data and rewrites
-catalog fixtures.
+The organization and POS migrations are additive. Existing finance, inventory,
+sales, CRM, billing, and integration rows are not converted into POS rows. The
+organization data projection must still finish before the new application starts
+serving requests.
 
 For the first deployment containing the organization schema:
 
@@ -27,6 +33,14 @@ For the first deployment containing the organization schema:
    foreign keys and indexes to populated tables and may briefly acquire MySQL
    metadata locks, so monitor lock waits and database saturation.
 4. With all old writers still stopped, run
+   `ERP_SEED_DEMO_DATA=false php artisan db:seed --force`. The safe default seeder
+   runs the catalog additions and `organizations:backfill`. It preserves existing
+   role permissions, plan pricing and limits, plan-feature overrides, promotions,
+   users, and company business data. It also adds the POS permissions, role
+   templates, and the `core.pos` feature where the standard plan matrix did not
+   already contain it. No register is created automatically because warehouse,
+   location, cash account, and tender choices require an administrator.
+   For unusually large tenants, the projection can instead be run directly with
    `php artisan organizations:backfill --chunk=100 --fail-on-issues`.
    Reduce the chunk size for unusually large tenants. The command is rerunnable and
    fills organization memberships, default workspaces, audit links, subscription
@@ -47,7 +61,8 @@ Existing plan rows and serving-subscription snapshots are migrated with
 Enterprise `NULL` (unlimited). A super administrator must deliberately update
 migrated plan limits through the subscription-plan administration API. Existing
 customers keep their purchased snapshot until renewal/replacement or an intentional
-snapshot migration. Do not rerun `DatabaseSeeder` to change the production catalog.
+snapshot migration. Change migrated limits deliberately through the subscription-plan
+administration API; the production seeder will not overwrite them on later releases.
 
 ## Automatic Translation
 

@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Close the NULL hole in the stock balance uniqueness constraint.
@@ -22,6 +23,21 @@ return new class extends Migration
     public function up(): void
     {
         $this->mergeDuplicateBalances();
+
+        $driver = DB::connection()->getDriverName();
+
+        // SQLite and PostgreSQL can enforce the same rule directly with an
+        // expression index. MySQL/MariaDB need an indexable generated column.
+        // The application never reads location_key; it is only the portable
+        // implementation detail that closes MySQL's nullable-unique hole.
+        if (in_array($driver, ['sqlite', 'pgsql'], true)) {
+            DB::statement(
+                'CREATE UNIQUE INDEX stock_balance_location_unique
+                 ON stock_balances (product_id, warehouse_id, COALESCE(location_id, 0))'
+            );
+
+            return;
+        }
 
         // VIRTUAL, not STORED. A stored generated column forces
         // ALGORITHM=COPY, and rebuilding this table fails while re-creating
@@ -46,6 +62,14 @@ return new class extends Migration
 
     public function down(): void
     {
+        $driver = DB::connection()->getDriverName();
+
+        if (in_array($driver, ['sqlite', 'pgsql'], true)) {
+            DB::statement('DROP INDEX stock_balance_location_unique');
+
+            return;
+        }
+
         DB::statement(
             'CREATE UNIQUE INDEX stock_balance_unique
              ON stock_balances (product_id, warehouse_id, location_id)'
@@ -91,6 +115,15 @@ return new class extends Migration
                 'average_cost' => bccomp($quantity, '0', 4) === 0 ? '0' : bcdiv($value, $quantity, 4),
                 'updated_at' => now(),
             ]);
+
+            // Keep operational alert history attached to the surviving
+            // balance. Deleting duplicate balances without this reassignment
+            // would cascade-delete their alerts through the legacy FK.
+            if (Schema::hasTable('reorder_alerts')) {
+                DB::table('reorder_alerts')
+                    ->whereIn('stock_balance_id', $rows->skip(1)->pluck('id')->all())
+                    ->update(['stock_balance_id' => $keep->id]);
+            }
 
             DB::table('stock_balances')
                 ->whereIn('id', $rows->skip(1)->pluck('id')->all())

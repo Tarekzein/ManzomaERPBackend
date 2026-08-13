@@ -6,11 +6,13 @@ use App\Modules\Subscriptions\Models\SubscriptionFeature;
 use App\Modules\Subscriptions\Models\SubscriptionPlan;
 use App\Modules\Subscriptions\Models\SubscriptionPlanPromotion;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class SubscriptionSeeder extends Seeder
 {
     public function run(): void
     {
+        $createdPlans = [];
         $features = [
             ['slug' => 'core.hr', 'name' => 'Human Resources', 'module' => 'hr', 'description' => 'Employee profiles, leave, attendance, payroll, and HR reports.'],
             ['slug' => 'core.finance', 'name' => 'Financial Accounting', 'module' => 'finance', 'description' => 'Chart of accounts, general ledger, AP, AR, statements, budgets, tax, and periods.'],
@@ -32,7 +34,7 @@ class SubscriptionSeeder extends Seeder
         ];
 
         $featureModels = collect($features)->mapWithKeys(function (array $feature) {
-            $model = SubscriptionFeature::updateOrCreate(
+            $model = SubscriptionFeature::firstOrCreate(
                 ['slug' => $feature['slug']],
                 $feature + ['is_metered' => false]
             );
@@ -58,8 +60,11 @@ class SubscriptionSeeder extends Seeder
             'enterprise' => $featureModels->keys()->all(),
         ];
 
-        collect($plans)->each(function (array $plan, string $slug) use ($featureModels, $matrix) {
-            $planModel = SubscriptionPlan::updateOrCreate(
+        collect($plans)->each(function (array $plan, string $slug) use ($featureModels, $matrix, &$createdPlans) {
+            // Pricing, limits, visibility and descriptions are editable from
+            // the platform dashboard. Existing values are commercial data,
+            // not defaults, so a deployment seeder must never reset them.
+            $planModel = SubscriptionPlan::firstOrCreate(
                 ['slug' => $slug],
                 [
                     'name' => $plan['name'],
@@ -79,22 +84,33 @@ class SubscriptionSeeder extends Seeder
                     'sort_order' => array_search($slug, array_keys(config('erp.plans')), true) + 1,
                 ]
             );
+            $createdPlans[$slug] = $planModel->wasRecentlyCreated;
 
-            $sync = $featureModels->mapWithKeys(function (SubscriptionFeature $feature) use ($matrix, $slug) {
-                return [
-                    $feature->id => [
-                        'enabled' => in_array($feature->slug, $matrix[$slug], true),
-                        'value' => null,
-                    ],
-                ];
-            })->all();
+            // Insert newly introduced feature assignments only. `sync()` and
+            // even `syncWithoutDetaching()` can overwrite live enablement and
+            // metered values; insertOrIgnore preserves both existing pivots
+            // and custom features while remaining safe under concurrent runs.
+            $now = now();
+            $rows = $featureModels->map(fn (SubscriptionFeature $feature) => [
+                'subscription_plan_id' => $planModel->getKey(),
+                'subscription_feature_id' => $feature->getKey(),
+                'enabled' => in_array($feature->slug, $matrix[$slug], true),
+                'value' => null,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ])->values()->all();
 
-            $planModel->features()->sync($sync);
+            DB::table('plan_feature')->insertOrIgnore($rows);
         });
 
         $professional = SubscriptionPlan::where('slug', 'professional')->first();
-        if ($professional) {
-            SubscriptionPlanPromotion::updateOrCreate(
+        // A time-limited marketing campaign belongs to initial/demo setup,
+        // never to an upgrade of an already-running catalog.
+        if ($professional && ($createdPlans['professional'] ?? false)) {
+            // Keep an existing campaign's dates, status and discount intact.
+            // Re-running the old updateOrCreate() extended and reactivated the
+            // promotion on every deployment.
+            SubscriptionPlanPromotion::firstOrCreate(
                 ['subscription_plan_id' => $professional->id, 'name' => 'Launch annual discount'],
                 [
                     'discount_type' => SubscriptionPlanPromotion::TYPE_PERCENT,

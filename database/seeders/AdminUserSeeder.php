@@ -30,9 +30,10 @@ class AdminUserSeeder extends Seeder
                 'settings' => [],
             ],
         );
-        $demo = Company::updateOrCreate(
-            ['name' => 'Demo Company'],
+        $demo = Company::firstOrCreate(
+            ['slug' => 'demo-company'],
             [
+                'name' => 'Demo Company',
                 'organization_id' => $organization->getKey(),
                 'plan' => 'professional',
                 'timezone' => 'Africa/Cairo',
@@ -42,7 +43,7 @@ class AdminUserSeeder extends Seeder
             ]
         );
 
-        $superAdmin = User::updateOrCreate(
+        $superAdmin = User::firstOrCreate(
             ['email' => env('ERP_SUPER_ADMIN_EMAIL', 'admin@manzomatech.com')],
             [
                 'company_id' => null,
@@ -50,9 +51,9 @@ class AdminUserSeeder extends Seeder
                 'password' => Hash::make(env('ERP_SUPER_ADMIN_PASSWORD', 'Admin#12345')),
             ]
         );
-        $superAdmin->syncRoles([UserRole::SuperAdmin->value]);
+        $superAdmin->assignRole(UserRole::SuperAdmin->value);
 
-        $companyAdmin = User::updateOrCreate(
+        $companyAdmin = User::firstOrCreate(
             ['email' => env('ERP_COMPANY_ADMIN_EMAIL', 'company.admin@example.com')],
             [
                 'company_id' => $demo->id,
@@ -61,7 +62,7 @@ class AdminUserSeeder extends Seeder
                 'password' => Hash::make(env('ERP_COMPANY_ADMIN_PASSWORD', 'Admin#12345')),
             ]
         );
-        $companyAdmin->syncRoles([UserRole::CompanyAdmin->value]);
+        $companyAdmin->assignRole(UserRole::CompanyAdmin->value);
 
         $organization->forceFill(['created_by_user_id' => $companyAdmin->getKey()])->save();
         OrganizationMembership::query()->updateOrCreate(
@@ -86,16 +87,15 @@ class AdminUserSeeder extends Seeder
 
         $this->ensureSubscription($demo, 'professional');
 
-        Company::where('name', 'ManzomaTech Platform')
-            ->whereDoesntHave('users')
-            ->delete();
+        // Do not remove similarly named legacy companies here. Data cleanup is
+        // an explicit administrative operation, never a seeding side effect.
     }
 
     private function ensureSubscription(Company $company, string $planSlug): void
     {
         $plan = SubscriptionPlan::where('slug', $planSlug)->firstOrFail();
 
-        CompanySubscription::updateOrCreate(
+        CompanySubscription::firstOrCreate(
             [
                 'company_id' => $company->id,
                 'status' => 'active',

@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -45,13 +46,17 @@ return new class extends Migration
         }
 
         DB::table('document_sequences')->whereNull('scope')->update(['scope' => '']);
-        DB::statement("ALTER TABLE document_sequences MODIFY scope VARCHAR(40) NOT NULL DEFAULT ''");
+        Schema::table('document_sequences', function (Blueprint $table): void {
+            $table->string('scope', 40)->default('')->nullable(false)->change();
+        });
     }
 
     public function down(): void
     {
         if (Schema::hasColumn('document_sequences', 'scope')) {
-            DB::statement('ALTER TABLE document_sequences MODIFY scope VARCHAR(40) NULL DEFAULT NULL');
+            Schema::table('document_sequences', function (Blueprint $table): void {
+                $table->string('scope', 40)->nullable()->default(null)->change();
+            });
         }
     }
 };

@@ -3,6 +3,11 @@
 return [
     'version' => env('ERP_VERSION', '0.1.0'),
 
+    // Null follows the environment default (local/testing only). Set this to
+    // false in production to make that deployment intent explicit, or true
+    // only for a deliberately isolated demo installation.
+    'seed_demo_data' => env('ERP_SEED_DEMO_DATA'),
+
     'api' => [
         'prefix' => 'api',
         'rate_limit_per_minute' => env('ERP_API_RATE_LIMIT', 60),
@@ -21,6 +26,7 @@ return [
         'inventory' => ['name' => 'Inventory & Warehouse Management', 'enabled_by_default' => true],
         'sales' => ['name' => 'Sales & Purchase Orders', 'enabled_by_default' => true],
         'crm' => ['name' => 'Customer Relationship Management', 'enabled_by_default' => true],
+        'pos' => ['name' => 'Point of Sale', 'enabled_by_default' => false],
         'projects' => ['name' => 'Project & Task Management', 'enabled_by_default' => true],
         'reporting' => ['name' => 'Reporting & Business Intelligence', 'enabled_by_default' => true],
         'notifications' => ['name' => 'Notifications', 'enabled_by_default' => true],
