@@ -17,6 +17,7 @@ class SubscriptionSeeder extends Seeder
             ['slug' => 'core.inventory', 'name' => 'Inventory Management', 'module' => 'inventory', 'description' => 'Products, warehouses, stock movements, reorder alerts, valuation, and reports.'],
             ['slug' => 'core.sales', 'name' => 'Sales & Purchase Orders', 'module' => 'sales', 'description' => 'Quotes, sales orders, purchase orders, invoices, and delivery notes.'],
             ['slug' => 'core.crm', 'name' => 'CRM', 'module' => 'crm', 'description' => 'Contacts, opportunities, activities, reminders, segmentation, and CRM reports.'],
+            ['slug' => 'core.pos', 'name' => 'Point of Sale', 'module' => 'pos', 'description' => 'Registers, shifts, retail checkout, receipts, returns, and cashier reporting.'],
             ['slug' => 'core.projects', 'name' => 'Project & Task Management', 'module' => 'projects', 'description' => 'Projects, tasks, Gantt-ready timelines, time tracking, files, and budget links.'],
             ['slug' => 'reporting.prebuilt', 'name' => 'Prebuilt Reports', 'module' => 'reporting', 'description' => 'Authorized reports across ERP modules.'],
             ['slug' => 'reporting.custom', 'name' => 'Custom Report Builder', 'module' => 'reporting', 'description' => 'Select fields, filters, groupings, chart types, and scheduled reports.'],
@@ -48,6 +49,9 @@ class SubscriptionSeeder extends Seeder
             ],
             'professional' => [
                 'core.hr', 'core.finance', 'core.inventory', 'core.sales', 'core.crm', 'core.projects',
+                // POS needs Inventory and Finance behind it, both of which
+                // Professional already includes.
+                'core.pos',
                 'reporting.prebuilt', 'reporting.custom', 'exports.pdf_excel_csv', 'notifications.email',
                 'notifications.sms', 'integrations.api', 'integrations.meta', 'integrations.tiktok',
             ],

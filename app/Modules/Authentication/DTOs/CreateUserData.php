@@ -2,15 +2,13 @@
 
 namespace App\Modules\Authentication\DTOs;
 
-use App\Modules\Authentication\Enums\UserRole;
-
 readonly class CreateUserData
 {
     public function __construct(
         public string $name,
         public string $email,
         public string $password,
-        public UserRole $role,
+        public string $role,
         public ?int $companyId,
         public ?array $allowedPermissions = null,
         public ?array $deniedPermissions = null,
@@ -22,7 +20,7 @@ readonly class CreateUserData
             $data['name'],
             $data['email'],
             $data['password'],
-            UserRole::from($data['role']),
+            $data['role'],
             $data['company_id'] ?? null,
             $data['allowed_permissions'] ?? $data['permissions'] ?? null,
             $data['denied_permissions'] ?? null,

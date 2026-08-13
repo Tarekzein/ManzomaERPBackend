@@ -20,6 +20,7 @@ class EffectiveAccessService
         'hr' => 'core.hr',
         'sales' => 'core.sales',
         'crm' => 'core.crm',
+        'pos' => 'core.pos',
         'projects' => 'core.projects',
         'reporting' => 'reporting.prebuilt',
         'custom-modules' => 'custom_modules.marketplace',

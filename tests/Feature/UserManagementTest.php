@@ -68,6 +68,29 @@ class UserManagementTest extends TestCase
         ])->assertUnprocessable();
     }
 
+    public function test_company_admin_can_create_a_user_from_a_pos_role_template(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $companyAdmin = User::where('email', 'company.admin@example.com')->firstOrFail();
+        Sanctum::actingAs($companyAdmin);
+
+        $this->getJson('/api/roles')
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'POS Cashier']);
+
+        $response = $this->postJson('/api/users', [
+            'name' => 'Till Cashier',
+            'email' => 'till.cashier@example.com',
+            'password' => 'Secret#123',
+            'password_confirmation' => 'Secret#123',
+            'role' => 'POS Cashier',
+        ])->assertCreated();
+
+        $cashier = User::query()->findOrFail($response->json('data.id'));
+        $this->assertSame('POS Cashier', $cashier->companyMemberships()->firstOrFail()->role->name);
+    }
+
     public function test_company_admin_only_receives_subscription_allowed_assignable_permissions(): void
     {
         $this->seed(DatabaseSeeder::class);

@@ -9,12 +9,17 @@ class WebhookDelivery extends Model
 {
     protected $fillable = [
         'webhook_endpoint_id', 'event', 'delivery_id', 'payload', 'response_status',
-        'response_body', 'attempts', 'status', 'delivered_at', 'next_attempt_at',
+        'response_body', 'attempts', 'status', 'delivered_at', 'next_attempt_at', 'claim_token',
     ];
 
     protected function casts(): array
     {
-        return ['payload' => 'array', 'delivered_at' => 'datetime', 'next_attempt_at' => 'datetime'];
+        return [
+            'payload' => 'array',
+            'attempts' => 'integer',
+            'delivered_at' => 'datetime',
+            'next_attempt_at' => 'datetime',
+        ];
     }
 
     public function endpoint(): BelongsTo

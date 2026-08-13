@@ -12,6 +12,7 @@ use App\Modules\Finance\Models\TaxRate;
 use App\Modules\Finance\Policies\FinancePolicy;
 use App\Modules\MetaIntegration\Events\InvoicePaid;
 use App\Modules\Platform\Services\DocumentNumberService;
+use App\Support\Decimal;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -118,23 +119,37 @@ class InvoiceService
         $companyId = $this->policy->companyId($actor, 'finance.create');
         $invoice = Invoice::where('company_id', $companyId)->findOrFail($data['invoice_id']);
         $bank = $this->accounts->ensure($companyId, $data['account_id'], 'asset', 'Cash or bank account');
-        $outstanding = (float) $invoice->total - (float) $invoice->paid_total - (float) ($invoice->credited_total ?? 0);
-        if (! in_array($invoice->status, ['posted', 'partially_paid'], true) || (float) $data['amount'] > $outstanding) {
-            throw ValidationException::withMessages(['amount' => ['Payment is invalid or exceeds the outstanding balance.']]);
-        }
         $control = $this->accounts->byCode($companyId, $invoice->type === 'receivable' ? '1100' : '2000', $invoice->type === 'receivable' ? 'asset' : 'liability');
         $lines = $invoice->type === 'receivable'
             ? [['account_id' => $bank->id, 'debit' => $data['amount'], 'credit' => 0, 'currency' => $data['currency'], 'exchange_rate' => $data['exchange_rate'] ?? 1], ['account_id' => $control->id, 'debit' => 0, 'credit' => $data['amount'], 'currency' => $data['currency'], 'exchange_rate' => $data['exchange_rate'] ?? 1]]
             : [['account_id' => $control->id, 'debit' => $data['amount'], 'credit' => 0, 'currency' => $data['currency'], 'exchange_rate' => $data['exchange_rate'] ?? 1], ['account_id' => $bank->id, 'debit' => 0, 'credit' => $data['amount'], 'currency' => $data['currency'], 'exchange_rate' => $data['exchange_rate'] ?? 1]];
 
         return DB::transaction(function () use ($actor, $invoice, $data, $lines) {
+            // Re-read the invoice under a row lock and validate here, not
+            // before the transaction. Two payments racing on one invoice
+            // otherwise both read the same paid_total, both pass the
+            // outstanding check, and together overpay it.
+            $invoice = Invoice::query()->whereKey($invoice->getKey())->lockForUpdate()->firstOrFail();
+            $outstanding = Decimal::of($invoice->total)
+                ->minus($invoice->paid_total)
+                ->minus($invoice->credited_total ?? 0);
+
+            if (! in_array($invoice->status, ['posted', 'partially_paid'], true)
+                || Decimal::of($data['amount'])->greaterThan($outstanding)) {
+                throw ValidationException::withMessages(['amount' => ['Payment is invalid or exceeds the outstanding balance.']]);
+            }
+
             $payment = Payment::create(['company_id' => $invoice->company_id] + $data);
             $entry = $this->ledger->createForCompany($invoice->company_id, $actor->id, ['entry_date' => $data['payment_date'], 'description' => "Payment for {$invoice->number}", 'lines' => $lines], 'payment', $payment->id);
             $this->ledger->postSystem($entry, $actor->id);
             $payment->update(['journal_entry_id' => $entry->id]);
             $payment->allocations()->create(['invoice_id' => $invoice->id, 'amount' => $data['amount']]);
-            $paid = (float) $invoice->paid_total + (float) $data['amount'];
-            $invoice->update(['paid_total' => $paid, 'status' => $paid >= ((float) $invoice->total - (float) ($invoice->credited_total ?? 0)) ? 'paid' : 'partially_paid']);
+            $paid = Decimal::of($invoice->paid_total)->plus($data['amount']);
+            $settled = Decimal::of($invoice->total)->minus($invoice->credited_total ?? 0);
+            $invoice->update([
+                'paid_total' => $paid->toString(),
+                'status' => $paid->lessThan($settled) ? 'partially_paid' : 'paid',
+            ]);
 
             if ($invoice->status === 'paid') {
                 event(new InvoicePaid($invoice));

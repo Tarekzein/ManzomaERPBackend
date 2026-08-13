@@ -4,13 +4,16 @@ namespace App\Modules\MetaIntegration\Services;
 
 use App\Modules\CRM\Models\CRMContact;
 use App\Modules\CRM\Models\CRMOpportunity;
+use App\Modules\Finance\Models\FinanceContact;
 use App\Modules\Finance\Models\Invoice;
 use App\Modules\MetaIntegration\Jobs\SendMetaConversionEvent;
 use App\Modules\MetaIntegration\Models\MetaConnection;
 use App\Modules\MetaIntegration\Models\MetaEventLog;
 use App\Modules\MetaIntegration\Models\MetaEventMapping;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 class MetaConversionService
 {
@@ -18,6 +21,7 @@ class MetaConversionService
 
     public function recordEvent(int $companyId, string $triggerSource, Model $related, array $context = []): ?MetaEventLog
     {
+        $this->assertRelatedCompany($companyId, $related);
         $connection = MetaConnection::where('company_id', $companyId)->first();
         if (! $connection || ! $connection->isConnected()) {
             return null;
@@ -34,8 +38,39 @@ class MetaConversionService
 
         $contact = $this->resolveContact($related);
 
-        if ($connection->require_consent && $contact instanceof CRMContact && $contact->meta_consent !== true) {
+        // Finance contacts do not carry Meta consent. In strict-consent mode,
+        // only a CRM contact with an affirmative consent flag is eligible.
+        if ($connection->require_consent
+            && (! $contact instanceof CRMContact || $contact->meta_consent !== true)) {
             return null;
+        }
+
+        $deduplicationKey = $this->deduplicationKey($companyId, $triggerSource, $related);
+
+        // A finance/POS outbox may replay after a downstream webhook failure.
+        // Reuse the original conversion log so Meta receives the same event_id
+        // and can deduplicate it instead of counting the sale twice. The
+        // unique key also closes the check/create race between two workers.
+        $existing = MetaEventLog::query()
+            ->where('company_id', $companyId)
+            ->where('trigger_source', $triggerSource)
+            ->where('related_type', $related::class)
+            ->where('related_id', $related->getKey())
+            ->latest('id')
+            ->first();
+
+        if ($existing) {
+            if ($existing->deduplication_key === null) {
+                try {
+                    $existing->forceFill(['deduplication_key' => $deduplicationKey])->save();
+                } catch (UniqueConstraintViolationException) {
+                    $existing = MetaEventLog::query()
+                        ->where('deduplication_key', $deduplicationKey)
+                        ->firstOrFail();
+                }
+            }
+
+            return $this->reuse($existing);
         }
 
         $userData = $this->buildUserData($contact, $context);
@@ -60,7 +95,7 @@ class MetaConversionService
             $payload['test_event_code'] = $connection->test_event_code;
         }
 
-        $log = MetaEventLog::create([
+        $log = MetaEventLog::query()->firstOrCreate(['deduplication_key' => $deduplicationKey], [
             'company_id' => $companyId,
             'meta_connection_id' => $connection->id,
             'event_id' => $payload['event_id'],
@@ -72,7 +107,11 @@ class MetaConversionService
             'status' => 'pending',
         ]);
 
-        SendMetaConversionEvent::dispatch($log->id)->onQueue('meta-events');
+        if (! $log->wasRecentlyCreated) {
+            return $this->reuse($log);
+        }
+
+        SendMetaConversionEvent::dispatch($log->id)->onQueue('meta-events')->afterCommit();
 
         return $log;
     }
@@ -80,29 +119,63 @@ class MetaConversionService
     public function retry(MetaEventLog $log): void
     {
         $log->update(['status' => 'pending', 'next_retry_at' => null]);
-        SendMetaConversionEvent::dispatch($log->id)->onQueue('meta-events');
+        SendMetaConversionEvent::dispatch($log->id)->onQueue('meta-events')->afterCommit();
     }
 
-    private function resolveContact(Model $related): ?CRMContact
+    private function reuse(MetaEventLog $log): MetaEventLog
     {
-        return match (true) {
+        if ($log->status !== 'sent' && $log->isRetryEligible()) {
+            SendMetaConversionEvent::dispatch($log->id)->onQueue('meta-events')->afterCommit();
+        }
+
+        return $log;
+    }
+
+    private function deduplicationKey(int $companyId, string $triggerSource, Model $related): string
+    {
+        return hash('sha256', implode('|', [
+            (string) $companyId,
+            $triggerSource,
+            $related::class,
+            (string) $related->getKey(),
+        ]));
+    }
+
+    private function assertRelatedCompany(int $companyId, Model $related): void
+    {
+        if ((int) $related->getAttribute('company_id') !== $companyId) {
+            throw new InvalidArgumentException('A conversion event cannot cross company boundaries.');
+        }
+    }
+
+    private function resolveContact(Model $related): CRMContact|FinanceContact|null
+    {
+        $contact = match (true) {
             $related instanceof CRMContact => $related,
             $related instanceof CRMOpportunity => $related->contact,
+            $related instanceof Invoice => $related->contact,
             default => null,
         };
+
+        if ($contact && (int) $contact->company_id !== (int) $related->getAttribute('company_id')) {
+            throw new InvalidArgumentException('A conversion contact cannot cross company boundaries.');
+        }
+
+        return $contact;
     }
 
-    private function buildUserData(?CRMContact $contact, array $context): array
+    private function buildUserData(CRMContact|FinanceContact|null $contact, array $context): array
     {
         [$firstName, $lastName] = $this->splitName($contact?->name);
+        $crmContact = $contact instanceof CRMContact ? $contact : null;
 
         return $this->hashing->hashedUserData(
             email: $contact?->email,
             phone: $contact?->phone,
             firstName: $firstName,
             lastName: $lastName,
-            fbc: $contact?->meta_fbc,
-            fbp: $contact?->meta_fbp,
+            fbc: $crmContact?->meta_fbc,
+            fbp: $crmContact?->meta_fbp,
             clientIp: $context['client_ip_address'] ?? null,
             userAgent: $context['client_user_agent'] ?? null,
             externalId: $contact ? (string) $contact->id : null,

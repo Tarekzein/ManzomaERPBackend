@@ -2,6 +2,7 @@
 
 namespace App\Modules\Platform\Providers;
 
+use App\Modules\Platform\Console\RetryWebhookDeliveries;
 use App\Modules\Platform\Contracts\TranslationProvider;
 use App\Modules\Platform\Services\CompanyContext;
 use App\Modules\Platform\Services\LibreTranslateProvider;
@@ -26,5 +27,9 @@ class PlatformServiceProvider extends ServiceProvider
         Route::middleware('api')
             ->prefix('api')
             ->group(__DIR__.'/../Routes/api.php');
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([RetryWebhookDeliveries::class]);
+        }
     }
 }

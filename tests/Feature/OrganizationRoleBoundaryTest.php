@@ -9,10 +9,12 @@ use App\Modules\Organizations\Models\CompanyMembership;
 use App\Modules\Organizations\Models\Organization;
 use App\Modules\Organizations\Models\OrganizationMembership;
 use App\Modules\Subscriptions\Models\CompanySubscription;
+use App\Modules\Subscriptions\Models\SubscriptionFeature;
 use App\Modules\Subscriptions\Models\SubscriptionPlan;
 use App\Modules\Subscriptions\Services\OrganizationEntitlementService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -27,7 +29,7 @@ class OrganizationRoleBoundaryTest extends TestCase
         $this->seed(RolesAndPermissionsSeeder::class);
     }
 
-    public function test_owner_can_assign_company_admin_manager_or_employee_when_inviting(): void
+    public function test_owner_can_assign_general_and_module_workspace_roles(): void
     {
         [$organization, $company, $owner] = $this->fixture();
         Sanctum::actingAs($owner);
@@ -35,7 +37,7 @@ class OrganizationRoleBoundaryTest extends TestCase
         $roles = $this->getJson('/api/roles')->assertOk()->json('data');
 
         $this->assertSame(
-            [UserRole::CompanyAdmin->value, UserRole::Manager->value, UserRole::Employee->value],
+            UserRole::workspaceAssignableValues(),
             collect($roles)->pluck('name')->all(),
         );
         $this->assertTrue(collect($roles)->every(fn (array $role) => $role['id'] !== null));
@@ -309,7 +311,7 @@ class OrganizationRoleBoundaryTest extends TestCase
     private function fixture(int $maxCompanies = 5, int $maxUsers = 25): array
     {
         $plan = SubscriptionPlan::query()->create([
-            'slug' => 'plan-'.\Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(10)),
+            'slug' => 'plan-'.Str::lower(Str::random(10)),
             'name' => 'Organization Plan',
             'monthly_price' => 100,
             'annual_price' => 1000,
@@ -323,6 +325,13 @@ class OrganizationRoleBoundaryTest extends TestCase
             'is_active' => true,
             'sort_order' => 1,
         ]);
+        $posFeature = SubscriptionFeature::query()->create([
+            'slug' => 'core.pos',
+            'name' => 'Point of Sale',
+            'module' => 'pos',
+            'description' => 'Point of sale workspace access.',
+        ]);
+        $plan->features()->attach($posFeature->id, ['enabled' => true]);
         $organization = Organization::query()->create([
             'name' => 'Acme Group',
             'status' => Organization::STATUS_ACTIVE,

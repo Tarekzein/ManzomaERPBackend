@@ -29,6 +29,11 @@ class StockMovementService
         $companyId = $this->policy->companyId($user, 'inventory.create');
 
         return DB::transaction(function () use ($user, $data, $companyId) {
+            // Take every balance lock this movement needs before touching any
+            // of them, in a fixed order, so concurrent movements over an
+            // overlapping set of products queue instead of deadlocking.
+            $this->lockBalances($companyId, $this->balanceTargets($data));
+
             $movement = StockMovement::create([
                 'company_id' => $companyId, 'number' => $this->numbers->next($companyId, 'SM'),
                 'type' => $data['type'], 'reason_code' => $data['reason_code'] ?? null, 'reference' => $data['reference'] ?? null,
@@ -61,6 +66,71 @@ class StockMovementService
 
             return $movement->load('lines.product');
         });
+    }
+
+    /**
+     * Lock every balance a movement touches, in one deterministic order.
+     *
+     * Two baskets holding the same products in different orders will deadlock
+     * if each locks rows as it encounters them: A holds product 5 and waits
+     * for 9 while B holds 9 and waits for 5. Sorting the whole set by a stable
+     * key first means every transaction walks the rows in the same direction,
+     * so one simply waits for the other.
+     *
+     * @param  array<int, array{product_id: int, warehouse_id: int, location_id: ?int}>  $targets
+     * @return array<string, StockBalance> keyed by product:warehouse:location
+     */
+    public function lockBalances(int $companyId, array $targets): array
+    {
+        $unique = [];
+        foreach ($targets as $target) {
+            $key = $this->balanceKey($target['product_id'], $target['warehouse_id'], $target['location_id'] ?? null);
+            $unique[$key] = $target;
+        }
+
+        ksort($unique, SORT_STRING);
+
+        $locked = [];
+        foreach ($unique as $key => $target) {
+            $locked[$key] = $this->balance(
+                $companyId,
+                $target['product_id'],
+                $target['warehouse_id'],
+                $target['location_id'] ?? null,
+            );
+        }
+
+        return $locked;
+    }
+
+    /**
+     * Every balance a movement will read or write, from both endpoints.
+     *
+     * @return array<int, array{product_id: int, warehouse_id: int, location_id: ?int}>
+     */
+    private function balanceTargets(array $data): array
+    {
+        $targets = [];
+
+        foreach ($data['lines'] ?? [] as $line) {
+            foreach ([['from_warehouse_id', 'from_location_id'], ['to_warehouse_id', 'to_location_id']] as [$warehouse, $location]) {
+                if (! empty($line[$warehouse])) {
+                    $targets[] = [
+                        'product_id' => (int) $line['product_id'],
+                        'warehouse_id' => (int) $line[$warehouse],
+                        'location_id' => isset($line[$location]) ? (int) $line[$location] : null,
+                    ];
+                }
+            }
+        }
+
+        return $targets;
+    }
+
+    public function balanceKey(int $productId, int $warehouseId, ?int $locationId): string
+    {
+        // Zero-padded so string ordering matches numeric ordering.
+        return sprintf('%012d:%012d:%012d', $productId, $warehouseId, $locationId ?? 0);
     }
 
     private function balance(int $companyId, int $productId, int $warehouseId, ?int $locationId): StockBalance

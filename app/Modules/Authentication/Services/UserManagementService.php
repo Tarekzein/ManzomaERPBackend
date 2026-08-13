@@ -5,7 +5,6 @@ namespace App\Modules\Authentication\Services;
 use App\Modules\Authentication\Contracts\RoleRepository;
 use App\Modules\Authentication\Contracts\UserRepository;
 use App\Modules\Authentication\DTOs\CreateUserData;
-use App\Modules\Authentication\Enums\UserRole;
 use App\Modules\Authentication\Models\User;
 use App\Modules\Authentication\Models\UserPermissionOverride;
 use App\Modules\Authentication\Policies\UserManagementPolicy;
@@ -68,7 +67,7 @@ class UserManagementService
             ->map(fn (string $role) => [
                 'id' => $roleIds->get($role),
                 'name' => $role,
-                'default_permissions' => $this->filteredRoleDefaults($actor, UserRole::from($role)),
+                'default_permissions' => $this->filteredRoleDefaults($actor, $role),
             ])
             ->values()
             ->all();
@@ -96,7 +95,7 @@ class UserManagementService
         return $this->policy->assignableRoles($actor);
     }
 
-    public function assignablePermissionNames(User $actor, ?UserRole $targetRole = null): array
+    public function assignablePermissionNames(User $actor, ?string $targetRole = null): array
     {
         $this->policy->ensureCanManageUsers($actor);
 
@@ -121,7 +120,7 @@ class UserManagementService
                 'is_active' => true,
             ]);
 
-            $this->roles->assign($user, $data->role->value);
+            $this->roles->assign($user, $data->role);
             if ($company?->organization) {
                 $this->ensureMemberships($actor, $user, $company, $data->role);
             }
@@ -148,7 +147,7 @@ class UserManagementService
         return DB::transaction($operation);
     }
 
-    public function updateRole(User $actor, User $target, UserRole $role, ?int $companyId, ?array $allowedPermissions = null, ?array $deniedPermissions = null): User
+    public function updateRole(User $actor, User $target, string $role, ?int $companyId, ?array $allowedPermissions = null, ?array $deniedPermissions = null): User
     {
         $this->policy->ensureCanManageUsers($actor);
         $this->policy->ensureCanManageTarget($actor, $target);
@@ -169,7 +168,7 @@ class UserManagementService
             }
 
             if (! $resolvedCompanyId || $this->usesLegacyProjection($target, $resolvedCompanyId)) {
-                $this->roles->sync($target, $role->value);
+                $this->roles->sync($target, $role);
             }
 
             $this->syncPermissionOverrides(
@@ -296,7 +295,7 @@ class UserManagementService
     private function syncPermissionOverrides(
         User $actor,
         User $target,
-        UserRole $targetRole,
+        string $targetRole,
         ?array $allowedPermissions,
         ?array $deniedPermissions,
         ?int $companyId,
@@ -357,10 +356,10 @@ class UserManagementService
         }
     }
 
-    private function filteredRoleDefaults(User $actor, UserRole $role): array
+    private function filteredRoleDefaults(User $actor, string $role): array
     {
         $rolePermissions = Permission::query()
-            ->whereHas('roles', fn ($query) => $query->where('name', $role->value))
+            ->whereHas('roles', fn ($query) => $query->where('name', $role))
             ->orderBy('name')
             ->pluck('name');
 
@@ -378,7 +377,7 @@ class UserManagementService
         return $actor->isSuperAdmin() || $this->access->effectivePermissionNames($actor)->contains($permission);
     }
 
-    private function ensureMemberships(User $actor, User $user, Company $company, UserRole $role): CompanyMembership
+    private function ensureMemberships(User $actor, User $user, Company $company, string $role): CompanyMembership
     {
         $organizationMembership = OrganizationMembership::query()->firstOrNew(
             [
@@ -414,7 +413,7 @@ class UserManagementService
             'suspended_at' => null,
         ])->save();
 
-        $spatieRole = Role::findOrCreate($role->value, 'web');
+        $spatieRole = Role::findOrCreate($role, 'web');
 
         $membership = CompanyMembership::query()->firstOrNew(
             [

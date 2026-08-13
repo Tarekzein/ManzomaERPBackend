@@ -26,7 +26,7 @@ class CreateUserRequest extends FormRequest
             'company_id' => [
                 'nullable',
                 Rule::requiredIf(fn () => $this->user()?->isSuperAdmin()
-                    && $this->input('role') === UserRole::CompanyAdmin->value),
+                    && $this->input('role') !== UserRole::SuperAdmin->value),
                 'integer',
                 'exists:companies,id',
             ],

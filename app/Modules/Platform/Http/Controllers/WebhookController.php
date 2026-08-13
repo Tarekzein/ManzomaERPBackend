@@ -84,8 +84,8 @@ class WebhookController extends Controller
         $this->authorizeEndpoint($request, $delivery->endpoint);
 
         return ApiResponse::success(
-            $webhooks->deliver($delivery->endpoint, $delivery->event, $delivery->payload['data'] ?? $delivery->payload),
-            'Webhook delivery retried'
+            $webhooks->retry($delivery),
+            'Webhook delivery queued for retry'
         );
     }
 

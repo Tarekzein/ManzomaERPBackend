@@ -152,9 +152,9 @@ class OrganizationMembershipService
             ? CompanyCustomRole::query()->where('company_id', $company->getKey())->findOrFail($data['custom_role_id'])
             : null;
 
-        if ($role && ! in_array($role->name, UserRole::companyManagedValues(), true)) {
+        if ($role && ! in_array($role->name, UserRole::workspaceAssignableValues(), true)) {
             throw ValidationException::withMessages([
-                'role_id' => ['Only the Company Admin, Manager and Employee roles can be assigned to a workspace.'],
+                'role_id' => ['Only approved workspace role templates can be assigned to a company.'],
             ]);
         }
 

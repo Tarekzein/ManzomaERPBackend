@@ -39,6 +39,41 @@ class AccountingPostingService
         return $this->ledger->postSystem($entry, $userId);
     }
 
+    /**
+     * Reverse cost of goods sold when merchandise is returned to sellable stock.
+     *
+     * This is deliberately not an inventory receipt: a customer return restores
+     * the Inventory asset and reverses the original COGS expense. Crediting
+     * Accounts Payable would invent a supplier liability that never existed.
+     */
+    public function postCogsReversal(
+        int $companyId,
+        ?int $userId,
+        string $entryDate,
+        string $description,
+        float $amount,
+        string $currency,
+        string $sourceType,
+        int $sourceId,
+    ): ?JournalEntry {
+        if ($amount <= 0) {
+            return null;
+        }
+
+        $inventory = $this->accounts->byCode($companyId, '1200', 'asset', 'Inventory account');
+        $cogs = $this->accounts->byCode($companyId, '5000', 'expense', 'Cost of Goods Sold account');
+        $entry = $this->ledger->createForCompany($companyId, $userId, [
+            'entry_date' => $entryDate,
+            'description' => $description,
+            'lines' => [
+                ['account_id' => $inventory->id, 'debit' => $amount, 'credit' => 0, 'currency' => $currency],
+                ['account_id' => $cogs->id, 'debit' => 0, 'credit' => $amount, 'currency' => $currency],
+            ],
+        ], $sourceType, $sourceId);
+
+        return $this->ledger->postSystem($entry, $userId);
+    }
+
     public function postInventoryReceipt(
         int $companyId,
         ?int $userId,

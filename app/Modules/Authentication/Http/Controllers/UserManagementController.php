@@ -4,7 +4,6 @@ namespace App\Modules\Authentication\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Authentication\DTOs\CreateUserData;
-use App\Modules\Authentication\Enums\UserRole;
 use App\Modules\Authentication\Http\Requests\CreateUserRequest;
 use App\Modules\Authentication\Http\Requests\UpdateUserRoleRequest;
 use App\Modules\Authentication\Models\User;
@@ -51,7 +50,7 @@ class UserManagementController extends Controller
             $this->users->updateRole(
                 $request->user(),
                 $user,
-                UserRole::from($request->validated('role')),
+                $request->validated('role'),
                 $request->validated('company_id'),
                 $request->validated('allowed_permissions') ?? $request->validated('permissions'),
                 $request->validated('denied_permissions')

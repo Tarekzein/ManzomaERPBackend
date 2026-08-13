@@ -79,11 +79,13 @@ class UserManagementPolicy
     public function assignableRoles(User $actor): array
     {
         if ($actor->isSuperAdmin()) {
-            return UserRole::values();
+            return array_merge(UserRole::values(), UserRole::MODULE_ROLE_TEMPLATES);
         }
 
         if ($this->administersWorkspaceRoles($actor)) {
-            return UserRole::companyManagedValues();
+            return $this->access->hasFeature($actor, 'core.pos')
+                ? UserRole::workspaceAssignableValues()
+                : UserRole::companyManagedValues();
         }
 
         if ($this->context->hasCompanyRole($actor, UserRole::Manager->value) && $this->access->effectivePermissionNames($actor)->contains('roles.assign')) {
@@ -93,7 +95,7 @@ class UserManagementPolicy
         return [];
     }
 
-    public function assignablePermissions(User $actor, ?UserRole $targetRole = null): array
+    public function assignablePermissions(User $actor, ?string $targetRole = null): array
     {
         if ($actor->isSuperAdmin()) {
             return Permission::query()->orderBy('name')->pluck('name')->all();
@@ -114,9 +116,9 @@ class UserManagementPolicy
             ->all();
     }
 
-    public function resolveCompanyId(User $actor, UserRole $role, ?int $requestedCompanyId): ?int
+    public function resolveCompanyId(User $actor, string $role, ?int $requestedCompanyId): ?int
     {
-        if (! $role->requiresCompany()) {
+        if ($role === UserRole::SuperAdmin->value) {
             return null;
         }
 

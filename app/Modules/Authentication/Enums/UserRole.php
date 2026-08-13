@@ -25,6 +25,26 @@ enum UserRole: string
         return [self::CompanyAdmin->value, self::Manager->value, self::Employee->value];
     }
 
+    /**
+     * Role templates a module ships for a specific job, assignable as a
+     * workspace role alongside the three general ones.
+     *
+     * A till is staffed by people who need almost none of the ERP, so POS
+     * provides its own graded set rather than forcing a cashier to be an
+     * Employee with a pile of permission overrides.
+     */
+    public const MODULE_ROLE_TEMPLATES = [
+        'POS Cashier',
+        'POS Supervisor',
+        'POS Administrator',
+    ];
+
+    /** Every role that may be attached to a company membership. */
+    public static function workspaceAssignableValues(): array
+    {
+        return array_merge(self::companyManagedValues(), self::MODULE_ROLE_TEMPLATES);
+    }
+
     public function requiresCompany(): bool
     {
         return $this !== self::SuperAdmin;

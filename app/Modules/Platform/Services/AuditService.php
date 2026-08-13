@@ -8,12 +8,34 @@ use App\Modules\Organizations\Models\Organization;
 use App\Modules\Platform\Models\AuditLog;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
 class AuditService
 {
-    private const HIDDEN = ['password', 'remember_token', 'secret', 'token', 'api_key'];
+    /**
+     * Substring matches, applied at every depth. Deliberately broad: it is
+     * better to redact a harmless `sort_token` than to log a card token.
+     */
+    private const HIDDEN = [
+        'password',
+        'remember_token',
+        'secret',
+        'token',
+        'api_key',
+        'apikey',
+        'access_key',
+        'private_key',
+        'credential',
+        'authorization',
+        'signature',
+        'card_number',
+        'pan',
+        'cvv',
+        'cvc',
+        'secur',
+    ];
+
+    private const REDACTED = '[redacted]';
 
     public function __construct(private readonly CompanyContext $context) {}
 
@@ -68,9 +90,67 @@ class AuditService
         ]);
     }
 
+    /**
+     * Strip secrets at every depth, not just the top level.
+     *
+     * Audited models carry JSON columns — integration `settings`, provider
+     * payloads, POS tender metadata — and a flat `Arr::except` writes the
+     * nested contents of those straight into the audit log. Card tokens and
+     * provider credentials must never land there.
+     */
     private function sanitize(array $values): array
     {
-        return Arr::except($values, self::HIDDEN);
+        $redacted = [];
+
+        foreach ($values as $key => $value) {
+            if (is_string($key) && $this->isSensitive($key)) {
+                $redacted[$key] = self::REDACTED;
+
+                continue;
+            }
+
+            $redacted[$key] = $this->sanitizeValue($value);
+        }
+
+        return $redacted;
+    }
+
+    private function sanitizeValue(mixed $value): mixed
+    {
+        if (is_array($value)) {
+            return $this->sanitize($value);
+        }
+
+        // A JSON column read straight off the model is still a string here.
+        if (is_string($value) && $this->looksLikeJsonObject($value)) {
+            $decoded = json_decode($value, true);
+
+            if (is_array($decoded)) {
+                return json_encode($this->sanitize($decoded));
+            }
+        }
+
+        return $value;
+    }
+
+    private function isSensitive(string $key): bool
+    {
+        $normalized = Str::lower($key);
+
+        foreach (self::HIDDEN as $needle) {
+            if (str_contains($normalized, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function looksLikeJsonObject(string $value): bool
+    {
+        $trimmed = ltrim($value);
+
+        return str_starts_with($trimmed, '{') || str_starts_with($trimmed, '[');
     }
 
     private function organizationId(?Model $subject, ?int $companyId): ?int

@@ -11,6 +11,7 @@ use App\Modules\MetaIntegration\Providers\MetaIntegrationServiceProvider;
 use App\Modules\Notifications\Providers\NotificationsServiceProvider;
 use App\Modules\Organizations\Providers\OrganizationsServiceProvider;
 use App\Modules\Platform\Providers\PlatformServiceProvider;
+use App\Modules\POS\Providers\POSServiceProvider;
 use App\Modules\Projects\Providers\ProjectsServiceProvider;
 use App\Modules\Reporting\Providers\ReportingServiceProvider;
 use App\Modules\Sales\Providers\SalesServiceProvider;
@@ -34,6 +35,7 @@ return [
     ProjectsServiceProvider::class,
     ReportingServiceProvider::class,
     SalesServiceProvider::class,
+    POSServiceProvider::class,
     PlatformServiceProvider::class,
     HorizonServiceProvider::class,
     MetaIntegrationServiceProvider::class,

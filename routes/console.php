@@ -19,6 +19,16 @@ Schedule::command('notifications:send-due')
     ->withoutOverlapping()
     ->after(fn () => Cache::put('system_health:scheduler:notifications', now()->toISOString(), now()->addMinutes(10)));
 
+Schedule::command('pos:dispatch-outbox')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->after(fn () => Cache::put('system_health:scheduler:pos-outbox', now()->toISOString(), now()->addMinutes(10)));
+
+Schedule::command('platform:retry-webhooks')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->after(fn () => Cache::put('system_health:scheduler:webhooks', now()->toISOString(), now()->addMinutes(10)));
+
 Schedule::command('meta:retry-events')
     ->everyFiveMinutes()
     ->withoutOverlapping()
