@@ -63,7 +63,6 @@ class OrganizationBillingTest extends TestCase
         ]);
 
         $quotas = app(OrganizationQuotaService::class);
-        $plan->forceFill(['max_users' => 999, 'max_companies' => 999])->save();
         $usage = $quotas->usage($organization);
 
         $this->assertSame(1, $usage['companies']['used']);
@@ -109,6 +108,34 @@ class OrganizationBillingTest extends TestCase
             $this->assertSame('COMPANY_LIMIT_REACHED', $exception->errorCode);
             $this->assertSame(2, $exception->details['used']);
         }
+    }
+
+    public function test_raising_plan_limits_reaches_organizations_already_serving_on_that_plan(): void
+    {
+        [$organization, , $plan, $subscription] = $this->billingFixture(maxCompanies: 1, maxUsers: 5);
+        $quotas = app(OrganizationQuotaService::class);
+
+        $this->assertSame(1, $quotas->usage($organization)['companies']['limit']);
+
+        $plan->forceFill(['max_companies' => 5, 'max_users' => 20])->save();
+
+        // The purchase-time snapshot still records the old entitlement; the
+        // live plan is what an organization is actually held to.
+        $this->assertSame(1, $subscription->fresh()->entitlements_snapshot['max_companies']);
+
+        $usage = $quotas->usage($organization->fresh());
+        $this->assertSame(5, $usage['companies']['limit']);
+        $this->assertSame(20, $usage['users']['limit']);
+
+        $quotas->withinCompanyCapacity($organization, function (Organization $locked) use ($plan): void {
+            Company::factory()->create([
+                'organization_id' => $locked->id,
+                'name' => 'Second Company',
+                'plan' => $plan->slug,
+            ]);
+        });
+
+        $this->assertSame(2, $quotas->usage($organization->fresh())['companies']['used']);
     }
 
     public function test_billing_suspension_is_organization_scoped_and_never_reactivates_admin_suspended_companies(): void

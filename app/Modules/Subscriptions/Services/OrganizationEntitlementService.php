@@ -95,8 +95,9 @@ class OrganizationEntitlementService
     }
 
     /**
-     * Snapshot limits when service starts so later catalog edits cannot silently
-     * change an already purchased period.
+     * Record the limits that were sold when service starts. This is history:
+     * `forOrganization()` reads the live plan, so a snapshot never caps an
+     * organization below what its plan currently grants.
      *
      * @return array<string, int|null>
      */
@@ -113,6 +114,12 @@ class OrganizationEntitlementService
     }
 
     /**
+     * The plan catalog is authoritative. Raising or lowering a plan's limits
+     * reaches every organization already serving on that plan, so an
+     * administrator never has to touch subscription rows to grant capacity.
+     * The purchase-time snapshot is only a fallback for a subscription whose
+     * plan row can no longer be read.
+     *
      * @return array<string, int|null>
      */
     public function forOrganization(Organization $organization): array
@@ -128,9 +135,22 @@ class OrganizationEntitlementService
             ];
         }
 
-        $snapshot = (array) ($subscription->entitlements_snapshot ?? []);
-        $catalog = $this->snapshot($subscription->plan);
+        $plan = $subscription->relationLoaded('plan')
+            ? $subscription->plan
+            : $subscription->loadMissing('plan')->plan;
 
-        return array_replace($catalog, array_intersect_key($snapshot, $catalog));
+        if ($plan instanceof SubscriptionPlan) {
+            return $this->snapshot($plan);
+        }
+
+        $fallback = [
+            'max_companies' => 0,
+            'max_users' => 0,
+            'storage_gb' => 0,
+            'api_rate_limit_per_minute' => null,
+        ];
+        $snapshot = (array) ($subscription->entitlements_snapshot ?? []);
+
+        return array_replace($fallback, array_intersect_key($snapshot, $fallback));
     }
 }
