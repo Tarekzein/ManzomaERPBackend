@@ -153,18 +153,47 @@ class OrganizationQuotaService
         $companyLimit = $this->nullableInt($limits['max_companies']);
         $userLimit = $this->nullableInt($limits['max_users']);
         $userTotal = $usage['users']['used'] + $usage['users']['reserved'];
+        $overflow = [];
 
-        if (($companyLimit !== null && $usage['companies']['used'] > $companyLimit)
-            || ($userLimit !== null && $userTotal > $userLimit)) {
-            throw new OrganizationQuotaExceededException(
-                'DOWNGRADE_USAGE_EXCEEDED',
-                'Current organization usage exceeds the selected plan limits.',
-                [
-                    'companies' => $usage['companies'] + ['target_limit' => $companyLimit],
-                    'users' => $usage['users'] + ['target_limit' => $userLimit],
-                ],
+        if ($companyLimit !== null && $usage['companies']['used'] > $companyLimit) {
+            $overflow[] = sprintf(
+                '%d company workspaces against a limit of %d',
+                $usage['companies']['used'],
+                $companyLimit,
             );
         }
+
+        if ($userLimit !== null && $userTotal > $userLimit) {
+            $overflow[] = sprintf(
+                '%d users against a limit of %d%s',
+                $userTotal,
+                $userLimit,
+                $usage['users']['reserved'] > 0
+                    ? sprintf(' (including %d pending invitation(s))', $usage['users']['reserved'])
+                    : '',
+            );
+        }
+
+        if ($overflow === []) {
+            return;
+        }
+
+        // Name what has to be given up before the plan can change. A customer
+        // reading only "usage exceeds the plan" cannot tell whether to archive
+        // a company, remove users, or withdraw invitations.
+        throw new OrganizationQuotaExceededException(
+            'DOWNGRADE_USAGE_EXCEEDED',
+            sprintf(
+                'The %s plan cannot hold the organization\'s current usage: %s. Archive companies or remove users before switching.',
+                $plan->name,
+                implode(' and ', $overflow),
+            ),
+            [
+                'plan' => ['slug' => $plan->slug, 'name' => $plan->name],
+                'companies' => $usage['companies'] + ['target_limit' => $companyLimit],
+                'users' => $usage['users'] + ['target_limit' => $userLimit],
+            ],
+        );
     }
 
     /** Keep the serving subscription's over-limit marker in sync. */

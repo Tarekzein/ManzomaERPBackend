@@ -13,6 +13,7 @@ use App\Modules\Subscriptions\Enums\SubscriptionStatus;
 use App\Modules\Subscriptions\Models\CompanySubscription;
 use App\Modules\Subscriptions\Models\SubscriptionPlan;
 use App\Modules\Subscriptions\Policies\SubscriptionPolicy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 class CompanySubscriptionService
@@ -111,19 +112,37 @@ class CompanySubscriptionService
         return $company !== null
             && (bool) $plan->trial_enabled
             && (int) $plan->trial_days > 0
-            && ! $this->hasUsedTrial($company);
+            && $this->trialAvailable($company);
+    }
+
+    /**
+     * A trial is an offer made before an organization commits, so it is gone
+     * once the organization has subscribed at all: a paid plan is not turned
+     * back into a trial by switching to a plan that advertises one.
+     */
+    public function trialAvailable(Company $company): bool
+    {
+        return ! $this->hasUsedTrial($company) && ! $this->hasSubscribed($company);
     }
 
     public function hasUsedTrial(Company $company): bool
     {
+        return $this->subscriptionHistory($company)->whereNotNull('trial_ends_at')->exists();
+    }
+
+    /** Any subscription the organization has ever held, current or closed. */
+    public function hasSubscribed(Company $company): bool
+    {
+        return $this->subscriptionHistory($company)->exists();
+    }
+
+    private function subscriptionHistory(Company $company): Builder
+    {
         if ($company->organization_id !== null) {
-            return CompanySubscription::query()
-                ->where('organization_id', $company->organization_id)
-                ->whereNotNull('trial_ends_at')
-                ->exists();
+            return CompanySubscription::query()->where('organization_id', $company->organization_id);
         }
 
-        return $company->subscriptions()->whereNotNull('trial_ends_at')->exists();
+        return $company->subscriptions()->getQuery();
     }
 
     /** Start a plan's free trial from inside the app. */
@@ -135,7 +154,7 @@ class CompanySubscriptionService
         abort_unless(
             $this->trialEligible($company, $plan),
             422,
-            'This organization has already used its free trial.'
+            'A free trial is only available before an organization subscribes.'
         );
 
         return $this->startTrial(

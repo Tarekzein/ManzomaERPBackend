@@ -192,6 +192,66 @@ class OrganizationBillingTest extends TestCase
             ->count());
     }
 
+    public function test_a_downgrade_the_organization_has_outgrown_is_refused_and_names_what_does_not_fit(): void
+    {
+        [$organization, , $plan] = $this->billingFixture(maxCompanies: 5, maxUsers: 100);
+        foreach (['Second Company', 'Third Company'] as $name) {
+            Company::factory()->create([
+                'organization_id' => $organization->id,
+                'name' => $name,
+                'plan' => $plan->slug,
+            ]);
+        }
+        foreach (range(1, 2) as $index) {
+            OrganizationMembership::query()->create([
+                'organization_id' => $organization->id,
+                'user_id' => User::factory()->create(['company_id' => null, 'is_active' => true])->id,
+                'role' => OrganizationMembership::ROLE_MEMBER,
+                'status' => OrganizationMembership::STATUS_ACTIVE,
+                'joined_at' => now(),
+            ]);
+        }
+        OrganizationInvitation::query()->create([
+            'organization_id' => $organization->id,
+            'email' => 'pending@example.test',
+            'token_hash' => hash('sha256', 'downgrade-token'),
+            'role' => OrganizationMembership::ROLE_MEMBER,
+            'status' => OrganizationInvitation::STATUS_PENDING,
+            'expires_at' => now()->addDay(),
+        ]);
+        $smaller = SubscriptionPlan::query()->create([
+            'slug' => 'smaller-'.Str::lower(Str::random(8)),
+            'name' => 'Starter',
+            'monthly_price' => 10,
+            'annual_price' => 100,
+            'currency' => 'EGP',
+            'max_companies' => 2,
+            'max_users' => 2,
+            'storage_gb' => 5,
+            'api_rate_limit_per_minute' => 60,
+            'trial_enabled' => false,
+            'trial_days' => 0,
+            'is_active' => true,
+            'sort_order' => 2,
+        ]);
+
+        try {
+            app(OrganizationQuotaService::class)->ensurePlanFits($organization, $smaller);
+            $this->fail('A plan smaller than current usage must not be accepted.');
+        } catch (OrganizationQuotaExceededException $exception) {
+            $this->assertSame('DOWNGRADE_USAGE_EXCEEDED', $exception->errorCode);
+            $this->assertStringContainsString('3 company workspaces against a limit of 2', $exception->getMessage());
+            $this->assertStringContainsString('3 users against a limit of 2', $exception->getMessage());
+            $this->assertStringContainsString('including 1 pending invitation', $exception->getMessage());
+            $this->assertSame(2, $exception->details['companies']['target_limit']);
+            $this->assertSame(2, $exception->details['users']['target_limit']);
+        }
+
+        // A plan that can hold the same usage is accepted.
+        $smaller->forceFill(['max_companies' => 3, 'max_users' => 3])->save();
+        app(OrganizationQuotaService::class)->ensurePlanFits($organization, $smaller);
+    }
+
     public function test_captured_payment_is_preserved_for_manual_review_when_activation_fails(): void
     {
         [$organization, $company, , $subscription] = $this->billingFixture(maxUsers: 3);

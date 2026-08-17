@@ -62,7 +62,7 @@ class SubscriptionTrialTest extends TestCase
 
     public function test_a_company_can_start_a_trial_from_inside_the_app(): void
     {
-        [$admin, $company] = $this->companyOnPaidPlan();
+        [$admin, $company] = $this->companyWithoutSubscription();
         Sanctum::actingAs($admin);
 
         $this->postJson('/api/subscriptions/subscribe', ['plan_slug' => 'basic', 'billing_cycle' => 'monthly'])
@@ -76,7 +76,7 @@ class SubscriptionTrialTest extends TestCase
 
     public function test_a_trial_is_only_offered_once_per_company(): void
     {
-        [$admin, $company] = $this->companyOnPaidPlan();
+        [$admin, $company] = $this->companyWithoutSubscription();
         Sanctum::actingAs($admin);
 
         $this->postJson('/api/subscriptions/subscribe', ['plan_slug' => 'basic', 'billing_cycle' => 'monthly'])
@@ -100,7 +100,7 @@ class SubscriptionTrialTest extends TestCase
     public function test_an_unconverted_trial_goes_past_due_then_expires(): void
     {
         config(['subscriptions.grace_days' => 2]);
-        [$admin, $company] = $this->companyOnPaidPlan();
+        [$admin, $company] = $this->companyWithoutSubscription();
         Sanctum::actingAs($admin);
 
         $this->postJson('/api/subscriptions/subscribe', ['plan_slug' => 'basic', 'billing_cycle' => 'monthly'])->assertCreated();
@@ -126,7 +126,7 @@ class SubscriptionTrialTest extends TestCase
 
     public function test_paying_a_trial_conversion_starts_the_first_paid_period(): void
     {
-        [$admin, $company] = $this->companyOnPaidPlan();
+        [$admin, $company] = $this->companyWithoutSubscription();
         Sanctum::actingAs($admin);
 
         $this->postJson('/api/subscriptions/subscribe', ['plan_slug' => 'basic', 'billing_cycle' => 'monthly'])->assertCreated();
@@ -189,6 +189,42 @@ class SubscriptionTrialTest extends TestCase
 
         $this->postJson("/api/payments/{$reference}/session", ['registration_token' => 'wrong-token'])
             ->assertUnprocessable();
+    }
+
+    public function test_an_organization_that_already_subscribed_is_never_offered_a_trial(): void
+    {
+        [$admin] = $this->companyOnPaidPlan();
+        Sanctum::actingAs($admin);
+
+        // The paid plan was bought outright, so no trial was ever consumed —
+        // and there is still none left to take.
+        $this->getJson('/api/subscriptions/current')
+            ->assertOk()
+            ->assertJsonPath('data.trial_used', false)
+            ->assertJsonPath('data.trial_available', false);
+
+        // Switching to a plan that advertises a trial is a paid plan change.
+        $this->postJson('/api/subscriptions/subscribe', ['plan_slug' => 'basic', 'billing_cycle' => 'monthly'])
+            ->assertStatus(202)
+            ->assertJsonPath('data.requires_payment', true);
+
+        $this->postJson('/api/subscriptions/checkout', [
+            'plan_slug' => 'basic',
+            'billing_cycle' => 'monthly',
+            'start_trial' => true,
+        ])->assertCreated()->assertJsonPath('data.requires_payment', true);
+
+        $this->assertFalse(CompanySubscription::query()->whereNotNull('trial_ends_at')->exists());
+    }
+
+    /** @return array{0: User, 1: Company} */
+    private function companyWithoutSubscription(): array
+    {
+        $company = Company::factory()->create(['plan' => 'basic', 'is_active' => true]);
+        $admin = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        $admin->assignRole(UserRole::CompanyAdmin->value);
+
+        return [$admin, $company];
     }
 
     /** @return array{0: User, 1: Company} */

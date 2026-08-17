@@ -190,6 +190,12 @@ class CompanySubscriptionController extends Controller
         $subscription->setAttribute('trial_used', $subscription->company_id
             ? $this->subscriptions->hasUsedTrial($subscription->company)
             : false);
+        // Whether a trial can still be started at all, which is not the same
+        // question as whether one was used: an organization that subscribed
+        // without ever trialling has no trial left to take either.
+        $subscription->setAttribute('trial_available', $subscription->company_id
+            ? $this->subscriptions->trialAvailable($subscription->company)
+            : false);
         $subscription->setAttribute('quota_usage', $subscription->company
             ? $this->subscriptions->quotaUsage($subscription->company)
             : null);
